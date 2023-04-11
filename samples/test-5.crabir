@@ -1,0 +1,21 @@
+cfg("test-thresholds")
+<start>:
+  n:i32 := 0
+  goto <b1>
+  <b1>:
+  # assert (n <= 60):i32
+  goto <b2>
+<b2>:
+  havoc(y:i32)  
+  if (y >= 0):i32 goto <b1> else goto <b3>
+<b3>:  
+  if (n <= 59):i32 goto <b4> else goto <b5>
+<b4>:
+  n:i32 := n + 1
+  goto <b6>
+<b5>:
+  n:i32 := 0
+  goto <b6>
+<b6>:
+  goto <b1>
+  
