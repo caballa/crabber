@@ -18,10 +18,34 @@ to use Crab APIs.
 where `$CRAB_SOURCE_ROOT` is the path where source code of Crab is
 located.
 
-# Examples #
+# Example #
 
-TODO: add example and syntax
+``` 
+# This is a comment.
+# Newlines are used to delimit a new instruction, new block or new cfg.
+# A cfg must have a name as a string (do not forget double quotes).
+# Blocks are denoted as "<" name ">".
+# The entry block of a cfg must be called "<start>"
+#
+# About types
+#
+# The language is strongly typed so there is NOT type inference. This means
+# that all instructions must have enough type information so that the parser
+# can know the type of all variables. For instance, left-hand side of 
+# assignments must be typed, and constraints that appear in conditionals, assume, 
+# and assert must be also typed.
+#
 
+cfg("foo")
+  <start>: 
+   x:i32 := 0  # x is an integer of 32 bits
+   goto <loop>
+  <loop>: 
+   x:i32 := x + 1
+   if (x <= 9):i32 goto <loop> else goto <out>
+  <out>: 
+   EXPECT_EQ(true, assert(x == 10):i32)
+```
 
 # Usage #
 
