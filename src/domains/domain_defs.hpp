@@ -26,19 +26,6 @@ namespace crab_tests {
 using namespace cfg;
 using namespace crab::domains;
 using namespace ikos;
-
-/*===================================================================*/
-// Region domain
-/*===================================================================*/
-//using var_allocator = crab::var_factory_impl::str_var_alloc_col;
-template<class BaseAbsDom>
-struct RegionParams {
-  using number_t = number_t;
-  using varname_t = varname_t;
-  using varname_allocator_t = crab::var_factory_impl::str_var_alloc_col;  
-  using base_abstract_domain_t = BaseAbsDom;
-  using base_varname_t = typename BaseAbsDom::varname_t;
-};
   
 #define BASE(DOM) base_ ## DOM
 // Term functor domain 
@@ -58,21 +45,43 @@ struct RegionParams {
 /*===================================================================*/
 // Numerical domains over integers
 /*===================================================================*/
-using interval_domain_t = interval_domain<number_t, varname_t>;
-using congruences_domain_t = numerical_congruence_domain<interval_domain_t>;
+using BASE(interval_domain_t) = interval_domain<number_t, varname_t>;
+using interval_domain_t = BOOL_NUM(BASE(interval_domain_t));
 using dbm_graph_t = DBM_impl::DefaultParams<number_t, DBM_impl::GraphRep::adapt_ss>;  
-using sdbm_domain_t = split_dbm_domain<number_t, varname_t, dbm_graph_t>;
-using soct_domain_t = split_oct_domain<number_t, varname_t, dbm_graph_t>;  
+using BASE(sdbm_domain_t) = split_dbm_domain<number_t, varname_t, dbm_graph_t>;
+using sdbm_domain_t =  BOOL_NUM(BASE(sdbm_domain_t));  
+using BASE(soct_domain_t) = split_oct_domain<number_t, varname_t, dbm_graph_t>;
+using soct_domain_t = BOOL_NUM(BASE(soct_domain_t));  
+using BASE(pk_apron_domain_t) = apron_domain<number_t, varname_t, APRON_PK>;
+using pk_apron_domain_t = BOOL_NUM(BASE(pk_apron_domain_t));
+using BASE(pk_elina_domain_t) = elina_domain<number_t, varname_t, ELINA_PK>;
+using pk_elina_domain_t = BOOL_NUM(BASE(pk_elina_domain_t));  
+using BASE(poly_pplite_domain_t) = apron_domain<number_t, varname_t, APRON_PPLITE_POLY>;
+using poly_pplite_domain_t = BOOL_NUM(BASE(poly_pplite_domain_t));  
+  
+/*
+using congruences_domain_t = numerical_congruence_domain<interval_domain_t>;
 using boxes_domain_t = boxes_domain<number_t, varname_t>;
 using oct_apron_domain_t = apron_domain<number_t, varname_t, APRON_OCT>;
-using pk_apron_domain_t = apron_domain<number_t, varname_t, APRON_PK>;
-using poly_pplite_domain_t = apron_domain<number_t, varname_t, APRON_PPLITE_POLY>;
 using fpoly_pplite_domain_t = apron_domain<number_t, varname_t, APRON_PPLITE_FPOLY>;
 using pset_pplite_domain_t = apron_domain<number_t, varname_t, APRON_PPLITE_PSET>;
 using oct_elina_domain_t = elina_domain<number_t, varname_t, ELINA_OCT>;
-using pk_elina_domain_t = elina_domain<number_t, varname_t, ELINA_PK>;
 using fixed_tvpi_domain_t = fixed_tvpi_domain<soct_domain_t>;
 using wrapped_interval_domain_t = wrapped_interval_domain<number_t, varname_t>;
+*/
+
+/*===================================================================*/
+// Region domain
+/*===================================================================*/
+/////using var_allocator = crab::var_factory_impl::str_var_alloc_col;
+// template<class BaseAbsDom>
+// struct RegionParams {
+//   using number_t = number_t;
+//   using varname_t = varname_t;
+//   using varname_allocator_t = crab::var_factory_impl::str_var_alloc_col;  
+//   using base_abstract_domain_t = BaseAbsDom;
+//   using base_varname_t = typename BaseAbsDom::varname_t;
+// };
   
 // using rgn_aa_int_params_t = TestRegionParams<
 //   array_adaptive_domain<

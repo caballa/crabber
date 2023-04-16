@@ -162,11 +162,18 @@ int main(int argc, char **argv) {
 
   CrabIrBuilderOpts irOpts;
   CrabIrAnalyzerOpts anaOpts;
+  bool foundDomain = false;
   for (auto dom : AbstractDomain::List) {
     if (dom.name() == domain) {
       anaOpts.domain = dom;
+      foundDomain = true;
     }
   }
+
+  if (!foundDomain) {
+    CRAB_ERROR("cannot recognize domain ", domain);
+  }
+  
   anaOpts.run_checker = !no_checker;
   anaOpts.print_invariants = print_invariants;
   anaOpts.widening_delay = widening_delay;
@@ -183,6 +190,10 @@ int main(int argc, char **argv) {
   if (cverbose > 0) {
     cout << "\n" << res.msg << "\n";
   }
-  
-  return 0;
+
+  if (res.unexpected_failure == 0 && res.unexpected_ok == 0) {
+    return 0;
+  } else {
+    return 1;
+  }
 }
