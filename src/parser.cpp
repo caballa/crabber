@@ -41,10 +41,13 @@
 #define BOOLEAN_TYPE R"_(\s*:\s*i1\s*)_"
 #define LINCST ANY CMPOP ANY
 #define ASSUME R"_(\s*assume)_" LPAREN LINCST RPAREN TYPE
+#define ASSUME_TRIVIAL R"_(\s*assume)_" LPAREN TRUE_OR_FALSE RPAREN 
 #define BOOLEAN_ASSUME R"_(\s*assume)_" LPAREN VAR RPAREN 
 #define ASSERT R"_(\s*assert)_" LPAREN LINCST RPAREN TYPE
+#define ASSERT_TRIVIAL R"_(\s*assert)_" LPAREN TRUE_OR_FALSE RPAREN 
 #define BOOLEAN_ASSERT R"_(\s*assert)_" LPAREN VAR RPAREN
 #define EXPECT_EQ R"_(\s*EXPECT_EQ)_" LPAREN TRUE_OR_FALSE COMMA ASSERT RPAREN
+#define EXPECT_EQ_TRIVIAL R"_(\s*EXPECT_EQ)_" LPAREN TRUE_OR_FALSE COMMA ASSERT_TRIVIAL RPAREN
 #define BOOLEAN_EXPECT_EQ R"_(\s*EXPECT_EQ)_" LPAREN TRUE_OR_FALSE COMMA BOOLEAN_ASSERT RPAREN
 #define HAVOC R"_(\s*havoc)_" LPAREN VAR TYPE RPAREN
 #define EXIT R"_(\s*exit)_"
@@ -57,6 +60,11 @@ using namespace crab;
 
 static variable_t make_variable(variable_factory_t &vfac, string name,
                                 variable_type type) {
+  smatch m;
+  if (!regex_match(name, m, regex(VAR)) ||
+      name == "true" || name == "false") {
+    CRAB_ERROR("cannot create a variable name \"", name, "\"");        
+  }
   return variable_t(vfac[name], type);
 }
 
@@ -250,7 +258,6 @@ linear_constraint_t parse_linear_constraint(const string &cst_text,
                                             variable_factory_t &vfac,
                                             variable_type ty,
                                             unsigned line_number) {
-
   smatch m;
   if (regex_match(cst_text, m, regex(TRUE))) {
     return linear_constraint_t::get_true();
@@ -279,6 +286,34 @@ static void parse_assertion_or_assume(const string &op1, const string &op2,
   linear_expression_t e1 = parse_linear_expression(op1, vfac, ty, line_number);
   linear_expression_t e2 = parse_linear_expression(op2, vfac, ty, line_number);
   linear_constraint_t cst = make_linear_constraint(cmp_op, e1 - e2);
+  if (is_assertion) {
+    crab::cfg::debug_info dbg("no-filename", line_number, 0,
+                              assertion_counter++);
+    b.assertion(cst, dbg);
+  } else {
+    b.assume(cst);
+  }
+}
+
+// assert(true)
+// assert(false)
+// assume(true)
+// assume(false)
+static void parse_assertion_or_assume(const string &lit, 
+				      bool is_assertion, unsigned line_number,
+				      block_t &b, variable_factory_t &vfac,
+				      unsigned &assertion_counter) {
+  bool is_true = true;
+  if (lit == "true") {
+  } else if (lit == "false") {
+    is_true = false;
+  } else {
+    CRAB_ERROR("parse_assertion_or_assume cannot recognize ", lit);
+  }
+
+  linear_constraint_t cst = (is_true ?
+			     linear_constraint_t::get_true():
+			     linear_constraint_t::get_false());
   if (is_assertion) {
     crab::cfg::debug_info dbg("no-filename", line_number, 0,
                               assertion_counter++);
@@ -349,7 +384,6 @@ void parse_instruction(const string &instruction, unsigned line_number,
                        block_t &b, variable_factory_t &vfac, cfg_t &cfg,
                        unsigned &assertion_counter,
                        map<unsigned, expected_result> &expected_results) {
-
   smatch m;
   string instruction_stripped = instruction.substr(0, instruction.find('#'));
   if (std::all_of(instruction_stripped.begin(), instruction_stripped.end(),
@@ -399,16 +433,24 @@ void parse_instruction(const string &instruction, unsigned line_number,
     // integer assume
     parse_assertion_or_assume(m[1], m[3], m[2], m[4], false /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
+  } else if (regex_match(instruction_stripped, m, regex(ASSUME_TRIVIAL))) {
+    // integer assume
+    parse_assertion_or_assume(m[1], false /*is_assertion*/,
+                              line_number, b, vfac, assertion_counter);
   } else if (regex_match(instruction_stripped, m, regex(BOOLEAN_ASSUME))) {
     // boolean assume
     variable_t v = make_variable(vfac, m[1], variable_type(BOOL_TYPE));
     b.bool_assume(v);
   } else if (regex_match(instruction_stripped, m, regex(ASSERT))) {
-    // integer assume
+    // integer assert
     parse_assertion_or_assume(m[1], m[3], m[2], m[4], true /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
+  } else if (regex_match(instruction_stripped, m, regex(ASSERT_TRIVIAL))) {
+    // integer assert
+    parse_assertion_or_assume(m[1], true /*is_assertion*/,
+                              line_number, b, vfac, assertion_counter);
   } else if (regex_match(instruction_stripped, m, regex(BOOLEAN_ASSERT))) {
-    // boolean assume
+    // boolean assert
     variable_t v = make_variable(vfac, m[1], variable_type(BOOL_TYPE));
     crab::cfg::debug_info dbg("no-filename", line_number, 0,
                               assertion_counter++);
@@ -416,6 +458,12 @@ void parse_instruction(const string &instruction, unsigned line_number,
   } else if (regex_match(instruction_stripped, m, regex(EXPECT_EQ))) {
     // integer expect_eq
     parse_assertion_or_assume(m[2], m[4], m[3], m[5], true /*is_assertion*/,
+                              line_number, b, vfac, assertion_counter);
+    unsigned assertion_id = assertion_counter - 1;
+    expected_results[assertion_id] = parse_expected_result(m[1]);
+  } else if (regex_match(instruction_stripped, m, regex(EXPECT_EQ_TRIVIAL))) {
+    // integer expect_eq
+    parse_assertion_or_assume(m[2], true /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
     unsigned assertion_id = assertion_counter - 1;
     expected_results[assertion_id] = parse_expected_result(m[1]);
