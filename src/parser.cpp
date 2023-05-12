@@ -18,7 +18,7 @@
 
 #define CFG_START R"_(\s*cfg)_" LPAREN  QUOTE ANY QUOTE RPAREN
 
-#define CMPOP R"_(\s*(<=|<|>=|>|==|=|!=|<=_u|<_u|>=_u|>_u)\s*)_"
+#define CMPOP R"_(\s*(<=|<|>=|>|==|=|!=)\s*)_"
 #define CASTOP R"_(\s*(trunc|sext|zext)\s*)_"
 #define BOOLEANOP R"_(\s*(and|or|xor)\s*)_"
 #define UNARYOP R"_(\s*(not)\s*)_"
@@ -82,22 +82,6 @@ make_linear_constraint(const string &kind, const linear_expression_t &e) {
     return linear_constraint_t(e == 0);
   } else if (kind == "!=") {
     return linear_constraint_t(e != 0);
-  } else if (kind == "<=_u") {
-    linear_constraint_t c(e <= 0);
-    c.set_unsigned();
-    return c;
-  } else if (kind == "<_u") {
-    linear_constraint_t c(e < 0);
-    c.set_unsigned();
-    return c;
-  } else if (kind == ">=_u") {
-    linear_constraint_t c(e >= 0);
-    c.set_unsigned();
-    return c;
-  } else if (kind == ">_u") {
-    linear_constraint_t c(e > 0);
-    c.set_unsigned();
-    return c;
   } else {
     CRAB_ERROR("parser of linear constraint cannot recognize ", kind);
   }
