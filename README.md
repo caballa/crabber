@@ -2,7 +2,7 @@
 
 The goal of this project is to allow Crab users to write small tests
 to interact with [Crab](https://github.com/seahorn/crab) analyses and
-abstract domains eliminating the need for writing C++ boilerplace code
+abstract domains eliminating the need for writing C++ boilerplate code
 to use Crab APIs.
 
 # Requirements #
