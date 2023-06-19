@@ -34,8 +34,8 @@ TestResult run_test(std::istream &is, const CrabIrBuilderOpts &irOpts,
     if (it != crabIR.getExpectedResults().end()) {
       expected_result exp_res = it->second;
       switch (result) {
-      case crab::checker::_SAFE:
-      case crab::checker::_UNREACH:
+      case crab::checker::check_kind::CRAB_SAFE:
+      case crab::checker::check_kind::CRAB_UNREACH:
         if (exp_res == expected_result::OK) {
           expected_ok++;
           msg << dbg_info << " expected OK\n";
@@ -44,8 +44,8 @@ TestResult run_test(std::istream &is, const CrabIrBuilderOpts &irOpts,
           msg << dbg_info << " unexpected OK\n";
         }
         break;
-      case crab::checker::_ERR:
-      case crab::checker::_WARN:
+      case crab::checker::check_kind::CRAB_ERR:
+      case crab::checker::check_kind::CRAB_WARN:
         if (exp_res == expected_result::FAILED) {
           expected_failure++;
           msg << dbg_info << " expected failure\n";
