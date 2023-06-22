@@ -9,7 +9,12 @@
 namespace crab_tests {
 
 struct CrabIrBuilderOpts {
-  CrabIrBuilderOpts() {}
+  bool simplify_cfg;
+  bool cfg_to_dot;
+
+  CrabIrBuilderOpts()
+    : simplify_cfg(false), cfg_to_dot(false) {}
+  
   void write(crab::crab_os &o) const;
 };
 

@@ -16,12 +16,14 @@ struct CrabIrAnalyzerOpts {
   unsigned thresholds_size;
   bool run_checker;
   bool print_invariants;
+  bool print_invariants_to_dot;
 
   CrabIrAnalyzerOpts()
       : domain(AbstractDomain::ZONES),
 	widening_delay(2), descending_iters(1), thresholds_size(0),
 	run_checker(true),
-	print_invariants(false) {}
+	print_invariants(false),
+	print_invariants_to_dot(false){}
   
   void write(crab::crab_os &o) const;
 };
@@ -44,6 +46,7 @@ public:
                                         const cfg::label_t &block_name) const;
   const crab::checker::checks_db &getChecks() const;
   void write(crab::crab_os &o) const;
+  void write_to_dot() const;  
 };
 
 } // end namespace crab_tests

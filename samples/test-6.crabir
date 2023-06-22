@@ -1,21 +1,21 @@
 # this is a comment
 # newline is used to delimit a new instruction, new block or new cfg
 # A cfg must have a name
-# Blocks are denoted as "<" name ">"
-# The entry block of a cfg must be called "<start>"
+# Blocks are defined as a name followed by ":" 
+# The entry block of a cfg must be called "start"
 # Left-hand side of assignments must be typed
 # Constraints that appear in conditionals, assume, and assert must be also typed
 
  cfg("bar")
- <start>  :
+ start:
    # left-hand side must be typed
    y:i32 := 0
-   goto <loop>
- <loop> :
+   goto loop
+ loop:
    # left-hand side must be typed but not right-hand side
    y:i32 := y + 1
-   if (y <=  9):i32 goto <loop> else goto <loop_exit>
- <loop_exit>:
+   if (y <=  9):i32 goto loop else goto loop_exit
+ loop_exit:
    trunc(y:i32, x1:i16)
    # do not type left-hand side (it can be infered as i1)
    b := (x1 == 10):i16 
@@ -34,7 +34,7 @@
    b4 := not(b2)
    # lhs must be typed
    b3:i1 := b2    
-   goto <end>
- <end>:
+   goto end
+ end:
   EXPECT_EQ(true, assert(b2))
   EXPECT_EQ(false, assert(b4))  

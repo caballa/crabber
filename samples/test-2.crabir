@@ -1,13 +1,13 @@
 # Parsing example
 
     cfg("foo")
-<start> : 
+start : 
     havoc  (y : i64 )
    havoc ( z :i64)
     x:i64 := 0
-   goto <loop>
-  <loop>   : 
+   goto loop
+  loop   : 
    x:i64 := y +    2 *   z + 6 - z 
-      if ( x <=  9):i64 goto <loop> else goto <out>
- <out> : 
+      if ( x <=  9):i64 goto loop else goto out
+ out : 
     assert ( 2*x -6 !=    y + 10 ):i64

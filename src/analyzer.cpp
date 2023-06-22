@@ -5,6 +5,7 @@
 
 #include <crab/analysis/inter/inter_params.hpp>
 #include <crab/analysis/inter/top_down_inter_analyzer.hpp>
+#include <crab/cfg/cfg_to_dot.hpp>
 #include <crab/cg/cg.hpp>
 #include <crab/cg/cg_bgl.hpp>
 #include <crab/support/debug.hpp>
@@ -47,6 +48,7 @@ public:
   const crab::checker::checks_db &getChecks() const;
 
   void write(crab::crab_os &os) const;
+  void write_to_dot() const;  
 }; // end namespace CrabIrAnalyzerImpl
 
 CrabIrAnalyzer::CrabIrAnalyzer(CrabIrBuilder &crabIR,
@@ -78,6 +80,7 @@ const crab::checker::checks_db &CrabIrAnalyzer::getChecks() const {
 }
 
 void CrabIrAnalyzer::write(crab::crab_os &os) const { m_impl->write(os); }
+void CrabIrAnalyzer::write_to_dot() const { m_impl->write_to_dot(); }  
 
 void CrabIrAnalyzerImpl::analyze() {
   if (DomainRegistry::count(m_opts.domain)) {
@@ -167,6 +170,27 @@ void CrabIrAnalyzerImpl::write(crab::crab_os &os) const {
   }
 }
 
+
+void CrabIrAnalyzerImpl::write_to_dot() const {
+  if (m_crabAnalyzer) {
+    auto &cg = m_crabIR.getCallGraph();
+    for (auto n : boost::make_iterator_range(cg.nodes())) {
+      cfg_ref_t cfg_ref = n.get_cfg();
+      if (cfg_ref.has_func_decl()) {
+	std::string cfg_name = cfg_ref.get_func_decl().get_func_name();
+	crab::cfg::cfg_to_dot<cfg_ref_t, crab_abstract_domain>(cfg_ref,
+		      [this, &cfg_name](const label_t &label) -> boost::optional<crab_abstract_domain> {
+			   return getPreInvariant(cfg_name, label); 
+		      },
+		      [](const label_t &label) -> boost::optional<crab_abstract_domain> {
+			   return boost::none;
+		      },
+		      m_checks);							       
+      }
+    }
+  }
+}
+  
 void CrabIrAnalyzerOpts::write(crab::crab_os &o) const {
   o << "=== Crab analyzer options === \n";
   o << "Abstract domain : " << domain.name() << "\n";
@@ -175,6 +199,7 @@ void CrabIrAnalyzerOpts::write(crab::crab_os &o) const {
   o << "Number of widening thresholds : " << thresholds_size << "\n";  
   o << "Run checker     : " << run_checker << "\n";
   o << "Print invariants: " << print_invariants << "\n";
+  o << "Print invariants and CFG to dot format: " << print_invariants_to_dot << "\n";  
 }
 
 } // end namespace crab_tests

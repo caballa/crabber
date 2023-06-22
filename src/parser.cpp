@@ -23,7 +23,7 @@
 #define BOOLEANOP R"_(\s*(and|or|xor)\s*)_"
 #define UNARYOP R"_(\s*(not)\s*)_"
 
-#define LABEL R"_(\s*(<\w[a-zA-Z_0-9]*>)\s*)_"
+#define LABEL R"_(\s*(\w[a-zA-Z_0-9]*)\s*)_"
 #define LABEL_DEF LABEL COLON
 #define IF R"_(\s*if\s*)_"
 #define ELSE R"_(\s*else\s*)_"
@@ -93,7 +93,7 @@ make_cfg(variable_factory_t &vfac, const string &name,
          unsigned &assertion_counter,
          map<unsigned, expected_result> &expected_results) {
 
-  unique_ptr<cfg_t> cfg(new cfg_t("<start>"));
+  unique_ptr<cfg_t> cfg(new cfg_t("start"));
   for (auto &p : body) {
     cfg->insert(p.first);
   }
@@ -466,14 +466,19 @@ void parse_instruction(const string &instruction, unsigned line_number,
     variable_type ty(INT_TYPE, std::stoi(m[2]));
     linear_constraint_t cst =
         parse_linear_constraint(m[1], vfac, ty, line_number);
+
+    string then_label = m[3];
+    string else_label = m[4];
+    block_t &edge_then_bb = cfg.insert("edge-" + b.label() + "-" + then_label);
+    block_t &edge_else_bb = cfg.insert("edge-" + b.label() + "-" + else_label);    
     block_t &then_bb = cfg.get_node(m[3]);
     block_t &else_bb = cfg.get_node(m[4]);
-    b >> then_bb;
-    b >> else_bb;
-    then_bb.set_insert_point_front();
-    then_bb.assume(cst);
-    else_bb.set_insert_point_front();
-    else_bb.assume(cst.negate());
+    b >> edge_then_bb;
+    b >> edge_else_bb;
+    edge_then_bb >> then_bb;
+    edge_else_bb >> else_bb;
+    edge_then_bb.assume(cst);
+    edge_else_bb.assume(cst.negate());
   } else if (regex_match(instruction_stripped, m, regex(GOTO LABEL))) {
     string label = m[1];
     block_t &next_bb = cfg.get_node(m[1]);

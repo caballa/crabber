@@ -1,19 +1,19 @@
 cfg("main")
 
-<start>:
+start:
 n:i64 := 100
 x:i64 := 0
 y:i64 := 200
-goto <header>
+goto header
 
-<header>:
-if (x <= n-1):i64 goto <body> else goto <exit>
+header:
+if (x <= n-1):i64 goto body else goto exit
 
-<body>: 
+body: 
 x:i64 := x + 1
 t:i64 := 2*x
 y:i64 := 200 - t
-goto <header>
+goto header
 
-<exit>:
+exit:
  EXPECT_EQ(true, assert(x + y <= 200):i64) 

@@ -1,6 +1,7 @@
 #include <crab_tests/crabir.hpp>
 #include <crab_tests/crabir_builder.hpp>
 #include <crab_tests/parser.hpp>
+#include <crab/cfg/cfg_to_dot.hpp>
 
 namespace crab_tests {
 
@@ -73,14 +74,22 @@ CrabIrBuilderImpl::CrabIrBuilderImpl(std::istream &is,
 }
 
 CrabIrBuilderImpl::~CrabIrBuilderImpl() {}
-
+  
 void CrabIrBuilderImpl::parse() {
   auto p = parse_crabir(m_is, m_vfac);
   m_cfgs = std::move(p.first);
   m_expected_results = std::move(p.second);
   std::vector<cfg_ref_t> cfg_refs;
+  unsigned i = 0;
   for (auto &cfg : m_cfgs) {
+    if (m_opts.simplify_cfg) {
+      cfg->simplify();
+    }
+    if (m_opts.cfg_to_dot) {
+      cfg_to_dot(*cfg);
+    }
     cfg_refs.push_back(cfg_ref_t(*cfg));
+    i++;
   }
   m_callgraph = std::unique_ptr<callgraph_t>(new callgraph_t(cfg_refs));
 }
@@ -139,7 +148,8 @@ CrabIrBuilderImpl::getExpectedResults() const {
 
 void CrabIrBuilderOpts::write(crab::crab_os &o) const {
   o << "=== CrabIR builder options === \n";
-  o << "No options\n";
+  o << "Simplify cfg: " << simplify_cfg << "\n";
+  o << "Print cfg to dot format: " << cfg_to_dot << "\n";
 }
 
 } // end namespace crab_tests

@@ -1,27 +1,27 @@
 cfg("main")
-<start>:
-i:i32 := 0
-goto <b0>
-<b0>:
-  goto <b1>
-<b1>: # outer loop entry 
+start:
+  i:i32 := 0
+  goto b0
+b0:
+  goto b1
+b1: # outer loop entry 
   i:i32 := i + 1
   j:i32 := 0
-  goto <b2> 
-<b2>: # inner loop entry
-  if (j <= 9):i32 goto <b3> else goto <b4>
-<b3>: 
+  goto b2 
+b2: # inner loop entry
+  if (j <= 9):i32 goto b3 else goto b4
+b3: 
   EXPECT_EQ(true, assert(i >= 0):i32)
   EXPECT_EQ(true, assert(i <= 10):i32)
   j:i32 := j + 1
-  goto <b2>
-<b4>:
+  goto b2
+b4:
   assume(j >= 10):i32
-  if (i>=10):i32 goto <b5> else goto <b6>
-<b5>:
+  if (i>=10):i32 goto b5 else goto b6
+b5:
   i:i32 := 0
-  goto <b6>
-<b6>:
-  goto <b1>
+  goto b6
+b6:
+  goto b1
 
  

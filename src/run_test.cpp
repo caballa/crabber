@@ -16,6 +16,9 @@ TestResult run_test(std::istream &is, const CrabIrBuilderOpts &irOpts,
   if (anaOpts.print_invariants) {
     crabAnalyzer.write(crab::outs());
   }
+  if (anaOpts.print_invariants_to_dot) {
+    crabAnalyzer.write_to_dot();
+  }
 
   unsigned expected_ok = 0;
   unsigned unexpected_ok = 0;
@@ -118,6 +121,14 @@ int main(int argc, char **argv) {
   bool print_invariants = false;
   app.add_flag("--print-invariants", print_invariants, "Print invariants");
 
+  bool print_invariants_to_dot = false;
+  app.add_flag("--print-invariants-to-dot", print_invariants_to_dot, "Print invariants and CFG to dot format");
+  
+  bool simplify = false;
+  app.add_flag("--simplify-cfg", simplify, "Simplify CFG");
+
+  bool cfg_to_dot = false;
+  app.add_flag("--cfg-to-dot", cfg_to_dot, "Print CFG to dot format");
   
   /// Options for debugging/logging in crab
 
@@ -161,6 +172,9 @@ int main(int argc, char **argv) {
   }
 
   CrabIrBuilderOpts irOpts;
+  irOpts.simplify_cfg = simplify;
+  irOpts.cfg_to_dot = cfg_to_dot;
+  
   CrabIrAnalyzerOpts anaOpts;
   bool foundDomain = false;
   for (auto dom : AbstractDomain::List) {
@@ -176,6 +190,7 @@ int main(int argc, char **argv) {
   
   anaOpts.run_checker = !no_checker;
   anaOpts.print_invariants = print_invariants;
+  anaOpts.print_invariants_to_dot = print_invariants_to_dot;
   anaOpts.widening_delay = widening_delay;
   anaOpts.descending_iters = descending_iters;
   anaOpts.thresholds_size = thresholds_size;
