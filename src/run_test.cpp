@@ -104,8 +104,11 @@ int main(int argc, char **argv) {
 
   string domain;
   app.add_option("-d,--domain", domain,
-                 "Select abstract domain: int, zones, octagons, pk, pk-lite");
+                 "Select abstract domain. Use --show-domains option to see all the available domains");
 
+  bool print_domains = false;
+  app.add_flag("--show-domains", print_domains, "Show all the available abstract domains");
+  
   unsigned widening_delay = 2;
   app.add_option("--widening-delay", widening_delay, "Number of fixpoint iterations until widening is applied (default 2)");
 
@@ -155,6 +158,14 @@ int main(int argc, char **argv) {
   crab_stats = cstats;
   crab_warning = cwarning;
 
+  if (print_domains) {
+    cout << "Available domains: \n";
+    for (auto const &d: AbstractDomain::List) {
+      cout << "\t" << d.name() << ": " <<  d.desc() << "\n";
+    }
+    return 0;
+  }
+  
   // istream *is = nullptr;
   // if (filename != "") {
   //   auto ifs = new ifstream(filename);
@@ -187,7 +198,7 @@ int main(int argc, char **argv) {
   if (!foundDomain) {
     CRAB_ERROR("cannot recognize domain ", domain);
   }
-  
+
   anaOpts.run_checker = !no_checker;
   anaOpts.print_invariants = print_invariants;
   anaOpts.print_invariants_to_dot = print_invariants_to_dot;
