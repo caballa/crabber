@@ -50,6 +50,8 @@
 #define EXPECT_EQ_TRIVIAL R"_(\s*EXPECT_EQ)_" LPAREN TRUE_OR_FALSE COMMA ASSERT_TRIVIAL RPAREN
 #define BOOLEAN_EXPECT_EQ R"_(\s*EXPECT_EQ)_" LPAREN TRUE_OR_FALSE COMMA BOOLEAN_ASSERT RPAREN
 #define HAVOC R"_(\s*havoc)_" LPAREN VAR TYPE RPAREN
+#define VALUE_PARTITION_START R"_(\s*value_partition_start)_" LPAREN VAR TYPE RPAREN
+#define VALUE_PARTITION_END R"_(\s*value_partition_end)_" LPAREN VAR TYPE RPAREN
 #define EXIT R"_(\s*exit)_"
 
 namespace crab_tests {
@@ -496,6 +498,14 @@ void parse_instruction(const string &instruction, unsigned line_number,
   } else if (regex_match(instruction_stripped, m,
 			 regex(VAR ASSIGN UNARYOP LPAREN VAR RPAREN))) {
     parse_unary_op(m[2], m[1], m[3], b, vfac);
+  } else if (regex_match(instruction_stripped, m, regex(VALUE_PARTITION_START))) {
+    variable_type ty(INT_TYPE, std::stoi(m[2]));
+    auto var = variable_or_constant_t(make_variable(vfac, m[1], ty));
+    b.intrinsic("value_partition_start",{},{var});
+  } else if (regex_match(instruction_stripped, m, regex(VALUE_PARTITION_END))) {
+    variable_type ty(INT_TYPE, std::stoi(m[2]));
+    auto var = variable_or_constant_t(make_variable(vfac, m[1], ty));
+    b.intrinsic("value_partition_end",{},{var});    
   } else if (regex_match(instruction_stripped, m, regex(EXIT))) {
     // do nothing
   } else {
