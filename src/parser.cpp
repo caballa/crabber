@@ -52,6 +52,8 @@
 #define HAVOC R"_(\s*havoc)_" LPAREN VAR TYPE RPAREN
 #define VALUE_PARTITION_START R"_(\s*value_partition_start)_" LPAREN VAR TYPE RPAREN
 #define VALUE_PARTITION_END R"_(\s*value_partition_end)_" LPAREN VAR TYPE RPAREN
+#define ARRAY_LOAD VAR TYPE ASSIGN R"_(\s*array_load)_" LPAREN VAR COMMA VAR TYPE RPAREN
+#define ARRAY_STORE R"_(\s*array_store)_" LPAREN VAR COMMA VAR TYPE COMMA VAR TYPE RPAREN
 #define EXIT R"_(\s*exit)_"
 
 namespace crab_tests {
@@ -379,6 +381,29 @@ void parse_instruction(const string &instruction, unsigned line_number,
     variable_type ty(INT_TYPE, std::stoi(m[2]));
     variable_t var = make_variable(vfac, m[1], ty);
     b.havoc(var);
+  } else if (regex_match(instruction_stripped, m, regex(ARRAY_LOAD))) {
+    variable_type lhs_ty(INT_TYPE, std::stoi(m[2]));
+    auto lhs_var = make_variable(vfac, m[1], lhs_ty);
+    auto array_var = make_variable(vfac, m[3],variable_type(ARR_INT_TYPE));
+    
+    variable_type idx_ty(INT_TYPE, std::stoi(m[5]));
+    if (idx_ty.get_integer_bitwidth() != 64) {
+      CRAB_ERROR("cannot parse ", instruction_stripped,
+		 " because array indexes must be i64");
+    }        
+    auto idx_var = make_variable(vfac, m[4], idx_ty);
+    b.array_load(lhs_var, array_var, idx_var, lhs_ty.get_integer_bitwidth()/8);
+  } else if (regex_match(instruction_stripped, m, regex(ARRAY_STORE))) {
+    auto array_var = make_variable(vfac, m[1],variable_type(ARR_INT_TYPE));
+    variable_type idx_ty(INT_TYPE, std::stoi(m[3]));
+    if (idx_ty.get_integer_bitwidth() != 64) {
+      CRAB_ERROR("cannot parse ", instruction_stripped,
+		 " because array indexes must be i64");
+    }    
+    auto idx_var = make_variable(vfac, m[2], idx_ty);
+    variable_type val_ty(INT_TYPE, std::stoi(m[5]));
+    auto val_var = make_variable(vfac, m[4], val_ty);
+    b.array_store(array_var, idx_var, val_var, val_ty.get_integer_bitwidth()/8);
   } else if (regex_match(instruction_stripped, m, regex(VAR BOOLEAN_TYPE ASSIGN VAR))) {
     // boolean assignment
     variable_t lhs = make_variable(vfac, m[1], variable_type(BOOL_TYPE));
