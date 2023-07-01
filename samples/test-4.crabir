@@ -1,4 +1,4 @@
-cfg("main")
+cfg("octagons")
 
 start:
 n:i64 := 100

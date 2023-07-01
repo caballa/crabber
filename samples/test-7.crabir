@@ -1,0 +1,22 @@
+cfg("loop-partitioning")
+  start: 
+    x:i32 := 0
+    value_partition_start(x:i32)
+    goto b1
+  b1: 
+    x:i32 := x + 1
+    if (x == 5):i32 goto b2 else goto b3
+  b2:
+    y:i32 := 0
+    goto b3
+  b3:
+    if (x > 5):i32 goto b4 else goto b5
+  b4:
+    y:i32 := y + 1
+    goto b5
+  b5:
+    if (x <= 9):i32 goto b1 else goto exit
+  exit:
+    EXPECT_EQ(true, assert(x == 10):i32)
+    EXPECT_EQ(true, assert(y == 5):i32)
+    value_partition_end(x:i32)

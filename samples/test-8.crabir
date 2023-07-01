@@ -1,0 +1,15 @@
+cfg("arrays")
+start:
+   x_addr:i64 := 1024
+   x:i32 := 0  
+   array_store(Stack, x_addr:i64, x:i32)
+   goto loop
+loop:
+   x:i32 := array_load(Stack, x_addr:i64)
+   x:i32 := x + 1
+   array_store(Stack, x_addr:i64, x:i32)
+   if (x <= 9):i32 goto loop else goto exit
+exit:
+   x:i32 := array_load(Stack, x_addr:i64)
+   EXPECT_EQ(true, assert(x == 10):i32)
+

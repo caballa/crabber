@@ -1,4 +1,4 @@
-cfg("test-thresholds")
+cfg("thresholds")
 start:
   n:i32 := 0
   goto b1

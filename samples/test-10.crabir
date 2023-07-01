@@ -1,0 +1,18 @@
+cfg("terms")
+start:
+   havoc(x:i32)
+   havoc(y:i32)
+   
+   assume(x >= 0):i32
+   assume(x <= 10):i32
+   assume(y >= -10):i32
+   assume(y <= 10):i32   
+   z:i32 := x * y
+   if (y < 0):i32 goto b1 else goto b2
+b1:
+   z:i32 := - z
+   goto b2
+b2:   
+   EXPECT_EQ(true, assert(z >= 0):i32)
+   EXPECT_EQ(true, assert(z <= 100):i32)   
+

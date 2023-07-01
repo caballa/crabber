@@ -26,23 +26,22 @@ public:
 // Here base domains  
 constexpr Type INTERVALS(1, "int", "Classical intervals");
 constexpr Type BOXES(2, "boxes", "Disjunctive intervals based on Linear Decision Diagrams");
-constexpr Type TERMS_INTERVALS(3, "terms", "Reduced product of Herbrand terms and intervals");  
-constexpr Type ZONES(4, "zones", "Zones domain using DBMs in Split Normal Form");
-constexpr Type OCTAGONS_SNF(5, "oct-snf","Octagons domain using DBMs in Split Normal Form");
-constexpr Type OCTAGONS(6, "oct","Octagons domain from Apron or Elina");
-constexpr Type FIXED_TVPI(7, "fixed-tvpi","Fixed TVPI using Octagons");    
-constexpr Type PK(8, "pk", "Polyhedra domain from Apron or Elina");
-constexpr Type PK_PPLITE(9, "pk-pplite", "Polyhedra domain from PPLite");
+constexpr Type ZONES(3, "zones", "Zones domain using DBMs in Split Normal Form");
+constexpr Type OCTAGONS_SNF(4, "oct-snf","Octagons domain using DBMs in Split Normal Form");
+constexpr Type OCTAGONS(5, "oct","Octagons domain from Apron or Elina");
+constexpr Type FIXED_TVPI(6, "fixed-tvpi","Fixed TVPI using Octagons");    
+constexpr Type PK(7, "pk", "Polyhedra domain from Apron or Elina");
+constexpr Type PK_PPLITE(8, "pk-pplite", "Polyhedra domain from PPLite");
 
 // Here complex domains
+constexpr Type TERMS_INTERVALS(9, "int-terms", "Reduced product of Herbrand terms and intervals");    
 constexpr Type SET_INTERVALS(10, "int-set", "Naive powerset of intervals");
 constexpr Type VAL_PARTITION_INTERVALS(11, "int-val-part", "Value partitioning of intervals");
 constexpr Type SET_PK_PPLITE(12, "pk-pplite-set", "Powerset of pk");    
 constexpr Type VAL_PARTITION_ZONES(13, "zones-val-part", "Value partitioning of zones");
   
 constexpr std::array<Type, 13>
-List = {INTERVALS, SET_INTERVALS, VAL_PARTITION_INTERVALS, BOXES,
-	TERMS_INTERVALS,
+List = {INTERVALS, TERMS_INTERVALS, SET_INTERVALS, VAL_PARTITION_INTERVALS, BOXES,
 	ZONES, VAL_PARTITION_ZONES,
 	OCTAGONS_SNF, OCTAGONS,
 	FIXED_TVPI,

@@ -1,0 +1,19 @@
+cfg("fixed-tvpi")
+start:
+   havoc(N:i32)
+   assume(N > 0):i32
+   i:i32 := 0
+   x:i32 := 0
+   y:i32 := 0     
+   goto loop_header
+loop_header:
+   if (i < N):i32 goto loop_body else goto exit
+loop_body:   
+   i:i32 := i + 1
+   x:i32 := x + 4
+   y:i32 := y + 8
+   goto loop_header
+exit:
+   EXPECT_EQ(true, assert(x == 4*N):i32)
+   EXPECT_EQ(true, assert(y == 8*N):i32)   
+

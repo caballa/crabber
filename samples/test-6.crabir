@@ -6,7 +6,7 @@
 # Left-hand side of assignments must be typed
 # Constraints that appear in conditionals, assume, and assert must be also typed
 
- cfg("bar")
+ cfg("booleans")
  start:
    # left-hand side must be typed
    y:i32 := 0

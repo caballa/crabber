@@ -1,8 +1,8 @@
 # this is a comment
 # newline is used to delimit a new instruction, new block or new cfg
 # A cfg must have a name
-# Blocks are denoted as "<" name ">"
-# The entry block of a cfg must be called "<start>"
+# Blocks are denoted as a string name followed by ":".
+# The entry block of a cfg must be called "start"
 # Left-hand side of assignments must be typed
 # Constraints that appear in conditionals, assume, and assert must be also typed
 
@@ -16,7 +16,7 @@ cfg("foo")
   out: 
    EXPECT_EQ(false, assert(x != 10):i32)
 
- cfg("bar")
+cfg("bar")
   start: 
    y:i32 := 0
    goto loop

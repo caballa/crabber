@@ -1,6 +1,6 @@
 # Parsing example
 
-    cfg("foo")
+    cfg("parsing-example")
 start : 
     havoc  (y : i64 )
    havoc ( z :i64)

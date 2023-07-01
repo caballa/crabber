@@ -1,6 +1,7 @@
 #include "CLI11.hpp"
 
 #include <crab_tests/run_test.hpp>
+#include <crab/domains/abstract_domain_params.hpp>
 #include <memory>
 #include <string>
 
@@ -104,7 +105,7 @@ int main(int argc, char **argv) {
 
   string domain;
   app.add_option("-d,--domain", domain,
-                 "Select abstract domain. Use --show-domains option to see all the available domains");
+                 "Select abstract domain");
 
   bool print_domains = false;
   app.add_flag("--show-domains", print_domains, "Show all the available abstract domains");
@@ -116,7 +117,10 @@ int main(int argc, char **argv) {
   app.add_option("--widening-thresholds", thresholds_size, "Size of widening thresholds (default 0)");
   
   unsigned descending_iters = 1;
-  app.add_option("--descending-iters", descending_iters, "Number of descending (narrowing) iterations (default 1)");
+  app.add_option("-n,--descending-iters", descending_iters, "Number of descending (narrowing) iterations (default 1)");
+
+  string fixed_tvpi_coefficients = "";
+  app.add_option("--coefficients", fixed_tvpi_coefficients, "Coefficients for fixed-tvpi: each separated by comma");
   
   bool no_checker = false;
   app.add_flag("--no-checker", no_checker, "Disable assertion checking");
@@ -125,10 +129,10 @@ int main(int argc, char **argv) {
   app.add_flag("--print-invariants", print_invariants, "Print invariants");
 
   bool print_invariants_to_dot = false;
-  app.add_flag("--print-invariants-to-dot", print_invariants_to_dot, "Print invariants and CFG to dot format");
+  app.add_flag("-p,--print-invariants-to-dot", print_invariants_to_dot, "Print invariants and CFG to dot format");
   
   bool simplify = false;
-  app.add_flag("--simplify-cfg", simplify, "Simplify CFG");
+  app.add_flag("-s,--simplify-cfg", simplify, "Simplify CFG");
 
   bool cfg_to_dot = false;
   app.add_flag("--cfg-to-dot", cfg_to_dot, "Print CFG to dot format");
@@ -148,7 +152,7 @@ int main(int argc, char **argv) {
   app.add_flag("--stats", cstats, "Print stats");
 
   bool cwarning = false;
-  app.add_flag("--warnings", cwarning, "Print warning messages");
+  app.add_flag("-w,--warnings", cwarning, "Print warning messages");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -199,6 +203,14 @@ int main(int argc, char **argv) {
     CRAB_ERROR("cannot recognize domain ", domain);
   }
 
+  if (fixed_tvpi_coefficients != "") {
+    stringstream ss(fixed_tvpi_coefficients);
+    string str;
+    while (getline(ss, str, ',')) {
+      crab::domains::crab_domain_params_man::get().coefficients().push_back(stoul(str));
+    }
+  }
+  
   anaOpts.run_checker = !no_checker;
   anaOpts.print_invariants = print_invariants;
   anaOpts.print_invariants_to_dot = print_invariants_to_dot;
