@@ -22,6 +22,7 @@
 #define CASTOP R"_(\s*(trunc|sext|zext)\s*)_"
 #define BOOLEANOP R"_(\s*(and|or|xor)\s*)_"
 #define UNARYOP R"_(\s*(not)\s*)_"
+#define MUL_OR_DIV R"_(\s*([\*/])\s*)_"
 
 #define LABEL R"_(\s*(\w[a-zA-Z_0-9]*)\s*)_"
 #define LABEL_DEF LABEL COLON
@@ -35,8 +36,13 @@
 #define IMM R"_(\s*([-+]?\d+)\s*)_"
 #define ASSIGN R"_(\s*:=\s*)_"
 #define VAR R"_(\s*([\.@a-zA-Z_][\.a-zA-Z0-9_]*)\s*)_"
+// FIXME: this is the regex for a literal but it doesn't enforce to
+// start from the beginning of the string. Thus, the string can have
+// arbitrary garbage between literals and the parser will not
+// complain.
 #define LITERAL                                                                \
   R"_(\s*([-+]?)\s*(\d*)\s*\*?\s*([\.@a-zA-Z_][\.a-zA-Z0-9_]*)|\s*([-+]?)\s*(\d+)\s*)_"
+#define NONLINEAR_MUL_OR_DIV VAR MUL_OR_DIV VAR
 #define TYPE R"_(\s*:\s*i(\d+)\s*)_"
 #define BOOLEAN_TYPE R"_(\s*:\s*i1\s*)_"
 #define LINCST ANY CMPOP ANY
@@ -417,7 +423,7 @@ void parse_instruction(const string &instruction, unsigned line_number,
       parse_linear_constraint(m[2], vfac, ty, line_number);
     b.bool_assign(lhs, cst);
   } else if (regex_match(instruction_stripped, m, regex(VAR TYPE ASSIGN IMM))) {
-    // integer assignment
+    // integer assignment where rhs is an immediate value
     auto bitwidth = std::stoi(m[2]);
     if (bitwidth == 1) {
       CRAB_ERROR("cannot assign an immediate value to a Boolean variable in ",
@@ -427,6 +433,25 @@ void parse_instruction(const string &instruction, unsigned line_number,
     variable_t lhs = make_variable(vfac, m[1], ty);
     number_t rhs(m[3]);
     b.assign(lhs, rhs);
+  } else if (regex_match(instruction_stripped, m, regex(VAR TYPE ASSIGN NONLINEAR_MUL_OR_DIV))) {
+    auto bitwidth = std::stoi(m[2]);
+    if (bitwidth == 1) {
+      CRAB_ERROR("cannot assign the result of an arithmetic operation to a boolean in ",
+		 instruction_stripped);
+    }
+    variable_type ty(INT_TYPE, bitwidth);
+    variable_t lhs = make_variable(vfac, m[1], ty);
+    variable_t op1 = make_variable(vfac, m[3], ty);
+    variable_t op2 = make_variable(vfac, m[5], ty);
+    string op = m[4];
+    if (op == "*") {
+      b.mul(lhs, op1, op2);
+    } else if (op == "/") {
+      b.div(lhs, op1, op2);      
+    } else {
+      CRAB_ERROR("unrecognized operator on the rhs in ", instruction_stripped);
+    }
+    
   } else if (regex_match(instruction_stripped, m, regex(VAR TYPE ASSIGN ANY))) {
     auto bitwidth = std::stoi(m[2]);
     if (bitwidth == 1) {
@@ -434,7 +459,7 @@ void parse_instruction(const string &instruction, unsigned line_number,
 		 "- cannot assign a linear expression to a Boolean variable or\n",
 		 "- typing unnecessarily the left-hand side with i1");
     }    
-    // integer assignment
+    // integer assignment where rhs is a linear expression
     variable_type ty(INT_TYPE, bitwidth);
     variable_t lhs = make_variable(vfac, m[1], ty);      
     linear_expression_t e =
