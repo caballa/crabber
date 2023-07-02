@@ -13,6 +13,7 @@
 #include <crab/domains/boxes.hpp>
 #include <crab/domains/combined_domains.hpp>
 #include <crab/domains/combined_congruences.hpp>
+#include <crab/domains/dis_intervals.hpp>
 #include <crab/domains/elina_domains.hpp>
 #include <crab/domains/fixed_tvpi_domain.hpp>
 #include <crab/domains/intervals.hpp>
@@ -75,7 +76,12 @@ using interval_domain_t = ARRAY_FUN(BOOL_NUM(BASE(interval_domain_t)));
 using BASE(interval_domain_t) = interval_domain<number_t, varname_t>;
 using set_interval_domain_t = POWERSET(ARRAY_FUN(BOOL_NUM(BASE(interval_domain_t))));
 using val_partition_interval_domain_t = VAL_PARTITIONING(ARRAY_FUN(BOOL_NUM(BASE(interval_domain_t))));
-using boxes_domain_t = boxes_domain<number_t, varname_t>;  
+using BASE(boxes_domain_t) = boxes_domain<number_t, varname_t>;
+using boxes_domain_t = ARRAY_FUN(BASE(boxes_domain_t));
+using BASE(dis_interval_domain_t) = dis_interval_domain<number_t, varname_t>;
+using dis_interval_domain_t = ARRAY_FUN(BOOL_NUM(BASE(dis_interval_domain_t)));
+//using BASE(wrapped_interval_domain_t) = wrapped_interval_domain<number_t, varname_t>;
+//using wrapped_interval_domain_t = ARRAY_FUN(BOOL_NUM(BASE(wrapped_interval_domain_t)));
 // polyhedra
 #ifdef HAVE_APRON
 using BASE(pk_apron_domain_t) = apron_domain<number_t, varname_t, APRON_PK>;

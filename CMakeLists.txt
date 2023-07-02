@@ -56,12 +56,13 @@ add_executable(run_test
   src/crabir_builder.cpp
   src/analyzer.cpp
   src/domains/boxes_domain.cpp
+  src/domains/dis_interval_domain.cpp    
   src/domains/fixed_tvpi_domain.cpp
   src/domains/interval_domain.cpp
   src/domains/octagons_domain.cpp
   src/domains/pk_domain.cpp
   src/domains/pk_pplite_domain.cpp
-  src/domains/symbolic_terms.cpp  
+  src/domains/symbolic_terms.cpp
   src/domains/zones_domain.cpp
 )
 target_link_libraries(run_test PRIVATE ${CRAB_LIBS})

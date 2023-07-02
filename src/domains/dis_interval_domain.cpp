@@ -2,8 +2,6 @@
 #include "domain_registry.hpp"
 #include <crab_tests/domains.hpp>
 
-namespace crab_tests {
-#ifdef HAVE_LDD   
-REGISTER_DOMAIN(AbstractDomain::BOXES, boxes_domain_t)
-#endif 
+namespace crab_tests {  
+REGISTER_DOMAIN(AbstractDomain::DIS_INTERVALS, dis_interval_domain_t)
 } // end namespace crab_tests
