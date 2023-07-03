@@ -1,14 +1,14 @@
 #include "CLI11.hpp"
 
-#include <crab_tests/run_test.hpp>
+#include <crabber/crabber.hpp>
 #include <crab/domains/abstract_domain_params.hpp>
 #include <memory>
 #include <string>
 
 using namespace std;
 
-namespace crab_tests {
-TestResult run_test(std::istream &is, const CrabIrBuilderOpts &irOpts,
+namespace crabber {
+TestResult run_program(std::istream &is, const CrabIrBuilderOpts &irOpts,
                     const CrabIrAnalyzerOpts &anaOpts) {
   CrabIrBuilder crabIR(is, irOpts);
   CrabIrAnalyzer crabAnalyzer(crabIR, anaOpts);
@@ -63,7 +63,7 @@ TestResult run_test(std::istream &is, const CrabIrBuilderOpts &irOpts,
   return TestResult{expected_ok, unexpected_ok, expected_failure,
                     unexpected_failure, msg.str()};
 }
-} // end namespace crab_tests
+} // end namespace crabber
 
 /* Debugging/Logging/Sanity Checks options */
 
@@ -92,10 +92,10 @@ struct StatsOpt {
 };
 StatsOpt crab_stats;
 
-using namespace crab_tests;
+using namespace crabber;
 
 int main(int argc, char **argv) {
-  CLI::App app{"Run Crab analyzer"};
+  CLI::App app{"Run Crab analyzer on CrabIR programs"};
   //  string filename = "";
   //  app.add_option("-i,--input", filename, "Input file")->type_name("FILE");
   std::string filename;
@@ -217,7 +217,7 @@ int main(int argc, char **argv) {
   anaOpts.widening_delay = widening_delay;
   anaOpts.descending_iters = descending_iters;
   anaOpts.thresholds_size = thresholds_size;
-  TestResult res = run_test(ifs, irOpts, anaOpts);
+  TestResult res = run_program(ifs, irOpts, anaOpts);
 
   cout << "\n### TESTS RESULTS ###\n";
   cout << "Expected OK         : " << res.expected_ok << "\n";

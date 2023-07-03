@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace crab_tests {
+namespace crabber {
 namespace cfg {
 using variable_factory_t = crab::var_factory_impl::str_variable_factory;
 using varname_t = typename variable_factory_t::varname_t;
@@ -28,7 +28,7 @@ using function_declaration_t = crab::cfg::function_decl<number_t, varname_t>;
 namespace callgraph {
 using callgraph_t = crab::cg::call_graph<cfg::cfg_ref_t>;
 } // namespace callgraph
-} // end namespace crab_tests
+} // end namespace crabber
 
 namespace crab {
 template <> class variable_name_traits<std::string> {
@@ -36,9 +36,9 @@ public:
   static std::string to_string(std::string varname) { return varname; }
 };
 
-template <> class basic_block_traits<crab_tests::cfg::block_t> {
+template <> class basic_block_traits<crabber::cfg::block_t> {
 public:
-  static std::string to_string(const typename crab_tests::cfg::label_t &bbl) {
+  static std::string to_string(const typename crabber::cfg::label_t &bbl) {
     return bbl;
   }
 };

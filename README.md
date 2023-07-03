@@ -1,4 +1,4 @@
-# crab-tests #
+# crabber  #
 
 The goal of this project is to allow Crab users to write small tests
 to interact with [Crab](https://github.com/seahorn/crab) analyses and
@@ -52,13 +52,13 @@ cfg("foo")
 ## Command Line Interface ## 
 
 ``` bash
-$INSTALL_DIR/bin/run_test samples/test-1.crabir
+$INSTALL_DIR/bin/crabber samples/test-1.crabir
 ```
 
 Run 
 
 ``` bash
-$INSTALL_DIR/bin/run_test --help
+$INSTALL_DIR/bin/crabber --help
 ```
 
 to see all options. For instance, option `--print-invariants-to-dot`
@@ -67,11 +67,11 @@ prints both the CFG and the inferred invariants to dot format.
 ## C++ API ##
 
 ``` c++
-// include/crab_tests/run_test.hpp
+// include/crab_tests/crabber.hpp
 
-TestResult run_test(std::istream &is, 
-                    const CrabIrBuilderOpts &irOpts,
-                    const CrabIrAnalyzerOpts &anaOpts);
+TestResult run_program(std::istream &is, 
+                       const CrabIrBuilderOpts &irOpts,
+                       const CrabIrAnalyzerOpts &anaOpts);
 
 ```
 

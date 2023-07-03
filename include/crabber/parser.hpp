@@ -1,6 +1,6 @@
 #pragma once
 
-#include <crab_tests/crabir.hpp>
+#include <crabber/crabir.hpp>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -9,7 +9,7 @@
 
 // Utilities for parsing that can be used by other projects
 
-namespace crab_tests {
+namespace crabber {
 enum class expected_result { OK, FAILED };
   
 cfg::linear_expression_t parse_linear_expression(const std::string &exp,
@@ -30,4 +30,4 @@ void parse_instruction(const std::string &instruction, unsigned line_number,
 std::pair<std::vector<std::unique_ptr<cfg::cfg_t>>,
           std::unique_ptr<std::map<unsigned, expected_result>>>
 parse_crabir(std::istream &is, cfg::variable_factory_t &vfac);
-} // end namespace crab_tests
+} // end namespace crabber

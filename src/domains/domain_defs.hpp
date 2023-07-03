@@ -1,6 +1,6 @@
 #pragma once
 
-#include <crab_tests/crabir.hpp>
+#include <crabber/crabir.hpp>
 
 #include <crab/domains/array_adaptive.hpp>
 #include <crab/domains/flat_boolean_domain.hpp>
@@ -22,7 +22,7 @@
 #include <crab/domains/value_partitioning_domain.hpp>
 #include <crab/domains/wrapped_interval_domain.hpp>
 
-namespace crab_tests {
+namespace crabber {
 
 using namespace cfg;
 using namespace crab::domains;
@@ -110,4 +110,4 @@ using BASE(fixed_tvpi_domain_t) = fixed_tvpi_domain<soct_domain_t>;
 using fixed_tvpi_domain_t = ARRAY_FUN(BOOL_NUM(BASE(fixed_tvpi_domain_t)));  
 // symbolic terms
 using terms_interval_domain_t =  ARRAY_FUN(BOOL_NUM(TERM_FUN(interval_domain_t)));
-} // namespace crab_tests
+} // namespace crabber

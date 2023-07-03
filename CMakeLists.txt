@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.3)
 
-project(crab_tests)
+project(crabber)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR ) 
   message (FATAL_ERROR 
@@ -48,10 +48,10 @@ if (TopLevel)
 endif()  
 
 
-include_directories(${crab_tests_SOURCE_DIR}/external)
-include_directories(${crab_tests_SOURCE_DIR}/include)
-add_executable(run_test
-  src/run_test.cpp
+include_directories(${crabber_SOURCE_DIR}/external)
+include_directories(${crabber_SOURCE_DIR}/include)
+add_executable(crabber
+  src/crabber.cpp
   src/parser.cpp
   src/crabir_builder.cpp
   src/analyzer.cpp
@@ -65,6 +65,6 @@ add_executable(run_test
   src/domains/symbolic_terms.cpp
   src/domains/zones_domain.cpp
 )
-target_link_libraries(run_test PRIVATE ${CRAB_LIBS})
-install(TARGETS run_test DESTINATION bin)
-install(DIRECTORY include/crab_tests DESTINATION include)
+target_link_libraries(crabber PRIVATE ${CRAB_LIBS})
+install(TARGETS crabber DESTINATION bin)
+install(DIRECTORY include/crabber DESTINATION include)

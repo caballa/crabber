@@ -1,9 +1,9 @@
 #include <crab/support/os.hpp>
 #include <crab/support/stats.hpp>
-#include <crab_tests/domains.hpp>
+#include <crabber/domains.hpp>
 #include <map>
 
-namespace crab_tests {
+namespace crabber {
 
 class DomainRegistry {
   using domainKey = AbstractDomain::Type;
@@ -44,6 +44,6 @@ private:
 
 #define REGISTER_DOMAIN(domain_enum_val, domain_decl)                          \
   bool domain_decl##_entry =                                                   \
-      crab_tests::DomainRegistry::add<domain_decl>(domain_enum_val);
+      crabber::DomainRegistry::add<domain_decl>(domain_enum_val);
 
-} // end namespace crab_tests
+} // end namespace crabber

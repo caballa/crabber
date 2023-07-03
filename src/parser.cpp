@@ -1,7 +1,7 @@
 #include <cctype> // isspace
 #include <crab/support/os.hpp>
-#include <crab_tests/crabir.hpp>
-#include <crab_tests/parser.hpp>
+#include <crabber/crabir.hpp>
+#include <crabber/parser.hpp>
 #include <iostream>
 #include <memory>
 #include <regex>
@@ -62,7 +62,7 @@
 #define ARRAY_STORE R"_(\s*array_store)_" LPAREN VAR COMMA VAR TYPE COMMA VAR TYPE RPAREN
 #define EXIT R"_(\s*exit)_"
 
-namespace crab_tests {
+namespace crabber {
   
 using namespace std;
 using namespace cfg;
@@ -110,7 +110,7 @@ make_cfg(variable_factory_t &vfac, const string &name,
   for (auto &p : body) {
     block_t &b = cfg->get_node(p.first);
     for (auto &s : p.second) {
-      crab_tests::parse_instruction(s.first, s.second, b, vfac, *cfg,
+      crabber::parse_instruction(s.first, s.second, b, vfac, *cfg,
                                     assertion_counter, expected_results);
     }
   }
@@ -563,4 +563,4 @@ void parse_instruction(const string &instruction, unsigned line_number,
   }
 }
 
-} // end namespace crab_tests
+} // end namespace crabber

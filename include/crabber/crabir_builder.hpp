@@ -1,12 +1,12 @@
 #pragma once
 
 #include <crab/support/os.hpp>
-#include <crab_tests/crabir.hpp>
-#include <crab_tests/parser.hpp>
+#include <crabber/crabir.hpp>
+#include <crabber/parser.hpp>
 #include <iostream>
 #include <memory>
 
-namespace crab_tests {
+namespace crabber {
 
 struct CrabIrBuilderOpts {
   bool simplify_cfg;
@@ -37,4 +37,4 @@ public:
   const std::map<unsigned, expected_result> &getExpectedResults() const;
 };
 
-} // end namespace crab_tests
+} // end namespace crabber

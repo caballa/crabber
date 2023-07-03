@@ -2,12 +2,12 @@
 
 #include <crab/checkers/base_property.hpp> // checks_db
 #include <crab/support/os.hpp>
-#include <crab_tests/crabir.hpp>
-#include <crab_tests/crabir_builder.hpp>
-#include <crab_tests/domains.hpp>
+#include <crabber/crabir.hpp>
+#include <crabber/crabir_builder.hpp>
+#include <crabber/domains.hpp>
 #include <memory>
 
-namespace crab_tests {
+namespace crabber {
 
 struct CrabIrAnalyzerOpts {
   AbstractDomain::Type domain;
@@ -49,4 +49,4 @@ public:
   void write_to_dot() const;  
 };
 
-} // end namespace crab_tests
+} // end namespace crabber

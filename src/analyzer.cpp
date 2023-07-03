@@ -1,7 +1,7 @@
 #include "domains/domain_registry.hpp"
-#include <crab_tests/analyzer.hpp>
-#include <crab_tests/crabir_builder.hpp>
-#include <crab_tests/domains.hpp>
+#include <crabber/analyzer.hpp>
+#include <crabber/crabir_builder.hpp>
+#include <crabber/domains.hpp>
 
 #include <crab/analysis/inter/inter_params.hpp>
 #include <crab/analysis/inter/top_down_inter_analyzer.hpp>
@@ -14,7 +14,7 @@
 #include <memory>
 #include <unordered_set>
 
-namespace crab_tests {
+namespace crabber {
 
 using namespace cfg;
 using namespace callgraph;
@@ -202,4 +202,4 @@ void CrabIrAnalyzerOpts::write(crab::crab_os &o) const {
   o << "Print invariants and CFG to dot format: " << print_invariants_to_dot << "\n";  
 }
 
-} // end namespace crab_tests
+} // end namespace crabber

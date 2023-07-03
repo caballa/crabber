@@ -1,9 +1,9 @@
-#include <crab_tests/crabir.hpp>
-#include <crab_tests/crabir_builder.hpp>
-#include <crab_tests/parser.hpp>
+#include <crabber/crabir.hpp>
+#include <crabber/crabir_builder.hpp>
+#include <crabber/parser.hpp>
 #include <crab/cfg/cfg_to_dot.hpp>
 
-namespace crab_tests {
+namespace crabber {
 
 using namespace cfg;
 using namespace callgraph;
@@ -152,4 +152,4 @@ void CrabIrBuilderOpts::write(crab::crab_os &o) const {
   o << "Print cfg to dot format: " << cfg_to_dot << "\n";
 }
 
-} // end namespace crab_tests
+} // end namespace crabber

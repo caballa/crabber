@@ -1,9 +1,9 @@
 #pragma once
 
-#include <crab_tests/crabir.hpp>
+#include <crabber/crabir.hpp>
 #include <crab/domains/generic_abstract_domain.hpp>
 
-namespace crab_tests {
+namespace crabber {
 namespace AbstractDomain {
 class Type {
 private:
@@ -51,4 +51,4 @@ List = {INTERVALS, DIS_INTERVALS, TERMS_INTERVALS, SET_INTERVALS, VAL_PARTITION_
 
 using crab_abstract_domain =
     crab::domains::abstract_domain_ref<cfg::variable_t>;
-} // namespace crab_tests
+} // namespace crabber

@@ -1,9 +1,9 @@
 #include "domain_defs.hpp"
 #include "domain_registry.hpp"
-#include <crab_tests/domains.hpp>
+#include <crabber/domains.hpp>
 
-namespace crab_tests {
+namespace crabber {
 #ifdef HAVE_LDD   
 REGISTER_DOMAIN(AbstractDomain::BOXES, boxes_domain_t)
 #endif 
-} // end namespace crab_tests
+} // end namespace crabber
