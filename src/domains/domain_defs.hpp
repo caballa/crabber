@@ -99,15 +99,16 @@ using set_poly_pplite_domain_t = apron_domain<number_t, varname_t, APRON_PPLITE_
 using BASE(sdbm_domain_t) = split_dbm_domain<number_t, varname_t, dbm_graph_t>;
 using sdbm_domain_t =  ARRAY_FUN(BOOL_NUM(BASE(sdbm_domain_t)));  
 using val_partition_sdbm_domain_t = VAL_PARTITIONING(ARRAY_FUN(BOOL_NUM(BASE(sdbm_domain_t))));
-// fixed tvpi
+  
+// non-unit octagons using the fixed-tvpi domain
 #ifdef HAVE_APRON  
-using BASE(fixed_tvpi_domain_t) = fixed_tvpi_domain<oct_apron_domain_t>;
+using BASE(non_unit_oct_domain_t) = fixed_tvpi_domain<BASE(oct_apron_domain_t)>;
 #elif defined(HAVE_ELINA)
-using BASE(fixed_tvpi_domain_t) = fixed_tvpi_domain<oct_elina_domain_t>;
+using BASE(non_unit_oct_domain_t) = fixed_tvpi_domain<BASE(oct_elina_domain_t)>;
 #else
-using BASE(fixed_tvpi_domain_t) = fixed_tvpi_domain<soct_domain_t>;  
+using BASE(non_unit_oct_domain_t) = fixed_tvpi_domain<BASE(soct_domain_t)>;  
 #endif   
-using fixed_tvpi_domain_t = ARRAY_FUN(BOOL_NUM(BASE(fixed_tvpi_domain_t)));  
+using non_unit_oct_domain_t = ARRAY_FUN(BOOL_NUM(BASE(non_unit_oct_domain_t)));  
 // symbolic terms
-using terms_interval_domain_t =  ARRAY_FUN(BOOL_NUM(TERM_FUN(interval_domain_t)));
+using terms_interval_domain_t =  ARRAY_FUN(BOOL_NUM(TERM_FUN(BASE(interval_domain_t))));
 } // namespace crabber
