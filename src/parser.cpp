@@ -189,6 +189,10 @@ parse_crabir(istream &is, variable_factory_t &vfac) {
                                assertion_counter, *expected_results));
     cur_cfg_body.clear();
   }
+
+  if (cfgs.empty()) {
+    CRAB_ERROR("No cfg found");
+  }
   return make_pair(std::move(cfgs), std::move(expected_results));
 }
 
