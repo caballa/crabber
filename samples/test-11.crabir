@@ -1,0 +1,70 @@
+cfg("nested-loops-2")
+start:
+ i:i64 := 0
+ goto l1
+
+l1:
+ if (i < 11):i64 goto l1_body else goto l1_exit
+
+l1_body:
+ j:i64 := 0
+ goto l2
+
+l1_exit:
+
+
+l2:
+if (j < 11):i64 goto l2_body else goto l2_exit
+
+l2_body:
+ k:i64 := 0
+ goto l3
+
+l2_exit:
+ i:i64 := i + 1
+ goto l1
+
+l3:
+ if (k < 16):i64 goto l3_body else goto l3_exit
+
+l3_body:
+ l:i64 := 0
+ goto l4
+
+l3_exit:
+ j:i64 := j + 1
+ goto l2
+
+
+l4:
+ if (l < 16):i64 goto l4_body else goto l4_exit
+
+l4_body:
+ m:i64 := 0
+ goto l5
+
+l4_exit:
+ k:i64 := k + 1
+ goto l3
+
+l5:
+ if (m < 3):i64 goto l5_body else goto l5_exit
+
+l5_body:
+ n:i64 := 0
+ goto l6
+
+l5_exit:
+ l:i64 := l + 1
+ goto l4
+
+l6:
+ if (n < 3):i64 goto l6_body else goto l6_exit
+
+l6_body:
+ n:i64 := n + 1
+ goto l6
+
+l6_exit:
+ m:i64 := m + 1
+ goto l5 
