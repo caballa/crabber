@@ -33,7 +33,7 @@
 #define TRUE R"_(\s*true\s*)_"
 #define FALSE R"_(\s*false\s*)_"
 #define TRUE_OR_FALSE R"_(\s*(true|false)\s*)_"
-#define IMM R"_(\s*([-+]?\d+)\s*)_"
+#define IMM R"_(\s*([-+]?\d+|0[xX][0-9a-fA-F]+)\s*)_"
 #define ASSIGN R"_(\s*:=\s*)_"
 #define VAR R"_(\s*([\.@a-zA-Z_][\.a-zA-Z0-9_]*)\s*)_"
 // FIXME: this is the regex for a literal but it doesn't enforce to
@@ -120,7 +120,14 @@ make_cfg(variable_factory_t &vfac, const string &name,
   return cfg;
 }
 
-static number_t parse_number(const string &s) { return number_t(s); }
+/** if the first two characters are 0x or 0X, hexadecimal is
+ *   assumed, if the first two characters are 0b or 0B, binary is
+ *   assumed, otherwise if the first character is 0, octal is assumed,
+ *   otherwise decimal is assumed.
+ **/
+static number_t parse_number(const string &s) {
+  return number_t(s, 0); // default base which is choosen based on above description
+}
 
 static variable_t parse_variable(const string &s, variable_factory_t &vfac,
                                  variable_type ty) {
@@ -435,7 +442,7 @@ void parse_instruction(const string &instruction, unsigned line_number,
     }
     variable_type ty(INT_TYPE, bitwidth);
     variable_t lhs = make_variable(vfac, m[1], ty);
-    number_t rhs(m[3]);
+    number_t rhs = parse_number(m[3]);
     b.assign(lhs, rhs);
   } else if (regex_match(instruction_stripped, m, regex(VAR TYPE ASSIGN NONLINEAR_MUL_OR_DIV))) {
     auto bitwidth = std::stoi(m[2]);
