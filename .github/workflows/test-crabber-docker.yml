@@ -1,0 +1,30 @@
+##########################################
+# Workflow to build and test crabber
+##########################################
+
+name: CI
+
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: main
+  pull_request:
+    branches: main
+  schedule:
+    - cron: 0 0 * * *  # run every day at UTC 00:00
+
+jobs:
+  # This workflow contains a single job called "test"
+  test:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Check out Repo 
+        uses: actions/checkout@v2
+        with:
+          ref: main # only checkout main
+      - name: Build crabber + run tests 
+        run: docker build -t crabber -f docker/crabber.Dockerfile .
