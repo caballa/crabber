@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.3)
+# Range form: min is 3.3, but declare policies are current up to 4.0 so this
+# still configures under CMake 4.x (which rejects a bare min < 3.5).
+cmake_minimum_required(VERSION 3.3...4.0)
 
 project(crabber)
 
@@ -20,10 +22,7 @@ if(NOT CMAKE_BUILD_TYPE)
     "Choose the type of build, options are: Debug Release RelWithDebInfo Coverage." FORCE)
 endif()
 
-# Add path for custom modules
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}  "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
-set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ standard to conform to")
+set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ standard to conform to")
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
@@ -32,12 +31,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 if (TopLevel)
   if (IS_DIRECTORY "${CRAB_ROOT}" AND EXISTS ${CRAB_ROOT}/CMakeLists.txt)
-    ## Needed by Crab
+    ## Needed by Crab headers included from crabber sources. Crab's own
+    ## include_directories(Boost) is subdirectory-scoped and does not
+    ## propagate to the crabber target, so we look Boost up here too.
     find_package (Boost 1.65.0)
     if (Boost_FOUND)
       include_directories (${Boost_INCLUDE_DIRS})
     endif ()
-    ## Crab source code already exists out-of-the tree   
+    ## Crab source code already exists out-of-the tree
     set(CRAB_BINARY_DIR crab) ## needed if CRAB_ROOT out of tree.
     add_subdirectory(${CRAB_ROOT} ${CRAB_BINARY_DIR})
     include_directories(${CRAB_INCLUDE_DIRS})
