@@ -1,7 +1,8 @@
 ########################################################
-# To build the image:
+# To build the image (run from the repo root; the build context must be the
+# repo root because the Dockerfile COPYs the source tree into the image):
 #
-# docker build -t crabber -f crabber.Dockerfile .
+# docker build -t crabber -f docker/crabber.Dockerfile .
 #
 # To load the image:
 #
@@ -15,10 +16,11 @@ FROM seahorn/buildpack-deps-seahorn:$BASE_IMAGE
 RUN cd / && rm -rf /crab && \
     git clone -b dev https://github.com/seahorn/crab crab;
 
-## Download/install crabber
-RUN cd / && rm -rf /crabber && \
-    git clone https://github.com/caballa/crabber crabber; \
-    mkdir -p /crabber/build
+## Install crabber from the build context (the checked-out source), so CI
+## builds exactly what was checked out -- including PR branches and local
+## uncommitted changes -- rather than re-cloning a published ref.
+COPY . /crabber
+RUN mkdir -p /crabber/build
 WORKDIR /crabber/build
 RUN cmake -GNinja \
           -DCMAKE_BUILD_TYPE=RelWithDebInfo \

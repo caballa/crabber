@@ -1,0 +1,11 @@
+# Keep the build context clean: COPY . /crabber must not pull in local
+# build artifacts (stale CMake cache), VCS metadata, or the vendored crab
+# clone (the image clones crab itself).
+.git
+.gitignore
+.DS_Store
+build/
+install/
+crab/
+*.o
+*.a

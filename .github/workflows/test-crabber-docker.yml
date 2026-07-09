@@ -21,10 +21,10 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: Check out Repo 
-        uses: actions/checkout@v2
-        with:
-          ref: main # only checkout main
-      - name: Build crabber + run tests 
+      # Checks out the commit that triggered this run (PR head on
+      # pull_request, the pushed commit on push). The Dockerfile COPYs this
+      # tree, so the image builds exactly what CI checked out.
+      - name: Check out Repo
+        uses: actions/checkout@v4
+      - name: Build crabber + run tests
         run: docker build -t crabber -f docker/crabber.Dockerfile .
