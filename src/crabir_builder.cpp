@@ -80,7 +80,6 @@ void CrabIrBuilderImpl::parse() {
   m_cfgs = std::move(p.first);
   m_expected_results = std::move(p.second);
   std::vector<cfg_ref_t> cfg_refs;
-  unsigned i = 0;
   for (auto &cfg : m_cfgs) {
     if (m_opts.simplify_cfg) {
       cfg->simplify();
@@ -89,7 +88,6 @@ void CrabIrBuilderImpl::parse() {
       cfg_to_dot(*cfg);
     }
     cfg_refs.push_back(cfg_ref_t(*cfg));
-    i++;
   }
   m_callgraph = std::unique_ptr<callgraph_t>(new callgraph_t(cfg_refs));
 }
