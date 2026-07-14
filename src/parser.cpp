@@ -103,7 +103,7 @@ make_cfg(variable_factory_t &vfac, const string &name,
          unsigned &assertion_counter,
          map<unsigned, expected_result> &expected_results) {
 
-  unique_ptr<cfg_t> cfg(new cfg_t("start"));
+  unique_ptr<cfg_t> cfg = make_unique<cfg_t>("start");
   for (auto &p : body) {
     cfg->insert(p.first);
   }

@@ -21,7 +21,7 @@ class CrabIrBuilderImpl {
 public:
   CrabIrBuilderImpl(std::istream &is, const CrabIrBuilderOpts &opts);
   CrabIrBuilderImpl(const CrabIrBuilderImpl &other) = delete;
-  CrabIrBuilderImpl &operator==(const CrabIrBuilderImpl &other) = delete;
+  CrabIrBuilderImpl &operator=(const CrabIrBuilderImpl &other) = delete;
   ~CrabIrBuilderImpl();
   const CrabIrBuilderOpts &getOpts() const;
   bool hasCFG(const std::string &name) const;
@@ -33,7 +33,7 @@ public:
 };
 
 CrabIrBuilder::CrabIrBuilder(std::istream &is, const CrabIrBuilderOpts &opts)
-    : m_impl(new CrabIrBuilderImpl(is, opts)) {}
+    : m_impl(std::make_unique<CrabIrBuilderImpl>(is, opts)) {}
 
 CrabIrBuilder::~CrabIrBuilder() {}
 
@@ -89,7 +89,7 @@ void CrabIrBuilderImpl::parse() {
     }
     cfg_refs.push_back(cfg_ref_t(*cfg));
   }
-  m_callgraph = std::unique_ptr<callgraph_t>(new callgraph_t(cfg_refs));
+  m_callgraph = std::make_unique<callgraph_t>(cfg_refs);
 }
 
 const CrabIrBuilderOpts &CrabIrBuilderImpl::getOpts() const { return m_opts; }
