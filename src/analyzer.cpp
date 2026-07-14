@@ -53,7 +53,7 @@ public:
 
 CrabIrAnalyzer::CrabIrAnalyzer(CrabIrBuilder &crabIR,
                                const CrabIrAnalyzerOpts &opts)
-    : m_impl(new CrabIrAnalyzerImpl(crabIR, opts)) {}
+    : m_impl(std::make_unique<CrabIrAnalyzerImpl>(crabIR, opts)) {}
 
 CrabIrAnalyzer::~CrabIrAnalyzer() {}
 

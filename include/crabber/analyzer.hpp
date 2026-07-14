@@ -36,7 +36,7 @@ class CrabIrAnalyzer {
 public:
   CrabIrAnalyzer(CrabIrBuilder &crabIR, const CrabIrAnalyzerOpts &opts);
   CrabIrAnalyzer(const CrabIrAnalyzer &other) = delete;
-  CrabIrAnalyzer &operator==(const CrabIrAnalyzer &other) = delete;
+  CrabIrAnalyzer &operator=(const CrabIrAnalyzer &other) = delete;
   ~CrabIrAnalyzer();
   const CrabIrAnalyzerOpts &getOpts() const;
   void analyze();

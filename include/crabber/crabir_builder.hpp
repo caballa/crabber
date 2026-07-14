@@ -26,7 +26,7 @@ class CrabIrBuilder {
 public:
   CrabIrBuilder(std::istream &is, const CrabIrBuilderOpts &opts);
   CrabIrBuilder(const CrabIrBuilder &other) = delete;
-  CrabIrBuilder &operator==(const CrabIrBuilder &other) = delete;
+  CrabIrBuilder &operator=(const CrabIrBuilder &other) = delete;
   ~CrabIrBuilder();
   const CrabIrBuilderOpts &getOpts() const;
   bool hasCFG(const std::string &name) const;
