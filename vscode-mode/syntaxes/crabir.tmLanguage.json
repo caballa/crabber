@@ -1,0 +1,96 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "CrabIR",
+  "scopeName": "source.crabir",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#cfg" },
+    { "include": "#labels" },
+    { "include": "#strings" },
+    { "include": "#test-macros" },
+    { "include": "#intrinsics" },
+    { "include": "#memory-ops" },
+    { "include": "#casts" },
+    { "include": "#control-keywords" },
+    { "include": "#verification-keywords" },
+    { "include": "#operator-keywords" },
+    { "include": "#constants" },
+    { "include": "#types" },
+    { "include": "#variables" },
+    { "include": "#numbers" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.crabir"
+    },
+    "cfg": {
+      "match": "\\bcfg\\b",
+      "name": "keyword.other.cfg.crabir"
+    },
+    "labels": {
+      "match": "^\\s*([-A-Za-z$._0-9]+)\\s*(:)\\s*(?=#|$)",
+      "captures": {
+        "1": { "name": "entity.name.label.crabir" },
+        "2": { "name": "punctuation.separator.label.crabir" }
+      }
+    },
+    "strings": {
+      "name": "string.quoted.double.crabir",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "match": "\\\\.", "name": "constant.character.escape.crabir" }
+      ]
+    },
+    "test-macros": {
+      "match": "\\bEXPECT_[A-Z_]+\\b",
+      "name": "support.function.test.crabir"
+    },
+    "intrinsics": {
+      "match": "\\b(value_partition_start|value_partition_end)\\b",
+      "name": "support.function.intrinsic.crabir"
+    },
+    "memory-ops": {
+      "match": "\\b(region_init|region_copy|region_cast|make_ref|remove_ref|load_from_ref|store_to_ref|gep_ref|ref_to_int|int_to_ref|array_store|array_load|array_assign)\\b",
+      "name": "keyword.other.memory.crabir"
+    },
+    "casts": {
+      "match": "\\b(trunc|sext|zext)\\b",
+      "name": "keyword.other.cast.crabir"
+    },
+    "control-keywords": {
+      "match": "\\b(if|else|goto|assume|unreachable)\\b",
+      "name": "keyword.control.crabir"
+    },
+    "verification-keywords": {
+      "match": "\\b(havoc|assert)\\b",
+      "name": "keyword.other.verification.crabir"
+    },
+    "operator-keywords": {
+      "match": "\\b(add|sub|mul|sdiv|udiv|urem|srem|and|or|xor|not|call|ite)\\b",
+      "name": "keyword.operator.word.crabir"
+    },
+    "constants": {
+      "match": "\\b(declare|true|false)\\b",
+      "name": "constant.language.crabir"
+    },
+    "types": {
+      "match": "\\bi[0-9]+\\b",
+      "name": "storage.type.crabir"
+    },
+    "variables": {
+      "match": "@[-A-Za-z$._][-A-Za-z$._0-9]*",
+      "name": "variable.other.global.crabir"
+    },
+    "numbers": {
+      "match": "\\b-?[0-9]+\\b",
+      "name": "constant.numeric.crabir"
+    },
+    "operators": {
+      "match": "(:=|<=|>=|==|!=|<|>|\\+|-|\\*|/)",
+      "name": "keyword.operator.crabir"
+    }
+  }
+}

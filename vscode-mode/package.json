@@ -1,0 +1,36 @@
+{
+  "name": "crabir",
+  "displayName": "CrabIR",
+  "description": "Syntax highlighting for the CrabIR language (*.crabir files).",
+  "version": "0.1.0",
+  "publisher": "crab",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "crabir",
+        "aliases": [
+          "CrabIR",
+          "crabir"
+        ],
+        "extensions": [
+          ".crabir"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "crabir",
+        "scopeName": "source.crabir",
+        "path": "./syntaxes/crabir.tmLanguage.json"
+      }
+    ]
+  }
+}
