@@ -69,3 +69,45 @@ add_executable(crabber
 target_link_libraries(crabber PRIVATE ${CRAB_LIBS})
 install(TARGETS crabber DESTINATION bin)
 install(DIRECTORY include/crabber DESTINATION include)
+
+if (TopLevel)
+  # Run the sample CrabIR programs as tests. crabber exits non-zero when there
+  # are unexpected results, so the process exit code is the pass/fail oracle.
+  # These mirror the invocations in docker/crabber.Dockerfile.
+  enable_testing()
+
+  function(add_crabber_test test_name)
+    add_test(
+      NAME ${test_name}
+      COMMAND crabber ${ARGN}
+      WORKING_DIRECTORY ${crabber_SOURCE_DIR}/samples)
+  endfunction()
+
+  add_crabber_test(test-1  test-1.crabir  -d int)
+  add_crabber_test(test-3  test-3.crabir  -d int)
+  add_crabber_test(test-4  test-4.crabir  -d oct-snf)
+  # test-5 checks a specific invariant rather than an assertion outcome: with
+  # widening thresholds, n must be in [0, 60] at block b1. Adding an assert would
+  # make the property hold trivially, so match the printed invariant instead.
+  add_test(
+    NAME test-5
+    COMMAND sh -c "$<TARGET_FILE:crabber> test-5.crabir -d int --widening-thresholds 10 --print-invariants | grep -Fx 'b1: ({}, {n -> [0, 60]})'"
+    WORKING_DIRECTORY ${crabber_SOURCE_DIR}/samples)
+  add_crabber_test(test-6  test-6.crabir  -d int)
+  # The boxes domain is only available when Crab is built with LDD support.
+  if (CRAB_USE_LDD)
+    add_crabber_test(test-7-boxes        test-7.crabir -d boxes          --widening-delay 10)
+  endif()
+  add_crabber_test(test-7-int-set        test-7.crabir -d int-set        --widening-delay 10)
+  add_crabber_test(test-7-int-val-part   test-7.crabir -d int-val-part   --widening-delay 10)
+  add_crabber_test(test-7-zones-val-part test-7.crabir -d zones-val-part --widening-delay 10)
+  add_crabber_test(test-8  test-8.crabir  -d zones)
+  add_crabber_test(test-9  test-9.crabir  -d non-unit-oct --coefficients "4,8")
+  add_crabber_test(test-10 test-10.crabir -d int-terms)
+
+  # Function-call tests (cfg parameters + call sites).
+  add_crabber_test(test-call-1 test-call-1.crabir -d zones)
+  add_crabber_test(test-call-2 test-call-2.crabir -d zones)
+  add_crabber_test(test-call-3 test-call-3.crabir -d zones)
+  add_crabber_test(test-call-4 test-call-4.crabir -d zones)
+endif()
