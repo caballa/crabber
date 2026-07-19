@@ -1,0 +1,21 @@
+# Function calls: a cfg with one input and one output parameter.
+#
+# A cfg parameter list is written after the cfg name as a comma-separated
+# sequence of "name:type:direction" where direction is "in" or "out".
+#
+# A call is written with the (optional) outputs on the left-hand side and the
+# inputs as arguments:
+#     out:type := call callee(in:type)
+# A single output may be written with or without parentheses.
+
+# inc(a) returns a + 1
+cfg("inc", a:i32:in, b:i32:out)
+  start:
+   b:i32 := a + 1
+   exit
+
+cfg("main")
+  start:
+   x:i32 := 5
+   y:i32 := call inc(x:i32)
+   EXPECT_EQ(true, assert(y == 6):i32)

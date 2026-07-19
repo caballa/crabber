@@ -37,7 +37,7 @@ using namespace ikos;
 // Reduced product of boolean domain with numerical domain
 #define BOOL_NUM(DOM) flat_boolean_numerical_domain<DOM>
 // Array functor domain where the parameter domain is DOM
-#define ARRAY_FUN(DOM) array_adaptive_domain<DOM>
+#define ARRAY_FUN(DOM) array_adaptive_domain<DOM, ArrayAdaptParams>
 // Region functor domain -- the root of the hierarchy of domains.
 #define RGN_FUN(DOM) region_domain<RegionParams<DOM>>
 // Naive powerset construction
@@ -46,6 +46,11 @@ using namespace ikos;
 #define VAL_PARTITIONING(DOM) product_value_partitioning_domain<DOM>
 // Lookahead widening
 #define LOOKAHEAD_WIDENING(DOM) lookahead_widening_domain<DOM>
+
+class ArrayAdaptParams {
+  public:
+    enum { implement_inter_transformers = 1};
+};
 
 template<class BaseAbsDom>
 struct RegionParams {

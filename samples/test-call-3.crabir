@@ -1,0 +1,17 @@
+# Function calls: a call with no outputs (void call) and an input-only cfg.
+#
+# When a callee has no output parameters, the call is written without a
+# left-hand side:
+#     call callee(in:type)
+
+# check(p) asserts that its input is non-negative
+cfg("check", p:i32:in)
+  start:
+   EXPECT_EQ(true, assert(p >= 0):i32)
+   exit
+
+cfg("main")
+  start:
+   x:i32 := 42
+   call check(x:i32)
+   exit

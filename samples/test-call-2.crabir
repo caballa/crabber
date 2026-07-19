@@ -1,0 +1,20 @@
+# Function calls: multiple inputs and multiple outputs.
+#
+# When a call has more than one output, the outputs are written as a
+# parenthesized, comma-separated list. Parameters and arguments may mix
+# bitwidths (here i32 and i64).
+
+# swap(x, z) returns (z, x)
+cfg("swap", x:i32:in, z:i64:in, y:i32:out, w:i64:out)
+  start:
+   y:i32 := x
+   w:i64 := z
+   exit
+
+cfg("main")
+  start:
+   a:i32 := 1
+   c:i64 := 2
+   (p:i32, q:i64) := call swap(a:i32, c:i64)
+   EXPECT_EQ(true, assert(p == 1):i32)
+   EXPECT_EQ(true, assert(q == 2):i64)
