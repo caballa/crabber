@@ -1,0 +1,24 @@
+# Function calls: the same callee is invoked from several call sites and the
+# callee itself has non-trivial control flow (a loop).
+
+# clamp(a) returns min(a, 10) for a non-negative a
+cfg("clamp", a:i32:in, b:i32:out)
+  start:
+   b:i32 := a
+   goto loop
+  loop:
+   if (b <= 10):i32 goto out else goto dec
+  dec:
+   b:i32 := b - 1
+   goto loop
+  out:
+   exit
+
+cfg("main")
+  start:
+   x:i32 := 3
+   u:i32 := call clamp(x:i32)
+   EXPECT_EQ(true, assert(u <= 10):i32)
+   y:i32 := 100
+   v:i32 := call clamp(y:i32)
+   EXPECT_EQ(true, assert(v <= 10):i32)

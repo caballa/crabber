@@ -1,0 +1,13 @@
+# NEGATIVE TEST: this program must FAIL to compile.
+#
+# A call instruction is written as "call callee(args)". Here the argument
+# list (the parentheses) is missing, so the line does not match the call
+# syntax nor any other instruction and the parser rejects it with:
+#
+#   CRAB ERROR: cannot parse    call foo at line ...
+
+cfg("main")
+  start:
+   x:i32 := 0
+   call foo
+   exit

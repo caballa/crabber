@@ -15,8 +15,15 @@
 #define QUOTE R"_(\")_"
 
 #define ANY R"_(\s*(.+?)\s*)_"
+// Like ANY but allows the empty string (used for optional argument lists).
+#define ANY_OR_EMPTY R"_(\s*(.*?)\s*)_"
 
-#define CFG_START R"_(\s*cfg)_" LPAREN  QUOTE ANY QUOTE RPAREN
+// A cfg header optionally followed by a comma-separated parameter list, e.g.
+//   cfg("foo")
+//   cfg("foo", a:i32:in, b:i32:out)
+// Group 1: cfg name. Group 2: parameter list (empty if there are no params).
+#define CFG_START                                                              \
+  R"_(\s*cfg\s*\(\s*")_" ANY R"_("\s*(?:,)_" ANY R"_()?\)\s*)_"
 
 #define CMPOP R"_(\s*(<=|<|>=|>|==|=|!=)\s*)_"
 #define CASTOP R"_(\s*(trunc|sext|zext)\s*)_"
@@ -62,6 +69,24 @@
 #define ARRAY_STORE R"_(\s*array_store)_" LPAREN VAR COMMA VAR TYPE COMMA VAR TYPE RPAREN
 #define EXIT R"_(\s*exit)_"
 
+// A direction marker for a cfg formal parameter.
+#define DIRECTION R"_(\s*(in|out)\s*)_"
+// A single cfg formal parameter: name:type:direction, e.g. a:i32:in
+// Group 1: name. Group 2: bitwidth. Group 3: direction.
+#define CFG_PARAM VAR TYPE COLON DIRECTION
+// A single typed variable: name:type, e.g. a:i32
+// Group 1: name. Group 2: bitwidth.
+#define TYPED_VAR VAR TYPE
+
+// A call site with optional outputs on the left, e.g.
+//   call foo(a:i32)
+//   b:i32 := call foo(a:i32)
+//   (b:i32) := call foo(a:i32)
+//   (y:i32, w:i64) := call g(x:i32, z:i64)
+// Group 1: outputs (empty if none). Group 2: callee name. Group 3: arguments.
+#define CALLSITE                                                               \
+  R"_(\s*(?:(.+?)\s*:=\s*)?call\s+)_" LABEL LPAREN ANY_OR_EMPTY RPAREN
+
 namespace crabber {
   
 using namespace std;
@@ -97,8 +122,47 @@ make_linear_constraint(const string &kind, const linear_expression_t &e) {
   }
 }
 
+// Parse a comma-separated list of typed variables ("a:i32, b:i64") into a
+// vector of variables. Anything between matches (commas, surrounding
+// parentheses) is ignored, so this also accepts "(a:i32, b:i64)".
+static vector<variable_t> parse_typed_var_list(const string &s,
+                                               variable_factory_t &vfac) {
+  vector<variable_t> result;
+  regex p(TYPED_VAR);
+  auto begin = sregex_iterator(s.begin(), s.end(), p);
+  auto end = sregex_iterator();
+  for (sregex_iterator it = begin; it != end; ++it) {
+    smatch m = *it;
+    auto bitwidth = std::stoi(m[2]);
+    variable_type ty((bitwidth == 1) ? BOOL_TYPE : INT_TYPE, bitwidth);
+    result.push_back(make_variable(vfac, m[1], ty));
+  }
+  return result;
+}
+
+// Parse a comma-separated cfg parameter list ("a:i32:in, b:i32:out") into
+// input and output variables.
+static void parse_function_params(const string &s, variable_factory_t &vfac,
+                                  vector<variable_t> &inputs,
+                                  vector<variable_t> &outputs) {
+  regex p(CFG_PARAM);
+  auto begin = sregex_iterator(s.begin(), s.end(), p);
+  auto end = sregex_iterator();
+  for (sregex_iterator it = begin; it != end; ++it) {
+    smatch m = *it;
+    auto bitwidth = std::stoi(m[2]);
+    variable_type ty((bitwidth == 1) ? BOOL_TYPE : INT_TYPE, bitwidth);
+    variable_t var = make_variable(vfac, m[1], ty);
+    if (m[3] == "in") {
+      inputs.push_back(var);
+    } else {
+      outputs.push_back(var);
+    }
+  }
+}
+
 static unique_ptr<cfg_t>
-make_cfg(variable_factory_t &vfac, const string &name,
+make_cfg(variable_factory_t &vfac, const string &name, const string &params,
          const vector<pair<string, vector<pair<string, unsigned>>>> &body,
          unsigned &assertion_counter,
          map<unsigned, expected_result> &expected_results) {
@@ -114,8 +178,9 @@ make_cfg(variable_factory_t &vfac, const string &name,
                                     assertion_counter, expected_results);
     }
   }
-  // TODO: parse inputs/outputs
-  function_declaration_t fdecl(name, {}, {});
+  vector<variable_t> inputs, outputs;
+  parse_function_params(params, vfac, inputs, outputs);
+  function_declaration_t fdecl(name, inputs, outputs);
   cfg->set_func_decl(fdecl);
   return cfg;
 }
@@ -148,6 +213,7 @@ pair<vector<unique_ptr<cfg_t>>, unique_ptr<map<unsigned, expected_result>>>
 parse_crabir(istream &is, variable_factory_t &vfac) {
   string line;
   string cur_cfg_name("");
+  string cur_cfg_params("");
   string cur_block("");
   vector<pair<string, unsigned>> insts;
   vector<pair<string, vector<pair<string, unsigned>>>> cur_cfg_body;
@@ -168,11 +234,13 @@ parse_crabir(istream &is, variable_factory_t &vfac) {
           cur_cfg_body.emplace_back(make_pair(cur_block, insts));
           insts.clear();
         }
-        cfgs.emplace_back(make_cfg(vfac, cur_cfg_name, cur_cfg_body,
-                                   assertion_counter, *expected_results));
+        cfgs.emplace_back(make_cfg(vfac, cur_cfg_name, cur_cfg_params,
+                                   cur_cfg_body, assertion_counter,
+                                   *expected_results));
         cur_cfg_body.clear();
       }
       cur_cfg_name = m[1];
+      cur_cfg_params = m[2];
     } else if (regex_match(line_stripped, m, regex(LABEL_DEF))) {
       // Start of a block
       if (cur_block != "") {
@@ -192,8 +260,9 @@ parse_crabir(istream &is, variable_factory_t &vfac) {
   }
 
   if (cur_cfg_name != "") {
-    cfgs.emplace_back(make_cfg(vfac, cur_cfg_name, cur_cfg_body,
-                               assertion_counter, *expected_results));
+    cfgs.emplace_back(make_cfg(vfac, cur_cfg_name, cur_cfg_params,
+                               cur_cfg_body, assertion_counter,
+                               *expected_results));
     cur_cfg_body.clear();
   }
 
@@ -394,6 +463,14 @@ void parse_instruction(const string &instruction, unsigned line_number,
   if (std::all_of(instruction_stripped.begin(), instruction_stripped.end(),
                   ::isspace)) {
     // do nothing
+  } else if (regex_match(instruction_stripped, m, regex(CALLSITE))) {
+    // function call: (outputs) := call callee(inputs)
+    // Must be matched before the assignment rules below, otherwise a
+    // single-output call would be mistaken for an assignment whose
+    // right-hand side is a linear expression.
+    vector<variable_t> outputs = parse_typed_var_list(m[1], vfac);
+    vector<variable_t> inputs = parse_typed_var_list(m[3], vfac);
+    b.callsite(m[2], outputs, inputs);
   } else if (regex_match(instruction_stripped, m, regex(HAVOC))) {
     variable_type ty(INT_TYPE, std::stoi(m[2]));
     variable_t var = make_variable(vfac, m[1], ty);

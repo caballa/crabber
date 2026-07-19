@@ -47,6 +47,60 @@ cfg("foo")
    EXPECT_EQ(true, assert(x == 10):i32)
 ```
 
+# Function calls #
+
+A cfg can declare typed **input** and **output** parameters and be invoked
+from another cfg through a call site.
+
+## Declaring parameters ##
+
+Parameters are written after the cfg name as a comma-separated list of
+`name:type:direction`, where `direction` is `in` or `out`. A cfg without
+parameters keeps the old `cfg("name")` form.
+
+```
+# inc(a) returns a + 1
+cfg("inc", a:i32:in, b:i32:out)
+  start:
+   b:i32 := a + 1
+   exit
+```
+
+The set of inputs and outputs must be disjoint: the same variable cannot be
+declared both as an input and as an output.
+
+## Call sites ##
+
+A call is written with the (optional) outputs on the left-hand side and the
+inputs as arguments. As everywhere else in the language, both the outputs and
+the arguments must be typed.
+
+```
+call foo(a:i32)                         # no outputs
+b:i32 := call foo(a:i32)                # single output
+(b:i32) := call foo(a:i32)             # single output, parenthesized
+(y:i32, w:i64) := call g(x:i32, z:i64) # multiple outputs
+```
+
+Putting it together:
+
+```
+cfg("inc", a:i32:in, b:i32:out)
+  start:
+   b:i32 := a + 1
+   exit
+
+cfg("main")
+  start:
+   x:i32 := 5
+   y:i32 := call inc(x:i32)
+   EXPECT_EQ(true, assert(y == 6):i32)
+```
+
+See `samples/test-call-*.crabir` for more examples, including negative tests
+(`samples/test-call-fail-*.crabir`) that are expected to be rejected by the
+parser.
+
 # Usage #
 
 ## Command Line Interface ## 

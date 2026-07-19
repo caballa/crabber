@@ -1,0 +1,12 @@
+# NEGATIVE TEST: this program must FAIL to compile.
+#
+# A cfg's input and output parameters must be disjoint: the same variable
+# cannot be declared both as an input and as an output. Here "a" is used as
+# both, so building the function declaration is rejected with:
+#
+#   CRAB ERROR: interprocedural analysis requires that for each function
+#               its set of inputs and outputs must be disjoint.
+
+cfg("foo", a:i32:in, a:i32:out)
+  start:
+   exit
