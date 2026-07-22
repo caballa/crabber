@@ -103,9 +103,9 @@ int main(int argc, char **argv) {
       ->required()
       ->type_name("FILE");
 
-  string domain;
-  app.add_option("-d,--domain", domain,
-                 "Select abstract domain");
+  string domain = "int";
+  auto domain_opt = app.add_option("-d,--domain", domain,
+                 "Select abstract domain (default int; see --show-domains)");
 
   bool print_domains = false;
   app.add_flag("--show-domains", print_domains, "Show all the available abstract domains");
@@ -190,6 +190,11 @@ int main(int argc, char **argv) {
   irOpts.simplify_cfg = simplify;
   irOpts.cfg_to_dot = cfg_to_dot;
   
+  if (domain_opt->count() == 0) {
+    cout << "No domain selected with -d/--domain; using default domain '"
+         << domain << "'.\n";
+  }
+
   CrabIrAnalyzerOpts anaOpts;
   bool foundDomain = false;
   for (auto dom : AbstractDomain::List) {
@@ -200,7 +205,16 @@ int main(int argc, char **argv) {
   }
 
   if (!foundDomain) {
-    CRAB_ERROR("cannot recognize domain ", domain);
+    string names;
+    for (auto const &d : AbstractDomain::List) {
+      if (!names.empty()) {
+        names += ", ";
+      }
+      names += d.name();
+    }
+    CRAB_ERROR("cannot recognize domain '", domain,
+               "'. Available domains: ", names,
+               " (use --show-domains for descriptions)");
   }
 
   if (fixed_tvpi_coefficients != "") {
