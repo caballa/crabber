@@ -1,9 +1,18 @@
 # crabber  #
 
+[![Try the CrabIR Playground](https://img.shields.io/badge/Try%20it-CrabIR%20Playground-orange?logo=webassembly&logoColor=white)](https://caballa.github.io/crabber/)
+
 The goal of this project is to allow Crab users to write small tests
 to interact with [Crab](https://github.com/seahorn/crab) analyses and
 abstract domains eliminating the need for writing C++ boilerplate code
 to use Crab APIs.
+
+# Try it online #
+
+Run CrabIR programs in your browser — no install — at the
+**[CrabIR Playground](https://caballa.github.io/crabber/)**. The full analyzer is
+compiled to WebAssembly and runs entirely client-side (nothing is sent to a
+server). See [`build-wasm/`](build-wasm/) for how it is built.
 
 # Requirements #
 

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CrabIR Playground</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; height: 100vh;
+         display: grid; grid-template-rows: auto 1fr; }
+  header { padding: 8px 12px; border-bottom: 1px solid #8884; display: flex;
+           gap: 8px; align-items: center; flex-wrap: wrap; }
+  main { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  textarea, pre { margin: 0; border: 0; padding: 10px; font-family: ui-monospace, monospace;
+                  font-size: 13px; height: 100%; box-sizing: border-box; overflow: auto; }
+  textarea { resize: none; outline: none; border-right: 1px solid #8884; }
+  pre { background: #8881; white-space: pre-wrap; }
+  select, button { font: inherit; padding: 4px 8px; }
+  button { cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <strong>CrabIR Playground</strong>
+  <label>Domain
+    <select id="domain">
+      <option value="int">intervals</option>
+      <option value="dis-int">dis-intervals</option>
+      <option value="int-terms">int + terms</option>
+      <option value="int-set">powerset intervals</option>
+      <option value="int-val-part">val-part intervals</option>
+      <option value="zones">zones</option>
+      <option value="zones-val-part">val-part zones</option>
+      <option value="oct-snf">octagons (snf)</option>
+      <option value="non-unit-oct">non-unit octagons</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="inv" checked> invariants</label>
+  <button id="run" disabled>Loading…</button>
+</header>
+<main>
+  <textarea id="src" spellcheck="false"></textarea>
+  <pre id="out"></pre>
+</main>
+<script src="crabber.js"></script>
+<script>
+const example = `cfg("foo")
+  start:
+   x:i32 := 0
+   goto loop
+  loop:
+   x:i32 := x + 1
+   if (x <= 9):i32 goto loop else goto out
+  out:
+   EXPECT_EQ(true, assert(x == 10):i32)
+`;
+const $ = id => document.getElementById(id);
+$('src').value = example;
+
+let mod = null;
+const runBtn = $('run');
+runBtn.textContent = 'Run';
+runBtn.disabled = false;
+
+runBtn.addEventListener('click', async () => {
+  const out = $('out');
+  out.textContent = 'Running…';
+  let buf = '';
+  // Fresh instance each run so stdout and analysis state don't leak between runs.
+  mod = await Crabber({ print: t => buf += t + '\n', printErr: t => buf += t + '\n' });
+  const args = ['/prog.crabir', '-d', $('domain').value];
+  if ($('inv').checked) args.push('--print-invariants');
+  try {
+    mod.FS.writeFile('/prog.crabir', $('src').value);
+    mod.callMain(args);
+  } catch (e) {
+    buf += '\n[aborted] ' + String(e).split('\n')[0] + '\n';
+  }
+  out.textContent = buf;
+});
+</script>
+</body>
+</html>
