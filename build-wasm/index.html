@@ -37,7 +37,8 @@
                        caret-color: var(--fg); resize: none; outline: none; }
   pre#out { margin: 0; padding: 10px; font-family: ui-monospace, monospace; font-size: 13px;
             height: 100%; box-sizing: border-box; overflow: auto; white-space: pre-wrap; background: #8881; }
-  select, button { font: inherit; padding: 4px 8px; }
+  select, button, input[type=text] { font: inherit; padding: 4px 8px; }
+  input[type=text] { font-family: ui-monospace, monospace; }
   button { cursor: pointer; }
   /* token colours */
   .t-comment{color:var(--t-comment);font-style:italic} .t-keyword{color:var(--t-keyword)}
@@ -49,6 +50,9 @@
 <body>
 <header>
   <strong>CrabIR Playground</strong>
+  <label>Example
+    <select id="examples"><option value="">— load a test —</option></select>
+  </label>
   <label>Domain
     <select id="domain">
       <option value="int">intervals</option>
@@ -62,6 +66,7 @@
       <option value="non-unit-oct">non-unit octagons</option>
     </select>
   </label>
+  <label>Flags <input id="flags" type="text" size="22" placeholder="e.g. --widening-delay 10" spellcheck="false"></label>
   <label><input type="checkbox" id="inv" checked> invariants</label>
   <button id="run" disabled>Loading…</button>
 </header>
@@ -72,6 +77,7 @@
   </div>
   <pre id="out"></pre>
 </main>
+<script src="examples.js"></script>
 <script src="crabber.js"></script>
 <script>
 const example = `cfg("foo")
@@ -147,6 +153,22 @@ src.addEventListener('keydown', e => {           // Tab inserts two spaces inste
 src.value = example;
 sync();
 
+/* ---- Examples: the CrabIR programs from the CTest suite (examples.js) ---- */
+const examplesSel = $('examples');
+for (const ex of (window.CRABIR_EXAMPLES || [])) {
+  const o = document.createElement('option');
+  o.value = ex.name; o.textContent = ex.name;
+  examplesSel.appendChild(o);
+}
+examplesSel.addEventListener('change', () => {
+  const ex = (window.CRABIR_EXAMPLES || []).find(e => e.name === examplesSel.value);
+  if (!ex) return;
+  src.value = ex.code; sync();
+  $('domain').value = ex.domain;
+  $('flags').value = ex.flags || '';
+  $('out').textContent = '';
+});
+
 /* ---- Run the analyzer (crabber compiled to WebAssembly) ---- */
 const runBtn = $('run');
 runBtn.textContent = 'Run';
@@ -158,6 +180,8 @@ runBtn.addEventListener('click', async () => {
   // Fresh instance each run so stdout and analysis state don't leak between runs.
   const M = await Crabber({ print: t => buf += t + '\n', printErr: t => buf += t + '\n' });
   const args = ['/prog.crabir', '-d', $('domain').value];
+  const extra = $('flags').value.trim();
+  if (extra) args.push(...extra.split(/\s+/));
   if ($('inv').checked) args.push('--print-invariants');
   try {
     M.FS.writeFile('/prog.crabir', src.value);

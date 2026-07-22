@@ -1,6 +1,7 @@
 # Generated build outputs (reproduce with ./build.sh)
 crabber.js
 crabber.wasm
+examples.js
 lib/
 obj/
 gmp-wasm/
