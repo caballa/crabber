@@ -5,18 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CrabIR Playground</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; height: 100vh;
+  :root { color-scheme: light dark; --fg: #24292f;
+          /* token colours (light) */
+          --t-comment:#6e7781; --t-keyword:#cf222e; --t-func:#8250df;
+          --t-const:#0550ae;  --t-number:#0550ae;  --t-string:#0a3069;
+          --t-type:#953800;   --t-var:#953800;      --t-label:#116329;
+          --t-op:#cf222e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg:#e6edf3;
+            --t-comment:#8b949e; --t-keyword:#ff7b72; --t-func:#d2a8ff;
+            --t-const:#79c0ff;  --t-number:#79c0ff;  --t-string:#a5d6ff;
+            --t-type:#ffa657;   --t-var:#ffa657;      --t-label:#7ee787;
+            --t-op:#ff7b72; }
+  }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; height: 100vh; color: var(--fg);
          display: grid; grid-template-rows: auto 1fr; }
   header { padding: 8px 12px; border-bottom: 1px solid #8884; display: flex;
            gap: 8px; align-items: center; flex-wrap: wrap; }
   main { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-  textarea, pre { margin: 0; border: 0; padding: 10px; font-family: ui-monospace, monospace;
-                  font-size: 13px; height: 100%; box-sizing: border-box; overflow: auto; }
-  textarea { resize: none; outline: none; border-right: 1px solid #8884; }
-  pre { background: #8881; white-space: pre-wrap; }
+  .editor { position: relative; min-height: 0; border-right: 1px solid #8884; overflow: hidden; }
+  /* The highlight layer and the textarea must share identical text metrics so
+     the (transparent) textarea text lines up exactly over the coloured copy. */
+  .editor > .hl, .editor > textarea {
+    position: absolute; inset: 0; margin: 0; border: 0; padding: 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+    line-height: 1.5; tab-size: 2; box-sizing: border-box; overflow: auto;
+    white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word;
+  }
+  .editor > .hl { z-index: 0; pointer-events: none; color: var(--fg); background: transparent; }
+  .editor > textarea { z-index: 1; background: transparent; color: transparent;
+                       caret-color: var(--fg); resize: none; outline: none; }
+  pre#out { margin: 0; padding: 10px; font-family: ui-monospace, monospace; font-size: 13px;
+            height: 100%; box-sizing: border-box; overflow: auto; white-space: pre-wrap; background: #8881; }
   select, button { font: inherit; padding: 4px 8px; }
   button { cursor: pointer; }
+  /* token colours */
+  .t-comment{color:var(--t-comment);font-style:italic} .t-keyword{color:var(--t-keyword)}
+  .t-func{color:var(--t-func)} .t-const{color:var(--t-const)} .t-number{color:var(--t-number)}
+  .t-string{color:var(--t-string)} .t-type{color:var(--t-type)} .t-var{color:var(--t-var)}
+  .t-label{color:var(--t-label);font-weight:600} .t-op{color:var(--t-op)}
 </style>
 </head>
 <body>
@@ -39,7 +66,10 @@
   <button id="run" disabled>Loading…</button>
 </header>
 <main>
-  <textarea id="src" spellcheck="false"></textarea>
+  <div class="editor">
+    <pre class="hl" id="hl" aria-hidden="true"></pre>
+    <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+  </div>
   <pre id="out"></pre>
 </main>
 <script src="crabber.js"></script>
@@ -55,24 +85,83 @@ const example = `cfg("foo")
    EXPECT_EQ(true, assert(x == 10):i32)
 `;
 const $ = id => document.getElementById(id);
-$('src').value = example;
+const src = $('src'), hl = $('hl');
 
-let mod = null;
+/* ---- Syntax highlighting (token rules mirror vscode-mode/crabir.tmLanguage.json) ---- */
+const RULES = [
+  ['comment', /#[^\n]*/],
+  ['string',  /"(?:\\.|[^"\\])*"/],
+  ['type',    /\bi[0-9]+\b/],
+  ['func',    /\bEXPECT_[A-Z_]+\b/],
+  ['func',    /\b(?:value_partition_start|value_partition_end)\b/],
+  ['keyword', /\b(?:region_init|region_copy|region_cast|make_ref|remove_ref|load_from_ref|store_to_ref|gep_ref|ref_to_int|int_to_ref|array_store|array_load|array_assign)\b/],
+  ['keyword', /\b(?:trunc|sext|zext)\b/],
+  ['keyword', /\b(?:if|else|goto|assume|unreachable)\b/],
+  ['keyword', /\b(?:havoc|assert)\b/],
+  ['keyword', /\b(?:add|sub|mul|sdiv|udiv|urem|srem|and|or|xor|not|call|ite)\b/],
+  ['keyword', /\bcfg\b/],
+  ['const',   /\b(?:declare|true|false)\b/],
+  ['var',     /@[-A-Za-z$._][-A-Za-z$._0-9]*/],
+  ['number',  /-?[0-9]+/],
+  ['op',      /:=|<=|>=|==|!=|<|>|\+|-|\*|\//],
+];
+const COMBINED = new RegExp(RULES.map(r => '(' + r[1].source + ')').join('|'), 'g');
+const LABEL = /^(\s*)([-A-Za-z$._0-9]+)(\s*)(:)(\s*)(?=#|$)/;
+const esc = s => s.replace(/[&<>]/g, c => c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;');
+
+function tokenizeInline(s) {
+  let out = '', last = 0, m;
+  COMBINED.lastIndex = 0;
+  while ((m = COMBINED.exec(s))) {
+    if (m.index > last) out += esc(s.slice(last, m.index));
+    let cls = 'op';
+    for (let i = 1; i < m.length; i++) if (m[i] !== undefined) { cls = RULES[i - 1][0]; break; }
+    out += '<span class="t-' + cls + '">' + esc(m[0]) + '</span>';
+    last = m.index + m[0].length;
+    if (m[0].length === 0) COMBINED.lastIndex++;
+  }
+  if (last < s.length) out += esc(s.slice(last));
+  return out;
+}
+function highlight(text) {
+  return text.split('\n').map(line => {
+    const lm = LABEL.exec(line);
+    if (lm) {
+      return esc(lm[1]) + '<span class="t-label">' + esc(lm[2]) + '</span>' +
+             esc(lm[3]) + '<span class="t-label">' + esc(lm[4]) + '</span>' +
+             esc(lm[5]) + tokenizeInline(line.slice(lm[0].length));
+    }
+    return tokenizeInline(line);
+  }).join('\n') + '\n';
+}
+function sync() {
+  hl.innerHTML = highlight(src.value);
+  hl.scrollTop = src.scrollTop; hl.scrollLeft = src.scrollLeft;
+}
+src.addEventListener('input', sync);
+src.addEventListener('scroll', () => { hl.scrollTop = src.scrollTop; hl.scrollLeft = src.scrollLeft; });
+src.addEventListener('keydown', e => {           // Tab inserts two spaces instead of leaving the field
+  if (e.key === 'Tab') { e.preventDefault(); const a = src.selectionStart, b = src.selectionEnd;
+    src.setRangeText('  ', a, b, 'end'); sync(); }
+});
+src.value = example;
+sync();
+
+/* ---- Run the analyzer (crabber compiled to WebAssembly) ---- */
 const runBtn = $('run');
 runBtn.textContent = 'Run';
 runBtn.disabled = false;
-
 runBtn.addEventListener('click', async () => {
   const out = $('out');
   out.textContent = 'Running…';
   let buf = '';
   // Fresh instance each run so stdout and analysis state don't leak between runs.
-  mod = await Crabber({ print: t => buf += t + '\n', printErr: t => buf += t + '\n' });
+  const M = await Crabber({ print: t => buf += t + '\n', printErr: t => buf += t + '\n' });
   const args = ['/prog.crabir', '-d', $('domain').value];
   if ($('inv').checked) args.push('--print-invariants');
   try {
-    mod.FS.writeFile('/prog.crabir', $('src').value);
-    mod.callMain(args);
+    M.FS.writeFile('/prog.crabir', src.value);
+    M.callMain(args);
   } catch (e) {
     buf += '\n[aborted] ' + String(e).split('\n')[0] + '\n';
   }
