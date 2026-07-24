@@ -161,6 +161,28 @@ static void parse_function_params(const string &s, variable_factory_t &vfac,
   }
 }
 
+// Return true if some block reachable from the entry has no successors,
+// i.e. the cfg has at least one sink that could serve as an exit block.
+static bool cfg_has_reachable_sink(const cfg_t &cfg) {
+  std::set<cfg_t::basic_block_label_t> visited;
+  vector<cfg_t::basic_block_label_t> worklist{cfg.entry()};
+  while (!worklist.empty()) {
+    auto label = worklist.back();
+    worklist.pop_back();
+    if (!visited.insert(label).second) {
+      continue;
+    }
+    const block_t &b = cfg.get_node(label);
+    if (b.out_degree() == 0) {
+      return true;
+    }
+    for (auto const &succ : cfg.next_nodes(label)) {
+      worklist.push_back(succ);
+    }
+  }
+  return false;
+}
+
 static unique_ptr<cfg_t>
 make_cfg(variable_factory_t &vfac, const string &name, const string &params,
          const vector<pair<string, vector<pair<string, unsigned>>>> &body,
@@ -178,6 +200,29 @@ make_cfg(variable_factory_t &vfac, const string &name, const string &params,
                                     assertion_counter, expected_results);
     }
   }
+
+  // A cfg is created with only an entry ("start") block. The
+  // interprocedural analysis also requires a dedicated exit block, so
+  // ask the cfg to build one. We use a label that is unlikely to be
+  // used by a CrabIR program, and bail out if the program happens to
+  // define a block with that same name.
+  //
+  // make_exit builds the exit out of the reachable blocks without
+  // successors, and errors if there are none (a function that never
+  // returns). Such a function legitimately has no exit block, so we
+  // only ask for one when a reachable sink exists.
+  const string exit_block_name("___exit");
+  for (auto &p : body) {
+    if (p.first == exit_block_name) {
+      CRAB_ERROR("cannot create a dedicated exit block for cfg \"", name,
+                 "\" because it already defines a block named \"",
+                 exit_block_name, "\"");
+    }
+  }
+  if (cfg_has_reachable_sink(*cfg)) {
+    cfg->make_exit(exit_block_name);
+  }
+
   vector<variable_t> inputs, outputs;
   parse_function_params(params, vfac, inputs, outputs);
   function_declaration_t fdecl(name, inputs, outputs);
