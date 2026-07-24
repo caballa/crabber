@@ -27,33 +27,174 @@ server). See [`build-wasm/`](build-wasm/) for how it is built.
 where `$CRAB_SOURCE_ROOT` is the path where source code of Crab is
 located.
 
-# Example #
+# Writing CrabIR programs #
 
-``` 
-# This is a comment.
-# Newlines are used to delimit a new instruction, new block or new cfg.
-# A cfg must have a name as a string (do not forget double quotes).
-# Blocks are denoted as a string name followed by ":".
-# The entry block of a cfg must be called "start"
-#
-# About types
-#
-# The language is strongly typed so there is NOT type inference. This means
-# that all instructions must have enough type information so that the parser
-# can know the type of all variables. For instance, left-hand side of 
-# assignments must be typed, and constraints that appear in conditionals, assume, 
-# and assert must be also typed.
-#
+A CrabIR program is a text file describing one or more control-flow graphs
+(cfgs). This section is a reference for the syntax; the shortest way to learn
+it, though, is to skim the ready-to-run programs under [`samples/`](samples/).
 
-cfg("foo")
-  start: 
-   x:i32 := 0  # x is an integer of 32 bits
+## Program structure ##
+
+```
+# Lines starting with '#' are comments. A '#' anywhere on a line starts a
+# comment until the end of the line.
+#
+# Newlines delimit instructions, blocks and cfgs (there are no semicolons).
+
+cfg("foo")            # a cfg is introduced by cfg("<name>"). Quotes required.
+  start:              # a block is a label followed by ':'. Entry MUST be "start".
+   x:i32 := 0         # instructions belong to the block above them
    goto loop
-  loop: 
+  loop:               # another block
    x:i32 := x + 1
    if (x <= 9):i32 goto loop else goto out
-  out: 
+  out:
    EXPECT_EQ(true, assert(x == 10):i32)
+```
+
+Rules of the game:
+
+- A file may contain several cfgs; each begins with a new `cfg(...)` header.
+- Every cfg needs an entry block named **`start`**.
+- Blocks do not fall through: a block continues only via an explicit `goto` or
+  `if ... goto ... else goto ...`. A block with no successor is a sink.
+- Blocks may be defined in any order; a `goto`/`if` may reference a block that
+  appears later in the file.
+
+## Types ##
+
+The language is **strongly typed and has no type inference**, so every
+instruction must carry enough type annotations for the parser to know the type
+of each variable. In practice this means the left-hand side of assignments is
+typed, and the constraints inside `if`, `assume`, and `assert` are typed.
+
+| Type          | Meaning                                            |
+|---------------|----------------------------------------------------|
+| `iN`          | integer of `N` bits, e.g. `i8`, `i32`, `i64`       |
+| `i1`          | Boolean (a 1-bit integer is treated as a Boolean)  |
+| array         | array of integers; indices must be `i64`           |
+
+A type annotation is written `:iN` right after a variable, e.g. `x:i32`.
+Variable names match `[.@a-zA-Z_][.a-zA-Z0-9_]*` (`true` and `false` are
+reserved). Integer literals are decimal (`-3`, `42`) or hexadecimal (`0x1F`).
+
+## Statement reference ##
+
+Below, `x`, `y`, `z` are integer variables, `b` are Booleans, `arr` an array,
+and `L1`/`L2` block labels.
+
+### Integer assignments ###
+
+```
+x:i32 := 5              # immediate (decimal); the LHS must be typed
+x:i32 := 0x1F           # immediate (hexadecimal)
+x:i32 := 2*y - 3*z + 1  # linear expression; the RHS need NOT be typed
+x:i32 := y * z          # multiplication of two variables (non-linear)
+x:i32 := y / z          # division of two variables (non-linear)
+```
+
+A *linear expression* is a sum of terms `k*var` and integer constants. Use the
+`y * z` / `y / z` forms when both operands are variables.
+
+### Boolean assignments ###
+
+```
+b3:i1 := b2             # copy another Boolean (LHS typed with :i1)
+b := (x <= 10):i32      # truth value of a constraint (LHS type is inferred as i1)
+b := b1 and b2          # Boolean and / or / xor
+b := b1 or  b2
+b := b1 xor b2
+b := not(b1)            # Boolean negation
+```
+
+Note the asymmetry: a plain Boolean **copy** types the left-hand side (`b3:i1`),
+whereas assignments from a constraint, `and`/`or`/`xor`, and `not` leave the
+left-hand side untyped because it is inferred to be `i1`.
+
+### Integer casts ###
+
+```
+trunc(x:i32, y:i16)     # truncate  (destination narrower than source)
+sext(x:i32,  y:i64)     # sign-extend  (destination wider than source)
+zext(x:i32,  y:i64)     # zero-extend  (destination wider than source)
+```
+
+The first argument is the source, the second the destination. `trunc` may
+target `i1` (a handy way to obtain a Boolean).
+
+### Non-deterministic value ###
+
+```
+havoc(x:i32)            # assign an arbitrary (unknown) value to x
+```
+
+### Arrays ###
+
+```
+array_store(arr, idx:i64, val:i32)   # arr[idx] := val
+x:i32 := array_load(arr, idx:i64)    # x := arr[idx]
+```
+
+Array variables are named without a type annotation; the element size is taken
+from the value/result type and the index must be `i64`.
+
+### assume ###
+
+`assume` restricts the analysis to states satisfying a condition.
+
+```
+assume(x <= y):i32      # integer linear constraint (typed)
+assume(b)               # Boolean variable
+assume(true)            # trivially true / false
+assume(false)
+```
+
+### assert ###
+
+`assert` states a property to be checked by the analyzer; the tool reports
+whether each assertion holds.
+
+```
+assert(x == 10):i32     # integer linear constraint (typed)
+assert(b)               # Boolean variable
+assert(true)            # trivial
+assert(false)
+```
+
+### EXPECT_EQ (for tests) ###
+
+`EXPECT_EQ(expected, assert(...))` wraps an assertion with the expected
+outcome, driving the `### TESTS RESULTS ###` summary. `expected` is `true` if
+the assertion should be proven, or `false` if it is expected to fail.
+
+```
+EXPECT_EQ(true,  assert(x == 10):i32)   # expected to hold
+EXPECT_EQ(false, assert(x == 11):i32)   # expected to fail
+EXPECT_EQ(true,  assert(b))             # also works with Boolean/trivial asserts
+```
+
+### Control flow ###
+
+```
+goto L1                        # unconditional jump
+if (x <= 9):i32 goto L1 else goto L2   # conditional; the constraint is typed
+```
+
+On the `then` edge the constraint is assumed to hold; on the `else` edge its
+negation is assumed.
+
+### Value partitioning (advanced) ###
+
+```
+value_partition_start(x:i32)   # begin partitioning the analysis on values of x
+...
+value_partition_end(x:i32)     # end the partition
+```
+
+### exit ###
+
+```
+exit                           # marks the end of a path (see Function calls)
 ```
 
 # Function calls #
