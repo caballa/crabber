@@ -24,7 +24,11 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CRABBER="$(cd "$HERE/.." && pwd)"
-CRAB_ROOT="${CRAB_ROOT:-$(cd "$CRABBER/.." && pwd)/crab}"
+# Default CRAB_ROOT: prefer an in-repo checkout (crabber/crab), else the sibling ../crab.
+if [ -z "${CRAB_ROOT:-}" ]; then
+  if [ -d "$CRABBER/crab/include/crab" ]; then CRAB_ROOT="$CRABBER/crab"
+  else CRAB_ROOT="$(cd "$CRABBER/.." && pwd)/crab"; fi
+fi
 BOOST_INC="${BOOST_INC:-/opt/homebrew/include}"
 WASM_PREFIX="${WASM_PREFIX:-$HERE/gmp-wasm}"
 
