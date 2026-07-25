@@ -62,8 +62,10 @@
   .node h4 { margin: 0; padding: 4px 8px; border-bottom: 1px solid var(--border);
              font: 600 12px ui-monospace, monospace; color: var(--t-label); }
   .node .insts { padding: 4px 8px; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
-  .node .inv { padding: 3px 8px; border-top: 1px dashed var(--border); font: 12px/1.4 ui-monospace, monospace;
+  .node .inv { padding: 3px 8px; border-bottom: 1px solid var(--border); font: 12px/1.4 ui-monospace, monospace;
                background: var(--inv-bg); color: var(--inv-fg); white-space: pre-wrap; word-break: break-word; }
+  .node .inv-tag { display: inline-block; margin-right: 6px; font: 600 9px/1.4 system-ui;
+                   letter-spacing: .04em; text-transform: uppercase; opacity: .65; vertical-align: 1px; }
   svg.edges { position: absolute; inset: 0; z-index: 0; overflow: visible; pointer-events: none; }
   svg.edges path { fill: none; stroke: var(--edge); stroke-width: 1.5; }
   /* On narrow screens stack the editor above the output instead of side-by-side. */
@@ -339,17 +341,24 @@ function buildNode(g, id) {
   const h = document.createElement('h4');
   h.textContent = b.name;
   el.appendChild(h);
+  // The pre-invariant holds on entry, before the first statement, so it is
+  // shown at the top of the block (above the instructions).
+  if (g.inv[id] != null) {
+    const iv = document.createElement('div');
+    iv.className = 'inv';
+    iv.title = 'Invariant on entry to this block (before the first statement)';
+    const tag = document.createElement('span');
+    tag.className = 'inv-tag';
+    tag.textContent = 'on entry';
+    iv.appendChild(tag);
+    iv.appendChild(document.createTextNode(decodeEnt(g.inv[id])));
+    el.appendChild(iv);
+  }
   if (b.insts.length) {
     const body = document.createElement('div');
     body.className = 'insts';
     body.textContent = b.insts.map(decodeEnt).join('\n');
     el.appendChild(body);
-  }
-  if (g.inv[id] != null) {
-    const iv = document.createElement('div');
-    iv.className = 'inv';
-    iv.textContent = decodeEnt(g.inv[id]);
-    el.appendChild(iv);
   }
   return el;
 }
