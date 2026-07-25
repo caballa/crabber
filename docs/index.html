@@ -30,8 +30,19 @@
   #hint { padding: 4px 12px; border-bottom: 1px solid var(--border); color: var(--muted);
           font-size: 12px; background: #8881; }
   #hint code { font-family: ui-monospace, monospace; }
-  main { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
-  .editor { position: relative; min-height: 0; border-right: 1px solid var(--border); overflow: hidden; }
+  main { display: grid; grid-template-columns: var(--split-x, 1fr) 6px 1fr; min-height: 0; }
+  .editor { position: relative; min-height: 0; overflow: hidden; }
+  /* Draggable divider between the editor and the output pane. */
+  .gutter { position: relative; background: var(--border); cursor: col-resize;
+            z-index: 5; touch-action: none; }
+  .gutter::before { content: ""; position: absolute; inset: -3px 0; }  /* wider hit area */
+  .gutter::after { content: ""; position: absolute; left: 50%; top: 50%;
+                   width: 2px; height: 24px; transform: translate(-50%, -50%);
+                   border-radius: 2px; background: var(--muted); opacity: .5; }
+  .gutter:hover::after, .gutter.dragging::after { opacity: 1; }
+  .gutter:focus-visible { outline: 2px solid var(--t-func); outline-offset: -2px; }
+  body.gutter-dragging { cursor: col-resize; user-select: none; }
+  body.gutter-dragging.vert { cursor: row-resize; }
   /* The highlight layer and the textarea must share identical text metrics so
      the (transparent) textarea text lines up exactly over the coloured copy. */
   .editor > .hl, .editor > textarea {
@@ -81,8 +92,10 @@
   svg.edges path { fill: none; stroke: var(--edge); stroke-width: 1.5; }
   /* On narrow screens stack the editor above the output instead of side-by-side. */
   @media (max-width: 720px) {
-    main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-    .editor { border-right: 0; border-bottom: 1px solid var(--border); }
+    main { grid-template-columns: 1fr; grid-template-rows: var(--split-y, 1fr) 6px 1fr; }
+    .gutter { cursor: row-resize; }
+    .gutter::before { inset: 0 -3px; }
+    .gutter::after { width: 24px; height: 2px; }
   }
   /* token colours */
   .t-comment{color:var(--t-comment);font-style:italic} .t-keyword{color:var(--t-keyword)}
@@ -141,6 +154,8 @@
     <pre class="hl" id="hl" aria-hidden="true"></pre>
     <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
   </div>
+  <div class="gutter" id="gutter" role="separator" aria-orientation="vertical"
+       title="Drag to resize" tabindex="0" aria-label="Resize editor and output panes"></div>
   <div class="pane">
     <div class="tabs">
       <button id="tab-text" class="active" data-view="text">Text</button>
@@ -624,6 +639,59 @@ runBtn.addEventListener('click', async () => {
   lastGraphs = buildUnifiedGraphs(runs);
   if (view === 'graph') renderGraph($('graph'), lastGraphs);
 });
+
+/* ---- Resizable divider between the editor and the output pane ---- */
+(function () {
+  const mainEl = document.querySelector('main'), gutter = $('gutter');
+  const MIN = 0.12, MAX = 0.88;                       // keep both panes usable
+  const vertQuery = window.matchMedia('(max-width: 720px)');
+  const isVert = () => vertQuery.matches;             // narrow screens stack panes
+  const clamp = f => Math.min(MAX, Math.max(MIN, f));
+  let split = { x: 0.5, y: 0.5 };
+  try { Object.assign(split, JSON.parse(localStorage.getItem('crabber.split') || '{}')); } catch {}
+
+  function apply() {
+    // Percentage (not px) so the split holds its proportion when the window resizes.
+    mainEl.style.setProperty('--split-x', (split.x * 100) + '%');
+    mainEl.style.setProperty('--split-y', (split.y * 100) + '%');
+  }
+  function set(frac) {
+    frac = clamp(frac);
+    if (isVert()) split.y = frac; else split.x = frac;
+    apply();
+    try { localStorage.setItem('crabber.split', JSON.stringify(split)); } catch {}
+  }
+  apply();
+
+  function fracFromEvent(e) {
+    const r = mainEl.getBoundingClientRect();
+    return isVert() ? (e.clientY - r.top) / r.height : (e.clientX - r.left) / r.width;
+  }
+  gutter.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    gutter.setPointerCapture(e.pointerId);
+    gutter.classList.add('dragging');
+    document.body.classList.add('gutter-dragging');
+    document.body.classList.toggle('vert', isVert());
+    const move = ev => set(fracFromEvent(ev));
+    const up = ev => {
+      gutter.releasePointerCapture(e.pointerId);
+      gutter.classList.remove('dragging');
+      document.body.classList.remove('gutter-dragging', 'vert');
+      gutter.removeEventListener('pointermove', move);
+      gutter.removeEventListener('pointerup', up);
+    };
+    gutter.addEventListener('pointermove', move);
+    gutter.addEventListener('pointerup', up);
+  });
+  // Keyboard: arrow keys nudge the focused divider.
+  gutter.addEventListener('keydown', e => {
+    const cur = isVert() ? split.y : split.x, step = 0.02;
+    const dec = isVert() ? 'ArrowUp' : 'ArrowLeft', inc = isVert() ? 'ArrowDown' : 'ArrowRight';
+    if (e.key === dec) { set(cur - step); e.preventDefault(); }
+    else if (e.key === inc) { set(cur + step); e.preventDefault(); }
+  });
+})();
 
 /* ---- Initialise ---- */
 loadInitialState();
