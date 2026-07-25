@@ -107,7 +107,9 @@
       <option value="zones">zones</option>
       <option value="zones-val-part">val-part zones</option>
       <option value="oct-snf">octagons (snf)</option>
-      <option value="non-unit-oct">non-unit octagons</option>
+      <option value="oct">octagons (apron)</option>
+      <option value="non-unit-oct">fixed tvpi</option>
+      <option value="pk">polyhedra (apron)</option>
     </select>
   </label>
   <label>Compare with
@@ -121,7 +123,9 @@
       <option value="zones">zones</option>
       <option value="zones-val-part">val-part zones</option>
       <option value="oct-snf">octagons (snf)</option>
-      <option value="non-unit-oct">non-unit octagons</option>
+      <option value="oct">octagons (apron)</option>
+      <option value="non-unit-oct">fixed tvpi</option>
+      <option value="pk">polyhedra (apron)</option>
     </select>
   </label>
   <label>Flags <input id="flags" type="text" size="22" placeholder="e.g. --widening-delay 10" spellcheck="false"></label>
@@ -173,7 +177,9 @@ const DOMAIN_DESC = {
   'zones':         'Zones (DBM): relational, tracks x − y ≤ c. Good precision/cost balance.',
   'zones-val-part':'Value-partitioned zones.',
   'oct-snf':       'Octagons: relational, tracks ±x ± y ≤ c.',
-  'non-unit-oct':  'Non-unit octagons (fixed-TVPI): a·x + b·y ≤ c for the --coefficients you pass.',
+  'oct':           'Octagons via Apron (exact/MPQ): tracks ±x ± y ≤ c.',
+  'non-unit-oct':  'fixed tvpi: a·x + b·y ≤ c for the --coefficients you pass.',
+  'pk':            'Convex polyhedra via Apron (exact/MPQ): tracks arbitrary linear inequalities Σ aᵢ·xᵢ ≤ c. Most precise linear domain, most expensive.',
 };
 // Short display name per domain value (from the Domain dropdown), used to
 // label each domain's invariants when comparing.
@@ -579,7 +585,13 @@ async function analyzeWith(domain) {
   let buf = '';
   // Fresh instance each run so stdout, the in-memory FS and analysis state
   // don't leak between runs.
-  const M = await Crabber({ print: t => buf += t + '\n', printErr: t => buf += t + '\n' });
+  // Apron's octagon manager prints a harmless FPU-rounding warning at startup
+  // (wasm has no fesetround); with exact-rational (MPQ) domains it's cosmetic.
+  const isFpuNoise = t => /fpu rounding mode|cannot change the FPU/i.test(t);
+  const M = await Crabber({
+    print: t => buf += t + '\n',
+    printErr: t => { if (!isFpuNoise(t)) buf += t + '\n'; },
+  });
   const args = ['/prog.crabir', '-d', domain];
   const extra = $('flags').value.trim();
   if (extra) args.push(...extra.split(/\s+/));

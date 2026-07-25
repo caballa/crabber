@@ -6,3 +6,7 @@ lib/
 obj/
 gmp-wasm/
 .gmp-build/
+mpfr-wasm/
+.mpfr-build/
+apron-wasm/
+.apron-build/

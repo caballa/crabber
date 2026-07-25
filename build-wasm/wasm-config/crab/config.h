@@ -1,8 +1,8 @@
 #ifndef _CRAB_CONFIG_H_
 #define _CRAB_CONFIG_H_
-/* WASM build: all optional external backends disabled */
+/* WASM build: LDD/PPLite/Elina off; Apron IS cross-compiled (see build-apron.sh) */
 /* #undef HAVE_LDD */
-/* #undef HAVE_APRON */
+#define HAVE_APRON
 /* #undef HAVE_PPLITE */
 /* #undef HAVE_PPLITE_NATIVE */
 /* #undef HAVE_ELINA */
