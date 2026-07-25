@@ -334,16 +334,21 @@ function parseDot(dot) {
   return { blocks, edges, inv };
 }
 
-/* Tidy an invariant string for display (playground only):
-   - the reduced product prints "(bool, num)"; when the boolean part is empty
-     ({}) show just the numeric part, and show "top" when both are empty;
-   - this also simplifies the inner pairs inside powerset disjuncts and the
-     value-partitioning map. */
+/* Simplify the reduced-product pairs anywhere in a string: the analyzer prints
+   "(bool, num)"; when the boolean part is empty ({}) keep only the numeric
+   part, and collapse ({}, {}) to "top". Works on a single invariant and on the
+   whole text dump, and also tidies the inner pairs of powerset disjuncts and
+   the value-partitioning map. Applied on the playground only. */
+function simplifyPairs(s) {
+  return String(s)
+    .replace(/\(\{\}\s*,\s*\{\}\)/g, 'top')          // ({}, {}) -> top
+    .replace(/\(\{\}\s*,\s*(\{[^{}]*\})\)/g, '$1');   // ({}, {Y}) -> {Y}
+}
+
+/* Tidy a single invariant string for display in a graph card. */
 function prettyInv(s) {
-  s = String(s).trim();
-  s = s.replace(/\(\{\}\s*,\s*\{\}\)/g, 'top');          // ({}, {}) -> top
-  s = s.replace(/\(\{\}\s*,\s*(\{[^{}]*\})\)/g, '$1');   // ({}, {Y}) -> {Y}
-  return s === '' ? 'top' : s;
+  const out = simplifyPairs(String(s).trim());
+  return out === '' ? 'top' : out;
 }
 
 /* Assign each block to a layer (longest path from the entry over forward edges);
@@ -543,8 +548,9 @@ async function analyzeWith(domain) {
   } catch (e) {
     buf += '\n[aborted] ' + String(e).split('\n')[0] + '\n';
   }
-  // Hide the "Writing 'x.crab.dot'..." lines; they are an artifact of the graph.
-  const text = buf.replace(/^Writing '[^']+\.crab\.dot'\.\.\.\n?/gm, '');
+  // Hide the "Writing 'x.crab.dot'..." lines (an artifact of the graph) and
+  // tidy the invariant pairs the same way the graph does.
+  const text = simplifyPairs(buf.replace(/^Writing '[^']+\.crab\.dot'\.\.\.\n?/gm, ''));
   return { domain, label: DOMAIN_LABEL[domain] || domain, text, dots: readDots(M, buf) };
 }
 
