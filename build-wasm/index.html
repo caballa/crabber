@@ -309,24 +309,41 @@ shareBtn.addEventListener('click', async () => {
 /* ================= CFG + invariants graph ================= */
 
 /* Parse the Graphviz dot emitted by crabber's --print-invariants-to-dot into
-   blocks, control-flow edges, and per-block pre-invariants. */
+   blocks, control-flow edges, and per-block pre-invariants. The dot is scanned
+   as a whole (not line by line) because some invariant labels span several
+   lines: the powerset domain prints "Inv1 or\nInv2 or\n..." and value
+   partitioning prints a multi-line map. Label values never contain a literal
+   double quote, so a non-greedy match up to the closing "] is safe. */
 function parseDot(dot) {
   const blocks = {}, edges = [], inv = {}, invById = {};
-  for (const raw of dot.split('\n')) {
-    const line = raw.trim(); let m;
-    if (m = line.match(/^(Node0x[0-9a-f]+)\s*\[shape=record,label="\{([\s\S]*)\}"\];?$/)) {
-      const parts = m[2].split('\\l').map(s => s.trim()).filter(s => s.length);
-      const name = (parts.shift() || '').replace(/:$/, '');
-      blocks[m[1]] = { name, insts: parts };
-    } else if (m = line.match(/^(NodePreInv0x[0-9a-f]+)\s*->\s*(Node0x[0-9a-f]+)/)) {
-      inv[m[2]] = invById[m[1]];
-    } else if (m = line.match(/^(NodePreInv0x[0-9a-f]+)\s*\[.*label="([\s\S]*)"\];?$/)) {
-      invById[m[1]] = m[2];
-    } else if (m = line.match(/^(Node0x[0-9a-f]+)\s*->\s*(Node0x[0-9a-f]+)/)) {
-      edges.push([m[1], m[2]]);
-    }
+  let m;
+  const reBlock = /(Node0x[0-9a-f]+)\s*\[shape=record,label="\{([\s\S]*?)\}"\]/g;
+  while (m = reBlock.exec(dot)) {
+    const parts = m[2].split('\\l').map(s => s.trim()).filter(s => s.length);
+    const name = (parts.shift() || '').replace(/:$/, '');
+    blocks[m[1]] = { name, insts: parts };
   }
+  const reInv = /(NodePreInv0x[0-9a-f]+)\s*\[[^\]]*?label="([\s\S]*?)"\]/g;
+  while (m = reInv.exec(dot)) invById[m[1]] = m[2];
+  const reInvEdge = /(NodePreInv0x[0-9a-f]+)\s*->\s*(Node0x[0-9a-f]+)/g;
+  while (m = reInvEdge.exec(dot)) inv[m[2]] = invById[m[1]];
+  // Control-flow edges: Node -> Node. The NodePreInv -> Node edges above start
+  // with a different prefix, so this pattern does not pick them up.
+  const reEdge = /(Node0x[0-9a-f]+)\s*->\s*(Node0x[0-9a-f]+)/g;
+  while (m = reEdge.exec(dot)) edges.push([m[1], m[2]]);
   return { blocks, edges, inv };
+}
+
+/* Tidy an invariant string for display (playground only):
+   - the reduced product prints "(bool, num)"; when the boolean part is empty
+     ({}) show just the numeric part, and show "top" when both are empty;
+   - this also simplifies the inner pairs inside powerset disjuncts and the
+     value-partitioning map. */
+function prettyInv(s) {
+  s = String(s).trim();
+  s = s.replace(/\(\{\}\s*,\s*\{\}\)/g, 'top');          // ({}, {}) -> top
+  s = s.replace(/\(\{\}\s*,\s*(\{[^{}]*\})\)/g, '$1');   // ({}, {Y}) -> {Y}
+  return s === '' ? 'top' : s;
 }
 
 /* Assign each block to a layer (longest path from the entry over forward edges);
@@ -377,7 +394,7 @@ function buildNode(g, id, invList) {
     tag.className = 'inv-tag';
     tag.textContent = iv.label;
     row.appendChild(tag);
-    row.appendChild(document.createTextNode(decodeEnt(iv.text)));
+    row.appendChild(document.createTextNode(decodeEnt(prettyInv(iv.text))));
     el.appendChild(row);
   });
   if (b.insts.length) {
