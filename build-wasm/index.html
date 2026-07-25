@@ -6,13 +6,14 @@
 <title>CrabIR Playground</title>
 <style>
   :root { color-scheme: light dark; --fg: #24292f; --muted: #6e7781; --border:#8884;
+          --card:#ffffff; --inv-bg:#fff8e1; --inv-fg:#7a5c00; --edge:#8899a6;
           /* token colours (light) */
           --t-comment:#6e7781; --t-keyword:#cf222e; --t-func:#8250df;
           --t-const:#0550ae;  --t-number:#0550ae;  --t-string:#0a3069;
           --t-type:#953800;   --t-var:#953800;      --t-label:#116329;
           --t-op:#cf222e; }
   @media (prefers-color-scheme: dark) {
-    :root { --fg:#e6edf3; --muted:#8b949e;
+    :root { --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --inv-bg:#2b2415; --inv-fg:#e3b341; --edge:#6b7681;
             --t-comment:#8b949e; --t-keyword:#ff7b72; --t-func:#d2a8ff;
             --t-const:#79c0ff;  --t-number:#79c0ff;  --t-string:#a5d6ff;
             --t-type:#ffa657;   --t-var:#ffa657;      --t-label:#7ee787;
@@ -40,11 +41,31 @@
   .editor > .hl { z-index: 0; pointer-events: none; color: var(--fg); background: transparent; }
   .editor > textarea { z-index: 1; background: transparent; color: transparent;
                        caret-color: var(--fg); resize: none; outline: none; }
+  /* Right-hand pane: a tab bar over either the text output or the CFG graph. */
+  .pane { display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+  .tabs { display: flex; gap: 4px; padding: 4px 8px; border-bottom: 1px solid var(--border); align-items: center; }
+  .tabs button { background: transparent; border: 1px solid transparent; border-radius: 6px;
+                 padding: 2px 10px; color: var(--muted); }
+  .tabs button.active { color: var(--fg); border-color: var(--border); background: #8881; }
+  .tabs .note { color: var(--muted); font-size: 12px; margin-left: auto; }
   pre#out { margin: 0; padding: 10px; font-family: ui-monospace, monospace; font-size: 13px;
-            height: 100%; box-sizing: border-box; overflow: auto; white-space: pre-wrap; background: #8881; }
-  select, button, input[type=text] { font: inherit; padding: 4px 8px; }
-  input[type=text] { font-family: ui-monospace, monospace; }
-  button { cursor: pointer; }
+            min-height: 0; box-sizing: border-box; overflow: auto; white-space: pre-wrap; background: #8881; }
+  #graph { min-height: 0; overflow: auto; padding: 12px; background: #8881; }
+  #graph[hidden], #out[hidden] { display: none; }
+  .cfg-title { font: 600 13px system-ui; margin: 2px 0 10px; }
+  .cfg-canvas { position: relative; width: max-content; min-width: 100%; margin: 0 auto 24px; }
+  .layers { position: relative; z-index: 1; display: flex; flex-direction: column;
+            gap: 40px; align-items: center; width: max-content; margin: 0 auto; }
+  .layer { display: flex; gap: 30px; justify-content: center; }
+  .node { border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+          min-width: 130px; max-width: 300px; box-shadow: 0 1px 3px #0003; overflow: hidden; }
+  .node h4 { margin: 0; padding: 4px 8px; border-bottom: 1px solid var(--border);
+             font: 600 12px ui-monospace, monospace; color: var(--t-label); }
+  .node .insts { padding: 4px 8px; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
+  .node .inv { padding: 3px 8px; border-top: 1px dashed var(--border); font: 12px/1.4 ui-monospace, monospace;
+               background: var(--inv-bg); color: var(--inv-fg); white-space: pre-wrap; word-break: break-word; }
+  svg.edges { position: absolute; inset: 0; z-index: 0; overflow: visible; pointer-events: none; }
+  svg.edges path { fill: none; stroke: var(--edge); stroke-width: 1.5; }
   /* On narrow screens stack the editor above the output instead of side-by-side. */
   @media (max-width: 720px) {
     main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
@@ -89,7 +110,15 @@
     <pre class="hl" id="hl" aria-hidden="true"></pre>
     <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
   </div>
-  <pre id="out"></pre>
+  <div class="pane">
+    <div class="tabs">
+      <button id="tab-text" class="active" data-view="text">Text</button>
+      <button id="tab-graph" data-view="graph">Graph</button>
+      <span class="note">CFG blocks with their pre-invariants</span>
+    </div>
+    <pre id="out"></pre>
+    <div id="graph" hidden></div>
+  </div>
 </main>
 <script src="examples.js"></script>
 <script src="crabber.js"></script>
@@ -251,25 +280,198 @@ shareBtn.addEventListener('click', async () => {
   setTimeout(() => { shareBtn.textContent = label; }, 1500);
 });
 
+/* ================= CFG + invariants graph ================= */
+
+/* Parse the Graphviz dot emitted by crabber's --print-invariants-to-dot into
+   blocks, control-flow edges, and per-block pre-invariants. */
+function parseDot(dot) {
+  const blocks = {}, edges = [], inv = {}, invById = {};
+  for (const raw of dot.split('\n')) {
+    const line = raw.trim(); let m;
+    if (m = line.match(/^(Node0x[0-9a-f]+)\s*\[shape=record,label="\{([\s\S]*)\}"\];?$/)) {
+      const parts = m[2].split('\\l').map(s => s.trim()).filter(s => s.length);
+      const name = (parts.shift() || '').replace(/:$/, '');
+      blocks[m[1]] = { name, insts: parts };
+    } else if (m = line.match(/^(NodePreInv0x[0-9a-f]+)\s*->\s*(Node0x[0-9a-f]+)/)) {
+      inv[m[2]] = invById[m[1]];
+    } else if (m = line.match(/^(NodePreInv0x[0-9a-f]+)\s*\[.*label="([\s\S]*)"\];?$/)) {
+      invById[m[1]] = m[2];
+    } else if (m = line.match(/^(Node0x[0-9a-f]+)\s*->\s*(Node0x[0-9a-f]+)/)) {
+      edges.push([m[1], m[2]]);
+    }
+  }
+  return { blocks, edges, inv };
+}
+
+/* Assign each block to a layer (longest path from the entry over forward edges);
+   edges that close a cycle are marked as back edges and drawn to the side. */
+function layoutGraph(g) {
+  const ids = Object.keys(g.blocks);
+  const entry = ids.find(i => g.blocks[i].name === 'start') || ids[0];
+  const state = {}, back = new Set(), order = [];
+  function dfs(u) {
+    state[u] = 1;
+    for (const [a, b] of g.edges) if (a === u) {
+      if (state[b] === 1) back.add(a + '>' + b);
+      else if (!state[b]) dfs(b);
+    }
+    state[u] = 2; order.push(u);
+  }
+  if (entry) dfs(entry);
+  ids.forEach(i => { if (!state[i]) dfs(i); });   // pick up any unreachable blocks
+  const fwd = g.edges.filter(([a, b]) => !back.has(a + '>' + b));
+  const layer = {}; ids.forEach(i => layer[i] = 0);
+  for (const u of order.slice().reverse())        // topological order
+    for (const [a, b] of fwd) if (a === u) layer[b] = Math.max(layer[b], layer[u] + 1);
+  const maxL = Math.max(0, ...ids.map(i => layer[i]));
+  const layers = [];
+  for (let l = 0; l <= maxL; l++) layers.push(ids.filter(i => layer[i] === l));
+  return { layers, layer };
+}
+
+const decodeEnt = s => s.replace(/&le;/g, '≤').replace(/&ge;/g, '≥')
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+
+function buildNode(g, id) {
+  const b = g.blocks[id];
+  const el = document.createElement('div');
+  el.className = 'node';
+  const h = document.createElement('h4');
+  h.textContent = b.name;
+  el.appendChild(h);
+  if (b.insts.length) {
+    const body = document.createElement('div');
+    body.className = 'insts';
+    body.textContent = b.insts.map(decodeEnt).join('\n');
+    el.appendChild(body);
+  }
+  if (g.inv[id] != null) {
+    const iv = document.createElement('div');
+    iv.className = 'inv';
+    iv.textContent = decodeEnt(g.inv[id]);
+    el.appendChild(iv);
+  }
+  return el;
+}
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+function drawEdges(svg, canvas, nodeEl, g, layer) {
+  const cr = canvas.getBoundingClientRect();
+  svg.setAttribute('width', canvas.offsetWidth);
+  svg.setAttribute('height', canvas.offsetHeight);
+  const defs = document.createElementNS(SVGNS, 'defs');
+  defs.innerHTML = '<marker id="arw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">' +
+    '<path d="M0,0 L6,3 L0,6 z" fill="var(--edge)"/></marker>';
+  svg.appendChild(defs);
+  const at = (id, side) => {
+    const r = nodeEl[id].getBoundingClientRect();
+    if (side === 'right') return { x: r.right - cr.left, y: r.top + r.height / 2 - cr.top };
+    return { x: r.left + r.width / 2 - cr.left, y: (side === 'top' ? r.top : r.bottom) - cr.top };
+  };
+  for (const [a, b] of g.edges) {
+    if (!nodeEl[a] || !nodeEl[b]) continue;
+    const p = document.createElementNS(SVGNS, 'path');
+    let d;
+    if (layer[b] > layer[a]) {                     // forward edge: top-to-bottom curve
+      const s = at(a, 'bottom'), t = at(b, 'top');
+      d = `M ${s.x} ${s.y} C ${s.x} ${s.y + 40}, ${t.x} ${t.y - 40}, ${t.x} ${t.y}`;
+    } else {                                        // back/lateral edge: bow out to the right
+      const s = at(a, 'right'), t = at(b, 'right');
+      const dx = 50 + Math.abs(s.y - t.y) * 0.15;
+      d = `M ${s.x} ${s.y} C ${s.x + dx} ${s.y}, ${t.x + dx} ${t.y}, ${t.x} ${t.y}`;
+    }
+    p.setAttribute('d', d);
+    p.setAttribute('marker-end', 'url(#arw)');
+    svg.appendChild(p);
+  }
+}
+
+function renderGraph(container, dots) {
+  container.innerHTML = '';
+  if (!dots || !dots.length) {
+    container.textContent = 'Run the analyzer to see the control-flow graph and invariants.';
+    return;
+  }
+  for (const { name, dot } of dots) {
+    const g = parseDot(dot);
+    const { layers, layer } = layoutGraph(g);
+    const title = document.createElement('div');
+    title.className = 'cfg-title';
+    title.textContent = 'CFG: ' + name;
+    container.appendChild(title);
+
+    const canvas = document.createElement('div');
+    canvas.className = 'cfg-canvas';
+    const svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('class', 'edges');
+    const layersDiv = document.createElement('div');
+    layersDiv.className = 'layers';
+    const nodeEl = {};
+    for (const lyr of layers) {
+      const row = document.createElement('div');
+      row.className = 'layer';
+      for (const id of lyr) { nodeEl[id] = buildNode(g, id); row.appendChild(nodeEl[id]); }
+      layersDiv.appendChild(row);
+    }
+    canvas.appendChild(svg);
+    canvas.appendChild(layersDiv);
+    container.appendChild(canvas);
+    drawEdges(svg, canvas, nodeEl, g, layer);      // measure after the DOM is laid out
+  }
+}
+
+/* ---- Output views: keep the last run's text + dot, switch between them ---- */
+let lastText = '', lastDots = null;
+
+function readDots(M, stdout) {
+  const dots = [], seen = new Set();
+  const re = /Writing '([^']+\.crab\.dot)'/g; let m;
+  while (m = re.exec(stdout)) {
+    const f = m[1]; if (seen.has(f)) continue; seen.add(f);
+    try { dots.push({ name: f.replace(/\.crab\.dot$/, ''), dot: M.FS.readFile('/' + f, { encoding: 'utf8' }) }); }
+    catch (e) {}
+  }
+  return dots;
+}
+
+let view = 'text';
+function setView(v) {
+  view = v;
+  $('tab-text').classList.toggle('active', v === 'text');
+  $('tab-graph').classList.toggle('active', v === 'graph');
+  $('out').hidden = v !== 'text';
+  $('graph').hidden = v !== 'graph';
+  if (v === 'graph') renderGraph($('graph'), lastDots);
+}
+$('tab-text').addEventListener('click', () => setView('text'));
+$('tab-graph').addEventListener('click', () => setView('graph'));
+
 /* ---- Run the analyzer (crabber compiled to WebAssembly) ---- */
 const runBtn = $('run');
 runBtn.addEventListener('click', async () => {
-  const out = $('out');
-  out.textContent = 'Running…';
+  $('out').textContent = 'Running…';
+  if (view === 'graph') $('graph').textContent = 'Running…';
   let buf = '';
-  // Fresh instance each run so stdout and analysis state don't leak between runs.
+  // Fresh instance each run so stdout, the in-memory FS and analysis state
+  // don't leak between runs.
   const M = await Crabber({ print: t => buf += t + '\n', printErr: t => buf += t + '\n' });
   const args = ['/prog.crabir', '-d', $('domain').value];
   const extra = $('flags').value.trim();
   if (extra) args.push(...extra.split(/\s+/));
   if ($('inv').checked) args.push('--print-invariants');
+  args.push('--print-invariants-to-dot');          // always emit dot so the Graph tab is ready
   try {
     M.FS.writeFile('/prog.crabir', src.value);
     M.callMain(args);
   } catch (e) {
     buf += '\n[aborted] ' + String(e).split('\n')[0] + '\n';
   }
-  out.textContent = buf;
+  lastDots = readDots(M, buf);
+  // Hide the "Writing 'x.crab.dot'..." lines from the text view; they are an
+  // artifact of emitting the graph.
+  lastText = buf.replace(/^Writing '[^']+\.crab\.dot'\.\.\.\n?/gm, '');
+  $('out').textContent = lastText;
+  if (view === 'graph') renderGraph($('graph'), lastDots);
 });
 
 /* ---- Initialise ---- */
