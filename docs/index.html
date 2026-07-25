@@ -69,6 +69,14 @@
   .node .inv.inv-b { background: var(--inv-bg2); color: var(--inv-fg2); }
   .node .inv-tag { display: inline-block; margin-right: 6px; font: 600 9px/1.4 system-ui;
                    letter-spacing: .04em; text-transform: uppercase; opacity: .65; vertical-align: 1px; }
+  .node .inv-text { display: block; }
+  .node .inv-text.clamped { max-height: 5.6em; overflow: hidden;
+                            -webkit-mask-image: linear-gradient(#000 70%, transparent);
+                            mask-image: linear-gradient(#000 70%, transparent); }
+  .node .inv-toggle { display: block; margin-top: 2px; padding: 0; background: transparent;
+                      border: 0; color: inherit; opacity: .7; cursor: pointer;
+                      font: 600 10px system-ui; }
+  .node .inv-toggle:hover { opacity: 1; text-decoration: underline; }
   svg.edges { position: absolute; inset: 0; z-index: 0; overflow: visible; pointer-events: none; }
   svg.edges path { fill: none; stroke: var(--edge); stroke-width: 1.5; }
   /* On narrow screens stack the editor above the output instead of side-by-side. */
@@ -383,6 +391,9 @@ const decodeEnt = s => s.replace(/&le;/g, '≤').replace(/&ge;/g, '≥')
 // invList is an array of { label, text } — one entry per analyzed domain.
 // The pre-invariants hold on entry, before the first statement, so they are
 // shown at the top of the block (above the instructions), one row per domain.
+// An invariant longer than this many lines or characters starts collapsed.
+const COLLAPSE_LINES = 4, COLLAPSE_CHARS = 200;
+
 function buildNode(g, id, invList) {
   const b = g.blocks[id];
   const el = document.createElement('div');
@@ -399,7 +410,24 @@ function buildNode(g, id, invList) {
     tag.className = 'inv-tag';
     tag.textContent = iv.label;
     row.appendChild(tag);
-    row.appendChild(document.createTextNode(decodeEnt(prettyInv(iv.text))));
+    const text = decodeEnt(prettyInv(iv.text));
+    const lines = text.split('\n').length;
+    // Large invariants (e.g. powerset disjunctions, value-partition maps) are
+    // collapsed to a few lines with a toggle to expand them.
+    if (lines > COLLAPSE_LINES || text.length > COLLAPSE_CHARS) {
+      const box = document.createElement('div');
+      box.className = 'inv-text clamped';
+      box.textContent = text;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'inv-toggle';
+      btn.setAttribute('aria-expanded', 'false');
+      btn.textContent = '▸ show all (' + lines + ' lines)';
+      row.appendChild(box);
+      row.appendChild(btn);
+    } else {
+      row.appendChild(document.createTextNode(text));
+    }
     el.appendChild(row);
   });
   if (b.insts.length) {
@@ -413,6 +441,7 @@ function buildNode(g, id, invList) {
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 function drawEdges(svg, canvas, nodeEl, g, layer) {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);   // re-runnable after a toggle
   const cr = canvas.getBoundingClientRect();
   svg.setAttribute('width', canvas.offsetWidth);
   svg.setAttribute('height', canvas.offsetHeight);
@@ -501,7 +530,21 @@ function renderGraph(container, graphs) {
     canvas.appendChild(svg);
     canvas.appendChild(layersDiv);
     container.appendChild(canvas);
-    drawEdges(svg, canvas, nodeEl, g, layer);      // measure after the DOM is laid out
+    const redraw = () => drawEdges(svg, canvas, nodeEl, g, layer);
+    redraw();                                        // measure after the DOM is laid out
+    // Expand/collapse a large invariant, then re-route the edges since the
+    // block (and everything below it) changed height.
+    canvas.addEventListener('click', e => {
+      const btn = e.target.closest('.inv-toggle');
+      if (!btn) return;
+      const box = btn.previousElementSibling;
+      const clamped = box.classList.toggle('clamped');
+      btn.setAttribute('aria-expanded', String(!clamped));
+      btn.textContent = clamped
+        ? '▸ show all (' + box.textContent.split('\n').length + ' lines)'
+        : '▾ show less';
+      redraw();
+    });
   }
 }
 
