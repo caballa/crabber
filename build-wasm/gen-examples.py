@@ -17,21 +17,21 @@ OUT = os.path.join(HERE, "examples.js")
 
 # (label, sample file, domain, extra flags)  -- keep in sync with CMakeLists.txt
 TESTS = [
-    ("test-1 · intervals",            "test-1.crabir",      "int",            ""),
-    ("test-3 · intervals",            "test-3.crabir",      "int",            ""),
-    ("test-4 · octagons (snf)",       "test-4.crabir",      "oct-snf",        ""),
-    ("test-5 · widening thresholds",  "test-5.crabir",      "int",            "--widening-thresholds 10"),
-    ("test-6 · intervals",            "test-6.crabir",      "int",            ""),
-    ("test-7 · powerset intervals",   "test-7.crabir",      "int-set",        "--widening-delay 10"),
-    ("test-7 · val-part intervals",   "test-7.crabir",      "int-val-part",   "--widening-delay 10"),
-    ("test-7 · val-part zones",       "test-7.crabir",      "zones-val-part", "--widening-delay 10"),
-    ("test-8 · zones",                "test-8.crabir",      "zones",          ""),
-    ("test-9 · non-unit octagons",    "test-9.crabir",      "non-unit-oct",   "--coefficients 4,8"),
-    ("test-10 · int + terms",         "test-10.crabir",     "int-terms",      ""),
-    ("test-call-1 · zones",           "test-call-1.crabir", "zones",          ""),
-    ("test-call-2 · zones",           "test-call-2.crabir", "zones",          ""),
-    ("test-call-3 · zones",           "test-call-3.crabir", "zones",          ""),
-    ("test-call-4 · zones",           "test-call-4.crabir", "zones",          ""),
+    ("Counter loops · intervals",            "test-1.crabir",      "int",            ""),
+    ("Nested loops · intervals",             "test-3.crabir",      "int",            ""),
+    ("Relational bound x+y · octagons",      "test-4.crabir",      "oct-snf",        ""),
+    ("Widening thresholds · intervals",      "test-5.crabir",      "int",            "--widening-thresholds 10"),
+    ("Booleans & casts · intervals",         "test-6.crabir",      "int",            ""),
+    ("Value partitioning · powerset int",    "test-7.crabir",      "int-set",        "--widening-delay 10"),
+    ("Value partitioning · val-part int",    "test-7.crabir",      "int-val-part",   "--widening-delay 10"),
+    ("Value partitioning · val-part zones",  "test-7.crabir",      "zones-val-part", "--widening-delay 10"),
+    ("Array load/store · zones",             "test-8.crabir",      "zones",          ""),
+    ("Non-unit coefficients · non-unit oct", "test-9.crabir",      "non-unit-oct",   "--coefficients 4,8"),
+    ("Symbolic terms · intervals+terms",     "test-10.crabir",     "int-terms",      ""),
+    ("Function call: 1-in/1-out · zones",    "test-call-1.crabir", "zones",          ""),
+    ("Function call: multi in/out · zones",  "test-call-2.crabir", "zones",          ""),
+    ("Function call: void call · zones",     "test-call-3.crabir", "zones",          ""),
+    ("Function call: reused callee · zones", "test-call-4.crabir", "zones",          ""),
 ]
 
 examples = []
