@@ -96,8 +96,6 @@ using namespace crabber;
 
 int main(int argc, char **argv) {
   CLI::App app{"Run Crab analyzer on CrabIR programs"};
-  //  string filename = "";
-  //  app.add_option("-i,--input", filename, "Input file")->type_name("FILE");
   std::string filename;
   app.add_option("filename", filename, "CrabIR file.")
       ->required()
@@ -170,17 +168,6 @@ int main(int argc, char **argv) {
     return 0;
   }
   
-  // istream *is = nullptr;
-  // if (filename != "") {
-  //   auto ifs = new ifstream(filename);
-  //   if (!ifs->is_open()){
-  //     CRAB_ERROR("Cannot open file ", filename);
-  //   }
-  //   is = ifs;
-  // } else {
-  //   is = &std::cin;
-  // }
-
   ifstream ifs(filename);
   if (!ifs.is_open()) {
     CRAB_ERROR("Cannot open file ", filename);

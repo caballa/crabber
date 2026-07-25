@@ -78,7 +78,6 @@ using oct_elina_domain_t = ARRAY_FUN(BOOL_NUM(BASE(oct_elina_domain_t)));
 // intervals
 using BASE(interval_domain_t) = interval_domain<number_t, varname_t>;
 using interval_domain_t = ARRAY_FUN(BOOL_NUM(BASE(interval_domain_t)));
-using BASE(interval_domain_t) = interval_domain<number_t, varname_t>;
 using set_interval_domain_t = POWERSET(ARRAY_FUN(BOOL_NUM(BASE(interval_domain_t))));
 using val_partition_interval_domain_t = VAL_PARTITIONING(ARRAY_FUN(BOOL_NUM(BASE(interval_domain_t))));
 using BASE(boxes_domain_t) = boxes_domain<number_t, varname_t>;
