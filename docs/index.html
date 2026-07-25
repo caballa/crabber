@@ -7,6 +7,7 @@
 <style>
   :root { color-scheme: light dark; --fg: #24292f; --muted: #6e7781; --border:#8884;
           --card:#ffffff; --inv-bg:#fff8e1; --inv-fg:#7a5c00; --edge:#8899a6;
+          --inv-bg2:#e7f0ff; --inv-fg2:#0a3b7a;
           /* token colours (light) */
           --t-comment:#6e7781; --t-keyword:#cf222e; --t-func:#8250df;
           --t-const:#0550ae;  --t-number:#0550ae;  --t-string:#0a3069;
@@ -14,6 +15,7 @@
           --t-op:#cf222e; }
   @media (prefers-color-scheme: dark) {
     :root { --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --inv-bg:#2b2415; --inv-fg:#e3b341; --edge:#6b7681;
+            --inv-bg2:#16233a; --inv-fg2:#79c0ff;
             --t-comment:#8b949e; --t-keyword:#ff7b72; --t-func:#d2a8ff;
             --t-const:#79c0ff;  --t-number:#79c0ff;  --t-string:#a5d6ff;
             --t-type:#ffa657;   --t-var:#ffa657;      --t-label:#7ee787;
@@ -64,6 +66,7 @@
   .node .insts { padding: 4px 8px; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
   .node .inv { padding: 3px 8px; border-bottom: 1px solid var(--border); font: 12px/1.4 ui-monospace, monospace;
                background: var(--inv-bg); color: var(--inv-fg); white-space: pre-wrap; word-break: break-word; }
+  .node .inv.inv-b { background: var(--inv-bg2); color: var(--inv-fg2); }
   .node .inv-tag { display: inline-block; margin-right: 6px; font: 600 9px/1.4 system-ui;
                    letter-spacing: .04em; text-transform: uppercase; opacity: .65; vertical-align: 1px; }
   svg.edges { position: absolute; inset: 0; z-index: 0; overflow: visible; pointer-events: none; }
@@ -88,6 +91,20 @@
   </label>
   <label>Domain
     <select id="domain">
+      <option value="int">intervals</option>
+      <option value="dis-int">dis-intervals</option>
+      <option value="int-terms">int + terms</option>
+      <option value="int-set">powerset intervals</option>
+      <option value="int-val-part">val-part intervals</option>
+      <option value="zones">zones</option>
+      <option value="zones-val-part">val-part zones</option>
+      <option value="oct-snf">octagons (snf)</option>
+      <option value="non-unit-oct">non-unit octagons</option>
+    </select>
+  </label>
+  <label>Compare with
+    <select id="domain2">
+      <option value="">— none —</option>
       <option value="int">intervals</option>
       <option value="dis-int">dis-intervals</option>
       <option value="int-terms">int + terms</option>
@@ -150,6 +167,10 @@ const DOMAIN_DESC = {
   'oct-snf':       'Octagons: relational, tracks ±x ± y ≤ c.',
   'non-unit-oct':  'Non-unit octagons (fixed-TVPI): a·x + b·y ≤ c for the --coefficients you pass.',
 };
+// Short display name per domain value (from the Domain dropdown), used to
+// label each domain's invariants when comparing.
+const DOMAIN_LABEL = {};
+for (const o of $('domain').options) DOMAIN_LABEL[o.value] = o.textContent.trim();
 function updateHint() {
   const d = $('domain').value;
   $('hint').innerHTML = (DOMAIN_DESC[d] || '') +
@@ -216,11 +237,13 @@ const b64e = s => btoa(unescape(encodeURIComponent(s)))
 const b64d = s => decodeURIComponent(escape(atob(
                     s.replace(/-/g, '+').replace(/_/g, '/'))));
 function currentState() {
-  return { c: src.value, d: $('domain').value, f: $('flags').value, i: $('inv').checked };
+  return { c: src.value, d: $('domain').value, d2: $('domain2').value,
+           f: $('flags').value, i: $('inv').checked };
 }
 function applyState(st) {
   if (typeof st.c === 'string') src.value = st.c;
   if (st.d) $('domain').value = st.d;
+  $('domain2').value = st.d2 || '';
   $('flags').value = st.f || '';
   if ('i' in st) $('inv').checked = !!st.i;
   sync(); updateHint();
@@ -250,6 +273,7 @@ src.addEventListener('keydown', e => {
   }
 });
 $('domain').addEventListener('change', () => { updateHint(); save(); });
+$('domain2').addEventListener('change', save);
 $('flags').addEventListener('input', save);
 $('inv').addEventListener('change', save);
 
@@ -334,26 +358,28 @@ function layoutGraph(g) {
 const decodeEnt = s => s.replace(/&le;/g, '≤').replace(/&ge;/g, '≥')
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
-function buildNode(g, id) {
+// invList is an array of { label, text } — one entry per analyzed domain.
+// The pre-invariants hold on entry, before the first statement, so they are
+// shown at the top of the block (above the instructions), one row per domain.
+function buildNode(g, id, invList) {
   const b = g.blocks[id];
   const el = document.createElement('div');
   el.className = 'node';
   const h = document.createElement('h4');
   h.textContent = b.name;
   el.appendChild(h);
-  // The pre-invariant holds on entry, before the first statement, so it is
-  // shown at the top of the block (above the instructions).
-  if (g.inv[id] != null) {
-    const iv = document.createElement('div');
-    iv.className = 'inv';
-    iv.title = 'Invariant on entry to this block (before the first statement)';
+  (invList || []).forEach((iv, idx) => {
+    const row = document.createElement('div');
+    row.className = 'inv' + (idx % 2 ? ' inv-b' : '');
+    row.title = 'Invariant on entry to this block (before the first statement)' +
+                (iv.label ? ' — ' + iv.label : '');
     const tag = document.createElement('span');
     tag.className = 'inv-tag';
-    tag.textContent = 'on entry';
-    iv.appendChild(tag);
-    iv.appendChild(document.createTextNode(decodeEnt(g.inv[id])));
-    el.appendChild(iv);
-  }
+    tag.textContent = iv.label;
+    row.appendChild(tag);
+    row.appendChild(document.createTextNode(decodeEnt(iv.text)));
+    el.appendChild(row);
+  });
   if (b.insts.length) {
     const body = document.createElement('div');
     body.className = 'insts';
@@ -395,14 +421,42 @@ function drawEdges(svg, canvas, nodeEl, g, layer) {
   }
 }
 
-function renderGraph(container, dots) {
+/* Merge the per-domain runs into one graph per cfg. The control-flow
+   structure is identical across domains (it depends only on the program), so
+   the first run supplies blocks and edges; every run contributes its own
+   pre-invariant per block, matched by block name (the Node* pointer ids differ
+   between runs). Each block ends up with an `invs` list of { label, text }. */
+function buildUnifiedGraphs(runs) {
+  if (!runs.length || !runs[0].dots.length) return [];
+  const single = runs.length === 1;
+  const out = [];
+  for (const { name, dot } of runs[0].dots) {
+    const g = parseDot(dot);
+    const invs = {};
+    for (const id of Object.keys(g.blocks)) invs[id] = [];
+    for (const run of runs) {
+      const d = run.dots.find(x => x.name === name);
+      if (!d) continue;
+      const gr = parseDot(d.dot);
+      const byName = {};
+      for (const [rid, rb] of Object.entries(gr.blocks))
+        if (gr.inv[rid] != null) byName[rb.name] = gr.inv[rid];
+      const label = single ? 'on entry' : run.label;
+      for (const [id, b] of Object.entries(g.blocks))
+        if (byName[b.name] != null) invs[id].push({ label, text: byName[b.name] });
+    }
+    out.push({ name, g, invs });
+  }
+  return out;
+}
+
+function renderGraph(container, graphs) {
   container.innerHTML = '';
-  if (!dots || !dots.length) {
+  if (!graphs || !graphs.length) {
     container.textContent = 'Run the analyzer to see the control-flow graph and invariants.';
     return;
   }
-  for (const { name, dot } of dots) {
-    const g = parseDot(dot);
+  for (const { name, g, invs } of graphs) {
     const { layers, layer } = layoutGraph(g);
     const title = document.createElement('div');
     title.className = 'cfg-title';
@@ -419,7 +473,7 @@ function renderGraph(container, dots) {
     for (const lyr of layers) {
       const row = document.createElement('div');
       row.className = 'layer';
-      for (const id of lyr) { nodeEl[id] = buildNode(g, id); row.appendChild(nodeEl[id]); }
+      for (const id of lyr) { nodeEl[id] = buildNode(g, id, invs[id]); row.appendChild(nodeEl[id]); }
       layersDiv.appendChild(row);
     }
     canvas.appendChild(svg);
@@ -429,8 +483,8 @@ function renderGraph(container, dots) {
   }
 }
 
-/* ---- Output views: keep the last run's text + dot, switch between them ---- */
-let lastText = '', lastDots = null;
+/* ---- Output views: keep the last run's text + merged graphs, switch between them ---- */
+let lastText = '', lastGraphs = null;
 
 function readDots(M, stdout) {
   const dots = [], seen = new Set();
@@ -450,21 +504,18 @@ function setView(v) {
   $('tab-graph').classList.toggle('active', v === 'graph');
   $('out').hidden = v !== 'text';
   $('graph').hidden = v !== 'graph';
-  if (v === 'graph') renderGraph($('graph'), lastDots);
+  if (v === 'graph') renderGraph($('graph'), lastGraphs);
 }
 $('tab-text').addEventListener('click', () => setView('text'));
 $('tab-graph').addEventListener('click', () => setView('graph'));
 
-/* ---- Run the analyzer (crabber compiled to WebAssembly) ---- */
-const runBtn = $('run');
-runBtn.addEventListener('click', async () => {
-  $('out').textContent = 'Running…';
-  if (view === 'graph') $('graph').textContent = 'Running…';
+/* Run the analyzer once for a single domain, returning its text + dot files. */
+async function analyzeWith(domain) {
   let buf = '';
   // Fresh instance each run so stdout, the in-memory FS and analysis state
   // don't leak between runs.
   const M = await Crabber({ print: t => buf += t + '\n', printErr: t => buf += t + '\n' });
-  const args = ['/prog.crabir', '-d', $('domain').value];
+  const args = ['/prog.crabir', '-d', domain];
   const extra = $('flags').value.trim();
   if (extra) args.push(...extra.split(/\s+/));
   if ($('inv').checked) args.push('--print-invariants');
@@ -475,12 +526,25 @@ runBtn.addEventListener('click', async () => {
   } catch (e) {
     buf += '\n[aborted] ' + String(e).split('\n')[0] + '\n';
   }
-  lastDots = readDots(M, buf);
-  // Hide the "Writing 'x.crab.dot'..." lines from the text view; they are an
-  // artifact of emitting the graph.
-  lastText = buf.replace(/^Writing '[^']+\.crab\.dot'\.\.\.\n?/gm, '');
+  // Hide the "Writing 'x.crab.dot'..." lines; they are an artifact of the graph.
+  const text = buf.replace(/^Writing '[^']+\.crab\.dot'\.\.\.\n?/gm, '');
+  return { domain, label: DOMAIN_LABEL[domain] || domain, text, dots: readDots(M, buf) };
+}
+
+/* ---- Run: analyze the primary domain, and a second one if comparing ---- */
+const runBtn = $('run');
+runBtn.addEventListener('click', async () => {
+  $('out').textContent = 'Running…';
+  if (view === 'graph') $('graph').textContent = 'Running…';
+  const d1 = $('domain').value, d2 = $('domain2').value;
+  const domains = (d2 && d2 !== d1) ? [d1, d2] : [d1];
+  const runs = [];
+  for (const d of domains) runs.push(await analyzeWith(d));
+  lastText = runs.length === 1 ? runs[0].text
+    : runs.map(r => `##### domain: ${r.label} (${r.domain}) #####\n` + r.text).join('\n');
   $('out').textContent = lastText;
-  if (view === 'graph') renderGraph($('graph'), lastDots);
+  lastGraphs = buildUnifiedGraphs(runs);
+  if (view === 'graph') renderGraph($('graph'), lastGraphs);
 });
 
 /* ---- Initialise ---- */
