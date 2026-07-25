@@ -13,6 +13,10 @@ class CrabIrBuilderImpl {
   CrabIrBuilderOpts m_opts;
   variable_factory_t m_vfac;
   std::vector<std::unique_ptr<cfg_t>> m_cfgs;
+  // Maps each cfg's function name to its cfg, so hasCFG/getCFG are O(log n)
+  // lookups instead of linear scans over m_cfgs. The pointers are owned by
+  // m_cfgs and stay valid because cfgs are never removed after parsing.
+  std::map<std::string, cfg_t *> m_cfg_map;
   std::unique_ptr<callgraph_t> m_callgraph;
   std::unique_ptr<std::map<unsigned, expected_result>> m_expected_results;
 
@@ -87,6 +91,9 @@ void CrabIrBuilderImpl::parse() {
     if (m_opts.cfg_to_dot) {
       cfg_to_dot(*cfg);
     }
+    if (cfg->has_func_decl()) {
+      m_cfg_map[cfg->get_func_decl().get_func_name()] = cfg.get();
+    }
     cfg_refs.push_back(cfg_ref_t(*cfg));
   }
   m_callgraph = std::make_unique<callgraph_t>(cfg_refs);
@@ -95,42 +102,23 @@ void CrabIrBuilderImpl::parse() {
 const CrabIrBuilderOpts &CrabIrBuilderImpl::getOpts() const { return m_opts; }
 
 bool CrabIrBuilderImpl::hasCFG(const std::string &name) const {
-  for (unsigned i = 0, sz = m_cfgs.size(); i < sz; ++i) {
-    if (m_cfgs[i]->has_func_decl()) {
-      auto fdecl = m_cfgs[i]->get_func_decl();
-      if (fdecl.get_func_name() == name) {
-        return true;
-      }
-    }
-  }
-  return false;
+  return m_cfg_map.find(name) != m_cfg_map.end();
 }
 
-// Each call to getCFG should be preceded by a call to hasCFG.
-// Thus, it will iterate over m_cfgs twice. It's not efficient but simple/clean.
-// Since we don't expect too many CFGs it should be okay.
 cfg_t &CrabIrBuilderImpl::getCFG(const std::string &name) {
-  for (unsigned i = 0, sz = m_cfgs.size(); i < sz; ++i) {
-    if (m_cfgs[i]->has_func_decl()) {
-      auto fdecl = m_cfgs[i]->get_func_decl();
-      if (fdecl.get_func_name() == name) {
-        return *(m_cfgs[i]);
-      }
-    }
+  auto it = m_cfg_map.find(name);
+  if (it == m_cfg_map.end()) {
+    CRAB_ERROR("getCFG can be only called if hasCFG returns true");
   }
-  CRAB_ERROR("getCFG can be only called if hasCFG returns true");
+  return *(it->second);
 }
 
 const cfg_t &CrabIrBuilderImpl::getCFG(const std::string &name) const {
-  for (unsigned i = 0, sz = m_cfgs.size(); i < sz; ++i) {
-    if (m_cfgs[i]->has_func_decl()) {
-      auto fdecl = m_cfgs[i]->get_func_decl();
-      if (fdecl.get_func_name() == name) {
-        return *(m_cfgs[i]);
-      }
-    }
+  auto it = m_cfg_map.find(name);
+  if (it == m_cfg_map.end()) {
+    CRAB_ERROR("getCFG can be only called if hasCFG returns true");
   }
-  CRAB_ERROR("getCFG can be only called if hasCFG returns true");
+  return *(it->second);
 }
 
 const callgraph_t &CrabIrBuilderImpl::getCallGraph() const {
