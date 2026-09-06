@@ -56,6 +56,7 @@ add_executable(crabber
   src/parser.cpp
   src/crabir_builder.cpp
   src/analyzer.cpp
+  src/json_export.cpp
   src/domains/boxes_domain.cpp
   src/domains/dis_interval_domain.cpp    
   src/domains/fixed_tvpi_domain.cpp
