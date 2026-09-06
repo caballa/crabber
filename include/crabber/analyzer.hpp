@@ -17,6 +17,9 @@ struct CrabIrAnalyzerOpts {
   bool run_checker;
   bool print_invariants;
   bool print_invariants_to_dot;
+  /// Path to write the invariants in JSON format ("" disables it, "-" is
+  /// stdout).
+  std::string print_invariants_to_json;
 
   CrabIrAnalyzerOpts()
       : domain(AbstractDomain::ZONES),

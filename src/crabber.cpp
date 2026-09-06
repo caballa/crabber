@@ -1,8 +1,11 @@
 #include "CLI11.hpp"
 
 #include <crabber/crabber.hpp>
+#include <crabber/json_export.hpp>
 #include <crab/domains/abstract_domain_params.hpp>
+#include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 using namespace std;
@@ -19,6 +22,24 @@ TestResult run_program(std::istream &is, const CrabIrBuilderOpts &irOpts,
   }
   if (anaOpts.print_invariants_to_dot) {
     crabAnalyzer.write_to_dot();
+  }
+  auto with_output = [](const std::string &path, auto &&write) {
+    std::ofstream ofs(path);
+    if (!ofs.is_open()) {
+      CRAB_ERROR("Cannot open file ", path, " for writing");
+    }
+    crab::crab_os os(&ofs);
+    write(os);
+  };
+  if (!irOpts.cfg_to_json.empty()) {
+    with_output(irOpts.cfg_to_json, [&](crab::crab_os &os) {
+      writeCFGsToJson(os, crabIR, irOpts);
+    });
+  }
+  if (!anaOpts.print_invariants_to_json.empty()) {
+    with_output(anaOpts.print_invariants_to_json, [&](crab::crab_os &os) {
+      writeInvariantsToJson(os, crabIR, crabAnalyzer, irOpts, anaOpts);
+    });
   }
 
   unsigned expected_ok = 0;
@@ -127,13 +148,23 @@ int main(int argc, char **argv) {
   app.add_flag("--print-invariants", print_invariants, "Print invariants");
 
   bool print_invariants_to_dot = false;
-  app.add_flag("-p,--print-invariants-to-dot", print_invariants_to_dot, "Print invariants and CFG to dot format");
+  app.add_flag("-p,--print-invariants-to-dot", print_invariants_to_dot, "Print invariants and analyzed CFG to dot format");
   
   bool simplify = false;
   app.add_flag("-s,--simplify-cfg", simplify, "Simplify CFG");
 
   bool cfg_to_dot = false;
   app.add_flag("--cfg-to-dot", cfg_to_dot, "Print CFG to dot format");
+
+  string cfg_to_json = "";
+  app.add_option("--cfg-to-json", cfg_to_json,
+                 "Write the analyzed CFG to FILE in JSON format")
+      ->type_name("FILE");
+
+  string print_invariants_to_json = "";
+  app.add_option("--print-invariants-to-json", print_invariants_to_json,
+                 "Write invariants and analyzed CFG to FILE in JSON format")
+      ->type_name("FILE");
   
   /// Options for debugging/logging in crab
 
@@ -176,6 +207,11 @@ int main(int argc, char **argv) {
   CrabIrBuilderOpts irOpts;
   irOpts.simplify_cfg = simplify;
   irOpts.cfg_to_dot = cfg_to_dot;
+  irOpts.cfg_to_json = cfg_to_json;
+  // Recorded in the JSON header, as provenance for the document.
+  if (!cfg_to_json.empty() || !print_invariants_to_json.empty()) {
+    irOpts.source_name = filename;
+  }
   
   if (domain_opt->count() == 0) {
     cout << "No domain selected with -d/--domain; using default domain '"
@@ -215,6 +251,7 @@ int main(int argc, char **argv) {
   anaOpts.run_checker = !no_checker;
   anaOpts.print_invariants = print_invariants;
   anaOpts.print_invariants_to_dot = print_invariants_to_dot;
+  anaOpts.print_invariants_to_json = print_invariants_to_json;
   anaOpts.widening_delay = widening_delay;
   anaOpts.descending_iters = descending_iters;
   anaOpts.thresholds_size = thresholds_size;

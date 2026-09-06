@@ -11,10 +11,14 @@ namespace crabber {
 struct CrabIrBuilderOpts {
   bool simplify_cfg;
   bool cfg_to_dot;
+  /// Path to write the CFG in JSON format ("" disables it).
+  std::string cfg_to_json;
+  /// Name of the source, recorded in the JSON header ("" if unknown).
+  std::string source_name;
 
   CrabIrBuilderOpts()
     : simplify_cfg(false), cfg_to_dot(false) {}
-  
+
   void write(crab::crab_os &o) const;
 };
 
