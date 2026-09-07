@@ -1,0 +1,399 @@
+{
+  "schema": 1,
+  "kind": "invariants",
+  "source": {"name": "/Users/jorge/Repos/crabber/samples/test-1.crabir"},
+  "options": {"simplify_cfg": false},
+  "analysis": {
+    "domain": "int",
+    "widening_delay": 2,
+    "descending_iters": 1,
+    "thresholds": 0,
+    "checker": true
+  },
+  "cfgs": [
+    {
+      "name": "foo",
+      "declaration": {
+        "inputs": [],
+        "outputs": []
+      },
+      "entry": "start",
+      "exit": "out",
+      "blocks": [
+        {
+          "label": "edge-loop-loop",
+          "stmts": [
+            {
+              "stmt": "assume",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "x"]
+                ],
+                "const": "9"
+              }
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["loop"]
+        },
+        {
+          "label": "edge-loop-out",
+          "stmts": [
+            {
+              "stmt": "assume",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["-1", "x"]
+                ],
+                "const": "-10"
+              }
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["out"]
+        },
+        {
+          "label": "loop",
+          "stmts": [
+            {
+              "stmt": "assign",
+              "rhs": {
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "x"]
+                ],
+                "const": "1"
+              },
+              "lhs": {"name": "x", "type": {"kind": "int", "bitwidth": 32}}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "9"
+                }
+              ]
+            ]
+          },
+          "succs": ["edge-loop-loop", "edge-loop-out"]
+        },
+        {
+          "label": "out",
+          "stmts": [
+            {
+              "stmt": "assert",
+              "cond": {
+                "op": "!=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "x"]
+                ],
+                "const": "10"
+              },
+              "loc": {"file": "no-filename", "line": 17, "col": 0, "id": 0}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "-10"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": []
+        },
+        {
+          "label": "start",
+          "stmts": [
+            {
+              "stmt": "assign",
+              "rhs": {
+                "type": null,
+                "terms": [],
+                "const": "0"
+              },
+              "lhs": {"name": "x", "type": {"kind": "int", "bitwidth": 32}}
+            }
+          ],
+          "invariant": {
+            "kind": "true"
+          },
+          "succs": ["loop"]
+        }
+      ]
+    },
+    {
+      "name": "bar",
+      "declaration": {
+        "inputs": [],
+        "outputs": []
+      },
+      "entry": "start",
+      "exit": "out",
+      "blocks": [
+        {
+          "label": "edge-loop-loop",
+          "stmts": [
+            {
+              "stmt": "assume",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "y"]
+                ],
+                "const": "9"
+              }
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["loop"]
+        },
+        {
+          "label": "edge-loop-out",
+          "stmts": [
+            {
+              "stmt": "assume",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["-1", "y"]
+                ],
+                "const": "-10"
+              }
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["out"]
+        },
+        {
+          "label": "loop",
+          "stmts": [
+            {
+              "stmt": "assign",
+              "rhs": {
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "y"]
+                ],
+                "const": "1"
+              },
+              "lhs": {"name": "y", "type": {"kind": "int", "bitwidth": 32}}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "9"
+                }
+              ]
+            ]
+          },
+          "succs": ["edge-loop-loop", "edge-loop-out"]
+        },
+        {
+          "label": "out",
+          "stmts": [
+            {
+              "stmt": "assert",
+              "cond": {
+                "op": "=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "y"]
+                ],
+                "const": "10"
+              },
+              "loc": {"file": "no-filename", "line": 27, "col": 0, "id": 1}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "-10"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": []
+        },
+        {
+          "label": "start",
+          "stmts": [
+            {
+              "stmt": "assign",
+              "rhs": {
+                "type": null,
+                "terms": [],
+                "const": "0"
+              },
+              "lhs": {"name": "y", "type": {"kind": "int", "bitwidth": 32}}
+            }
+          ],
+          "invariant": {
+            "kind": "true"
+          },
+          "succs": ["loop"]
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {"file": "no-filename", "line": 17, "col": 0, "id": 0, "result": "warning"},
+    {"file": "no-filename", "line": 27, "col": 0, "id": 1, "result": "safe"}
+  ]
+}

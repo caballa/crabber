@@ -1,3 +1,6 @@
+# How to run:
+#   crabber test-8.crabir -d zones
+
 cfg("arrays")
 start:
    x_addr:i64 := 1024

@@ -1,3 +1,6 @@
+# How to run:
+#   crabber test-10.crabir -d int-terms
+
 cfg("terms")
 start:
    havoc(x:i32)

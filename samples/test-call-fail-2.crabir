@@ -1,3 +1,9 @@
+# How to run:
+#   crabber test-call-fail-2.crabir -d int
+#
+# Any domain will do: the program is rejected before the analysis runs.
+#
+
 # NEGATIVE TEST: this program must FAIL to compile.
 #
 # A call instruction is written as "call callee(args)". Here the argument

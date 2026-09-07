@@ -1,3 +1,9 @@
+# How to run:
+#   crabber test-11.crabir -d int --print-invariants
+#
+# Deeply nested loops: a fixpoint stress test. It has no EXPECT_EQ, so nothing
+# is checked. Not registered as a test in CMakeLists.txt.
+
 cfg("nested-loops-2")
 start:
  i:i64 := 0

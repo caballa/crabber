@@ -1,3 +1,7 @@
+# How to run:
+#   crabber test-call-4.crabir -d zones
+#
+
 # Function calls: the same callee is invoked from several call sites and the
 # callee itself has non-trivial control flow (a loop).
 

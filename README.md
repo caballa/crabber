@@ -279,3 +279,120 @@ TestResult run_program(std::istream &is,
 
 ```
 
+# Verifying the analysis with Lean #
+
+Abstract interpretation is sound *by construction*: the theory guarantees that
+the computed invariants over-approximate the reachable states — provided the
+domains, their transfer functions, and the fixpoint engine are implemented
+correctly. That proviso carries most of the weight. An abstract domain is
+thousands of lines of C++, and a bug in a join, a widening, or a single transfer
+function yields an invariant that is unsound while looking entirely ordinary.
+Soundness in theory says nothing about *this* run of *this* implementation.
+
+`--verify-with-lean` checks that run. Crabber exports the analyzed CFG together
+with the inferred invariants as JSON, and a Lean 4 development in
+[`lean/`](lean/) reads that document and tries to prove the results sound — so
+an implementation bug surfaces as a failed proof rather than as a wrong answer
+nobody notices.
+
+``` bash
+crabber samples/test-1.crabir -d int --verify-with-lean
+```
+
+``` 
+### LEAN VERIFICATION ###
+could not verify  foo : omega could not prove the goal:
+proved            bar : invariants sound, all assertions proved
+```
+
+Enabled at configure time:
+
+``` bash
+cmake -DLAKE_EXECUTABLE=$(which lake) ../
+```
+
+## What "proved" means ##
+
+For that CFG, Lean's kernel has accepted a proof of two things:
+
+- every state the program can reach at a block satisfies the invariant Crab
+  printed for that block, under the concrete semantics of CrabIR;
+- no execution can reach an assertion whose condition is false.
+
+Crucially, **nothing about Crab is modelled**. The fixpoint engine, widening,
+and the abstract domains are not formalized — only Crab's *output* is checked,
+per program. That is what makes the result independent of which domain produced
+it, and what keeps the proof effort bounded.
+
+## Which CFGs are checked ##
+
+A file may hold several CFGs, and only the **roots of the call graph** — those
+nothing calls — are checked. A CFG that is called is reported as `not checked`
+rather than passed over silently.
+
+The reason is that a callee's invariants are not properties of the callee. Crab's
+top-down inter-procedural analysis derives them from the call sites, so in
+
+```
+main() { ... inc(7) ... }      inc(a) { ... }
+```
+
+Crab may infer `a >= 5` at `inc`'s entry — true only because of how `main` calls
+it. The theorem Lean proves quantifies over *every* initial state, which is a
+strictly stronger claim than Crab made. Checking `inc` in isolation would ask a
+question Crab never answered, and fail for a reason that says nothing about the
+analysis.
+
+Verifying the conditional claim Crab actually made needs the calling context
+modelled, which is future work. Until then the check stays where the two
+questions coincide.
+
+## What is trusted, and what is not ##
+
+The point of the exercise is that the list of trusted things is short and
+explicit.
+
+| Trusted — a bug here could certify a false invariant | |
+|---|---|
+| The Lean model of CrabIR's semantics | The substantive one. It *is* the claim about what a CrabIR program means; nothing can prove it right. |
+| The exporter | Crab's rendering of an abstract state as linear constraints, and crabber's JSON around it. |
+| The JSON reader on the Lean side | Mitigated: it writes what it read back out and compares against the input, so a dropped statement or misread coefficient is reported rather than believed. |
+| Crabber's own report | Printing "proved" only says crabber ran Lean and Lean agreed. To rely on it, run `lake build` in `lean/` yourself. |
+
+| Not trusted — proved, or checked by the kernel | |
+|---|---|
+| The verification conditions and the weakest-precondition calculus | Proved sound once, for all programs. |
+| The soundness meta-theorem and assertion safety | Proved once. |
+| Every per-program proof | Found by tactics, then checked by Lean's kernel. A tactic can fail to find a proof; it cannot produce a wrong one. |
+
+## Reading a negative result ##
+
+`could not verify` is a statement about the proof attempt, **not** about Crab.
+It may mean the invariant is genuinely not inductive — or only that the proof
+search was too weak, or that the program contains an assertion Crab itself could
+not establish. The check is sound but incomplete, and its output is worded to
+keep that distinction visible.
+
+When the arithmetic is what ran out, the report also shows the assignment it
+could not rule out, in the program's own variables:
+
+```
+could not verify  octagons : omega could not prove the goal
+  cannot rule out : 101 ≤ y ≤ 200
+```
+
+That is **not** a counterexample to the invariant — the state may well be
+unreachable. It says where the reasoning stopped, which is usually the quickest
+way to see whether a fact is missing or the invariant is genuinely too weak.
+
+To investigate further, keep the intermediate files and ask for Lean's full
+output:
+
+``` bash
+crabber samples/test-2.crabir --verify-with-lean --lean-keep-temp --lean-show-output
+```
+
+This reports the exported JSON, the generated Lean file, and the exact command
+that re-runs it. That file is all Lean was given, so it can be opened in an
+editor, its tactics taken apart, and the failing goal inspected directly.
+

@@ -1,3 +1,10 @@
+# How to run:
+#   crabber test-5.crabir -d int --widening-thresholds 10 --print-invariants
+#
+# This sample checks an inferred invariant rather than an assertion: with
+# widening thresholds the output must contain
+#   b1: ({}, {n -> [0, 60]})
+
 cfg("thresholds")
 start:
   n:i32 := 0

@@ -57,6 +57,7 @@ add_executable(crabber
   src/crabir_builder.cpp
   src/analyzer.cpp
   src/json_export.cpp
+  src/lean_verify.cpp
   src/domains/boxes_domain.cpp
   src/domains/dis_interval_domain.cpp    
   src/domains/interval_domain.cpp
@@ -68,6 +69,44 @@ add_executable(crabber
   src/domains/zones_domain.cpp
 )
 target_link_libraries(crabber PRIVATE ${CRAB_LIBS})
+
+# --verify-with-lean: after the analysis, ask the Lean development in lean/ to
+# prove the exported invariants sound.
+#
+# Configure-time rather than a runtime flag, for two reasons. It means the
+# option exists only in a build that can actually honour it -- in particular the
+# wasm build, which has no toolchain to call, does not carry code for a
+# capability a browser cannot have. And it removes any need to discover lake or
+# the project directory at run time.
+set(LAKE_EXECUTABLE "" CACHE FILEPATH
+    "Path to lake. Enables crabber's --verify-with-lean option.")
+
+if (LAKE_EXECUTABLE)
+  if (NOT EXISTS "${LAKE_EXECUTABLE}")
+    message(FATAL_ERROR "LAKE_EXECUTABLE does not exist: ${LAKE_EXECUTABLE}")
+  endif()
+
+  # Build the Lean library as part of the normal build. Knowing where lake lives
+  # is not the same as the library having been built, and a crabber that can
+  # find lake but meets missing .olean files reports a confusing failure that
+  # looks nothing like a proof not going through.
+  add_custom_target(lean_library ALL
+    COMMAND "${LAKE_EXECUTABLE}" build
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lean"
+    COMMENT "Building the Lean verification library")
+  add_dependencies(crabber lean_library)
+
+  target_compile_definitions(crabber PRIVATE
+    CRABBER_WITH_LEAN=1
+    CRABBER_LAKE="${LAKE_EXECUTABLE}"
+    CRABBER_LEAN_PROJECT="${CMAKE_CURRENT_SOURCE_DIR}/lean")
+
+  message(STATUS "Lean verification enabled: ${LAKE_EXECUTABLE}")
+else ()
+  message(STATUS "Lean verification disabled "
+                 "(set -DLAKE_EXECUTABLE=$(which lake) to enable)")
+endif()
+
 install(TARGETS crabber DESTINATION bin)
 install(DIRECTORY include/crabber DESTINATION include)
 
