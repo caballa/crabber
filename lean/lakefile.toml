@@ -1,0 +1,26 @@
+name = "crabber"
+defaultTargets = ["Crabber", "CrabberJson"]
+
+# No dependencies, deliberately. `omega` — the decision procedure that closes
+# every per-block proof obligation — is part of Lean core, and the library is
+# built from core datatypes only. State updates are written out by hand rather
+# than taken from Mathlib, which is three lines and avoids pulling in a large
+# dependency for them. Builds stay fast and the trusted development has a
+# dependency footprint of zero.
+#
+# Revisit only if non-linear arithmetic becomes necessary: `omega` decides
+# Presburger arithmetic, so multiplication or division of variables would need
+# `nlinarith` or similar, which does require Mathlib.
+
+[[lean_lib]]
+name = "Crabber"
+
+# The frontend, kept out of `Crabber`'s import graph on purpose. Reading JSON
+# needs `Lean` as a library; the trusted proof development stays free of it.
+[[lean_lib]]
+name = "CrabberJson"
+
+# Exercises the reader over exported documents:  lake exe checkjson out.json …
+[[lean_exe]]
+name = "checkjson"
+root = "CheckJson"
