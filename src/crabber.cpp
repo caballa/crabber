@@ -2,17 +2,21 @@
 
 #include <crabber/crabber.hpp>
 #include <crabber/json_export.hpp>
+#include <crabber/lean_verify.hpp>
 #include <crab/domains/abstract_domain_params.hpp>
 #include <fstream>
+#include <cstdio>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unistd.h>
 
 using namespace std;
 
 namespace crabber {
 TestResult run_program(std::istream &is, const CrabIrBuilderOpts &irOpts,
-                    const CrabIrAnalyzerOpts &anaOpts) {
+                    const CrabIrAnalyzerOpts &anaOpts,
+                    const LeanVerifyOpts &leanOpts) {
   CrabIrBuilder crabIR(is, irOpts);
   CrabIrAnalyzer crabAnalyzer(crabIR, anaOpts);
   crabAnalyzer.analyze();
@@ -40,6 +44,45 @@ TestResult run_program(std::istream &is, const CrabIrBuilderOpts &irOpts,
     with_output(anaOpts.print_invariants_to_json, [&](crab::crab_os &os) {
       writeInvariantsToJson(os, crabIR, crabAnalyzer, irOpts, anaOpts);
     });
+  }
+
+  // The document just written is the whole interface to the Lean side: it is
+  // read back by Lean, not passed along in memory, so what gets proved is
+  // exactly what was exported.
+  if (leanOpts.enabled) {
+    crab::outs() << "\n### LEAN VERIFICATION ###\n";
+    // Announced before the results, since every CFG below was checked against
+    // this one document.
+    if (leanOpts.keep_temp) {
+      crab::outs() << "  invariants : " << anaOpts.print_invariants_to_json
+                   << "\n";
+    }
+    auto results =
+        verifyWithLean(anaOpts.print_invariants_to_json, crabIR, leanOpts);
+    for (auto const &r : results) {
+      crab::outs() << describe(r) << "\n";
+      // Where the arithmetic ran out, in the program's own variables. It is an
+      // assignment the proof could not rule out, not necessarily a reachable
+      // one -- but it is the fastest way to see what fact is missing.
+      if (!r.counterexample.empty()) {
+        crab::outs() << "  cannot rule out : " << r.counterexample << "\n";
+      }
+      // Everything needed to take a failure apart by hand: the file Lean was
+      // given, and the command that runs it again.
+      if (!r.lean_file.empty()) {
+        crab::outs() << "  lean file  : " << r.lean_file << "\n"
+                     << "  reproduce  : " << leanReproduceCommand(r.lean_file)
+                     << "\n";
+      }
+      if (leanOpts.show_output && r.verdict != LeanVerdict::Proved &&
+          !r.output.empty()) {
+        crab::outs() << r.output;
+      }
+    }
+    // Said once, rather than implied by each line: a negative result here is
+    // about this proof attempt, never about the analysis.
+    crab::outs() << "(\"could not verify\" means Lean found no proof; it is not "
+                    "a claim that the invariants are wrong)\n";
   }
 
   unsigned expected_ok = 0;
@@ -165,6 +208,28 @@ int main(int argc, char **argv) {
   app.add_option("--print-invariants-to-json", print_invariants_to_json,
                  "Write invariants and analyzed CFG to FILE in JSON format")
       ->type_name("FILE");
+
+  // Registered whether or not this build can act on it, so that a user on an
+  // unconfigured build is told a build flag exists instead of being given
+  // CLI11's bare "unknown option".
+  bool verify_with_lean = false;
+  app.add_flag("--verify-with-lean", verify_with_lean,
+               "After the analysis, ask Lean to prove the inferred invariants "
+               "sound (implies --print-invariants-to-json)");
+
+  unsigned lean_heartbeats = 400000;
+  app.add_option("--lean-heartbeats", lean_heartbeats,
+                 "Elaboration budget per CFG for --verify-with-lean "
+                 "(default 400000)");
+
+  bool lean_keep_temp = false;
+  app.add_flag("--lean-keep-temp", lean_keep_temp,
+               "Keep the exported JSON and the generated Lean files, and print "
+               "where they are and how to re-run them");
+
+  bool lean_show_output = false;
+  app.add_flag("--lean-show-output", lean_show_output,
+               "Print Lean's full output for a CFG that was not proved");
   
   /// Options for debugging/logging in crab
 
@@ -202,6 +267,35 @@ int main(int argc, char **argv) {
   ifstream ifs(filename);
   if (!ifs.is_open()) {
     CRAB_ERROR("Cannot open file ", filename);
+  }
+
+  LeanVerifyOpts leanOpts;
+  leanOpts.enabled = verify_with_lean;
+  leanOpts.heartbeats = lean_heartbeats;
+  leanOpts.keep_temp = lean_keep_temp;
+  leanOpts.show_output = lean_show_output;
+
+  // Written here rather than left to a temporary that outlives this scope: the
+  // path has to stay valid until run_program has both exported to it and had
+  // Lean read it back.
+  string lean_scratch_json;
+  if (leanOpts.enabled) {
+    if (!leanAvailable()) {
+      CRAB_ERROR("--verify-with-lean is not available: ",
+                 leanUnavailableReason());
+    }
+    // The check reads whatever document the export produced, so if the user did
+    // not ask for one, produce one for it alone.
+    if (print_invariants_to_json.empty()) {
+      const char *tmp = getenv("TMPDIR");
+      string dir = tmp ? string(tmp) : string("/tmp");
+      if (!dir.empty() && dir.back() == '/') {
+        dir.pop_back();
+      }
+      lean_scratch_json =
+          dir + "/crabber-" + std::to_string(getpid()) + ".json";
+      print_invariants_to_json = lean_scratch_json;
+    }
   }
 
   CrabIrBuilderOpts irOpts;
@@ -255,7 +349,13 @@ int main(int argc, char **argv) {
   anaOpts.widening_delay = widening_delay;
   anaOpts.descending_iters = descending_iters;
   anaOpts.thresholds_size = thresholds_size;
-  TestResult res = run_program(ifs, irOpts, anaOpts);
+  TestResult res = run_program(ifs, irOpts, anaOpts, leanOpts);
+
+  // Only if we made it ourselves; a path the user asked for is theirs to keep,
+  // and --lean-keep-temp keeps ours too so the failure can be reproduced.
+  if (!lean_scratch_json.empty() && !leanOpts.keep_temp) {
+    std::remove(lean_scratch_json.c_str());
+  }
 
   cout << "\n### TESTS RESULTS ###\n";
   cout << "Expected OK         : " << res.expected_ok << "\n";

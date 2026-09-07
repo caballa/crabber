@@ -1,3 +1,7 @@
+# How to run:
+#   crabber test-call-1.crabir -d zones
+#
+
 # Function calls: a cfg with one input and one output parameter.
 #
 # A cfg parameter list is written after the cfg name as a comma-separated

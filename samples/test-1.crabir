@@ -1,3 +1,6 @@
+# How to run:
+#   crabber test-1.crabir -d int
+
 # this is a comment
 # newline is used to delimit a new instruction, new block or new cfg
 # A cfg must have a name

@@ -1,3 +1,6 @@
+# How to run:
+#   crabber test-6.crabir -d int
+
 # Booleans.
 #
 # The sort of a boolean is determined by the operator in almost every case:

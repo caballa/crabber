@@ -1,3 +1,7 @@
+# How to run:
+#   crabber test-call-3.crabir -d zones
+#
+
 # Function calls: a call with no outputs (void call) and an input-only cfg.
 #
 # When a callee has no output parameters, the call is written without a

@@ -1,3 +1,9 @@
+# How to run:
+#   crabber test-2.crabir -d int --print-invariants
+#
+# A parsing showcase: it has no EXPECT_EQ, so nothing is checked. Not
+# registered as a test in CMakeLists.txt.
+
 # Parsing example: irregular but legal whitespace everywhere.
 #
 # The long runs of spaces below are deliberate. The grammar is

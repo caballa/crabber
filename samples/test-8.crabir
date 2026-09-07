@@ -1,3 +1,6 @@
+# How to run:
+#   crabber test-8.crabir -d zones
+
 # Arrays. The element size of an access is optional and defaults to 1, under
 # which distinct indices are independent and the array behaves as a plain map
 # from addresses to values. See test-13 for an access with a wider extent.
