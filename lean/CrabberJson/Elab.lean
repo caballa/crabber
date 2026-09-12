@@ -44,8 +44,10 @@ works from outside a type's own module, which is what keeps `Lean` out of the
 trusted core's imports: `Crabber.Syntax` never mentions any of this. -/
 
 deriving instance ToExpr for Crabber.CmpOp
+deriving instance ToExpr for Crabber.BoolOp
 deriving instance ToExpr for Crabber.LinExp
 deriving instance ToExpr for Crabber.LinCon
+deriving instance ToExpr for Crabber.Atom
 deriving instance ToExpr for Crabber.Stmt
 
 /-- Add a definition holding a spliced value.
@@ -80,8 +82,11 @@ private def addValueDef {α : Type} [ToExpr α] (name : Name) (v : α)
     so `samples/test-1.crabir` offers both `foo` and `bar`.
 
     Fails, with the reason, if the document cannot be read, if reading it is not
-    faithful to the input, or if the program uses constructs outside the numeric
-    core — procedure calls, booleans and arrays are all rejected by name. -/
+    faithful to the input, or if the program uses constructs outside the
+    modelled fragment — procedure calls, casts, arithmetic binops and arrays are
+    all rejected by name. Booleans are *not*: the six boolean statements are
+    modelled, and `samples/test-bool-1.crabir` is the sample that exercises
+    them. -/
 syntax (name := crabProgram) "crab_program " str " cfg " str : command
 
 @[command_elab crabProgram]
@@ -137,8 +142,8 @@ def elabCrabProgram : CommandElab := fun stx => do
     crab_program "exports/test-1.json" cfg "bar"
     crab_verify
 
-Adds `body_keys`, `succ_keys`, `vc_all`, `initiation`, `chk` and the theorem
-that bundles them. It is a second command rather than part of `crab_program` so
+Adds `body_keys`, `succ_keys`, `vc_all`, `initiation` and the theorem that
+bundles them. It is a second command rather than part of `crab_program` so
 that a file can load a program and then reason about it by hand — which is what
 the worked example under `Samples/` does.
 
@@ -177,7 +182,6 @@ def elabCrabVerify : CommandElab := fun _ => do
   let succKeysId := mkIdent `succ_keys
   let vcAllId    := mkIdent `vc_all
   let initId     := mkIdent `initiation
-  let chkId      := mkIdent `chk
   let resultId   := mkIdent `verified_program
 
   -- The tables and `labels` are built from one list, so these hold by
@@ -225,53 +229,19 @@ def elabCrabVerify : CommandElab := fun _ => do
                  Crabber.LinCon.lhs, Crabber.LinExp.eval]
            all_goals omega)))
 
-  -- The assertion obligation. Most of the work is refuting the split in blocks
-  -- that contain no assert; where one exists, `obtain ⟨rfl, -⟩` names the
-  -- asserted constraint and `omega` finishes.
-  elabCommand (← `(command|
-    theorem $chkId : ∀ (L : Crabber.Label) (pre : List Crabber.Stmt)
-        (c : Crabber.LinCon) (post : List Crabber.Stmt),
-        ($progId).body L = pre ++ Crabber.Stmt.assert c :: post →
-        ∀ σ : Crabber.State, Crabber.Assn.holds ($invId L) σ →
-          Crabber.wp pre (fun τ => Crabber.LinCon.holds c τ) σ := by
-      intro L pre c post hsplit σ hI
-      by_cases hm : L ∈ $labelsId
-      · simp only [$labelsId:ident, List.mem_cons, List.not_mem_nil, or_false] at hm
-        repeat' (rcases hm with rfl | hm)
-        all_goals (try subst_vars)
-        all_goals (
-          simp only [$progId:ident, $bodyId:ident, Crabber.table, if_pos] at hsplit
-          -- An assert need not come first in its block, so `pre` has to be
-          -- peeled one statement at a time. Each round destructs it and
-          -- simplifies; the branches that cannot match the block's literal body
-          -- die immediately by constructor injectivity, and the recursion stops
-          -- when the body is exhausted.
-          repeat' (rcases pre with _ | ⟨p, pre⟩ <;>
-            simp_all [$invId:ident, $invTId:ident, Crabber.table, Crabber.Assn.holds,
-                      Crabber.Conj.holds, Crabber.LinCon.holds, Crabber.LinCon.lhs,
-                      Crabber.LinExp.eval]))
-        -- Peel *every* conjunct of the split equation, not just the first.
-        -- A block may contain more than one assert, in which case `pre` is
-        -- non-empty and `hsplit` is a nest of equations: one fixing each
-        -- statement before the assert, and one fixing the asserted constraint
-        -- itself. Discarding the tail loses that last one, and the goal is then
-        -- about a constraint nothing has pinned down.
-        all_goals (try (repeat' (obtain ⟨hl, hsplit⟩ := hsplit)))
-        all_goals (try subst_vars)
-        all_goals (try simp_all)
-        all_goals (try omega)
-      · have hb : ($progId).body L = [] := by
-          show Crabber.table [] $bodyId L = []
-          exact Crabber.table_not_mem [] $bodyId L ($bodyKeysId ▸ hm)
-        rw [hb] at hsplit
-        cases pre <;> simp at hsplit))
+  -- The assertion obligations are *not* generated. `wpStmt` puts an assert's
+  -- obligation inside its block's verification condition, so `Crabber.chk_of_VC`
+  -- extracts it from `vc_all` for every program at once. What used to stand here
+  -- was a per-program case split over labels followed by a statement-by-statement
+  -- peel of the prefix — a script that re-derived, once per program, something
+  -- true of all of them. See `chk_of_VC` for the one assumption it rests on.
 
-  -- The result. `verified` chains the adapter lemma, the inductive-assertion
-  -- meta-theorem and assertion safety, so nothing above mentions `Step` or
-  -- `Reachable`.
+  -- The result. `verified` chains the adapter lemma, the extraction lemma, the
+  -- inductive-assertion meta-theorem and assertion safety, so nothing above
+  -- mentions `Step`, `Reachable` or `wp_sound`.
   elabCommand (← `(command|
     theorem $resultId :
         Crabber.InvariantOf $progId $invId ∧ ¬ Crabber.AssertFails $progId :=
-      Crabber.verified $progId $invId $initId $vcAllId $chkId))
+      Crabber.verified $progId $invId $initId $vcAllId))
 
 end CrabberJson

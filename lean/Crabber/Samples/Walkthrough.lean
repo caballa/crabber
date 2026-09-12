@@ -87,9 +87,9 @@ example : VC prog inv "start" := by
   simp only [Assn.holds, Conj.holds]
   -- ⊢ ∃ k, k ∈ [[…, …]] ∧ ∀ c ∈ k, c.holds (σ.set "y" …)
 
-  -- Give the constraints their arithmetic meaning: `LinCon.holds` matches on
+  -- Give the atoms their arithmetic meaning: `LinCon.holds` matches on
   -- the operator, `LinExp.eval` folds `Σ coef * σ(var) + const`.
-  simp only [LinCon.holds, LinCon.lhs, LinExp.eval]
+  simp only [Atom.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
   -- Same shape, but `c.holds` has become a `match c.op with | le => … ≤ …`.
 
   -- Finish: pick the single disjunct, evaluate the two folds, and fire
@@ -123,7 +123,7 @@ example : VC prog inv "start" := by
   trace_state                          -- Crab's exported constraints, as data
   simp only [Assn.holds, Conj.holds]
   trace_state                          -- ⋁⋀ becomes ∃/∀ over lists
-  simp only [LinCon.holds, LinCon.lhs, LinExp.eval]
+  simp only [Atom.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
   trace_state                          -- and now it is arithmetic
   simp
 
@@ -139,7 +139,7 @@ edge block. -/
 example : VC prog inv "loop" := by
   intro σ hpre
   -- Reduce the precondition to arithmetic: `hpre : 0 ≤ σ.ints "y" ≤ 9`.
-  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs,
+  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, Atom.holds, LinCon.holds, LinCon.lhs,
              LinExp.eval] at hpre
   simp at hpre
   -- Now the goal, same recipe as `start`.
@@ -149,13 +149,15 @@ example : VC prog inv "loop" := by
   -- ⊢ ∀ B', (B' = "edge-loop-loop" ∨ B' = "edge-loop-out") → ⟦inv B'⟧ (σ.set "y" …)
   rintro B' (rfl | rfl)
   · -- successor `edge-loop-loop`: must establish `1 ≤ y ≤ 10`
-    simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
+    simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, Atom.holds, LinCon.holds,
+               LinCon.lhs, LinExp.eval]
     simp
     -- hpre : 0 ≤ σ.ints "y" ∧ σ.ints "y" ≤ 9
     -- ⊢     1 ≤ σ.ints "y" + 1 ∧ σ.ints "y" + 1 ≤ 10
     omega
   · -- successor `edge-loop-out`: the same invariant, proved again
-    simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
+    simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, Atom.holds, LinCon.holds,
+               LinCon.lhs, LinExp.eval]
     simp
     omega
 
@@ -169,19 +171,20 @@ That arrow is the only one in the goal, and it comes from the `assume` in the
 consumed all of that once, in `WP.lean`. -/
 example : VC prog inv "edge-loop-loop" := by
   intro σ hpre
-  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs,
+  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, Atom.holds, LinCon.holds, LinCon.lhs,
              LinExp.eval] at hpre
   simp at hpre
   simp only [prog, bodyOf, succOf]
   simp only [wp, wpStmt]
   -- Give the guard its arithmetic meaning, then assume it.
-  simp only [yLeq, LinCon.holds, LinCon.lhs, LinExp.eval]
+  simp only [yLeq, Atom.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
   simp only [List.foldr]
   intro hguard
   -- hguard : 1 * σ.ints "y" + 0 ≤ 9
   simp only [List.mem_singleton]
   rintro B' rfl
-  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
+  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, Atom.holds, LinCon.holds,
+             LinCon.lhs, LinExp.eval]
   simp
   omega
 
@@ -192,17 +195,18 @@ from `1 ≤ y ≤ 10` and `y ≥ 10` we get `y = 10`, which is exactly the invar
 Crab printed at `out`.  This VC is why the assertion there can be discharged. -/
 example : VC prog inv "edge-loop-out" := by
   intro σ hpre
-  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs,
+  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, Atom.holds, LinCon.holds, LinCon.lhs,
              LinExp.eval] at hpre
   simp at hpre
   simp only [prog, bodyOf, succOf]
   simp only [wp, wpStmt]
-  simp only [yGeq, LinCon.holds, LinCon.lhs, LinExp.eval]
+  simp only [yGeq, Atom.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
   simp only [List.foldr]
   intro hguard
   simp only [List.mem_singleton]
   rintro B' rfl
-  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
+  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, Atom.holds, LinCon.holds,
+             LinCon.lhs, LinExp.eval]
   simp
   omega
 
@@ -219,7 +223,7 @@ obligation, and the (trivial) postcondition.  Note the assert is **not** an
 antecedent — an assert we cannot discharge is a failure, not a free pass. -/
 example : VC prog inv "out" := by
   intro σ hpre
-  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs,
+  simp only [inv, yGeq, yLeq, Assn.holds, Conj.holds, Atom.holds, LinCon.holds, LinCon.lhs,
              LinExp.eval] at hpre
   simp at hpre
   -- hpre : σ.ints "y" = 10   (from `10 ≤ y ≤ 10`)
@@ -227,7 +231,7 @@ example : VC prog inv "out" := by
   simp only [wp, wpStmt]
   refine ⟨?_, ?_⟩
   · -- the assert's obligation: `y = 10`
-    simp only [yEq10, LinCon.holds, LinCon.lhs, LinExp.eval]
+    simp only [yEq10, Atom.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
     simp
     omega
   · -- the postcondition: `∀ B' ∈ [], …`, vacuous
@@ -248,8 +252,8 @@ example : ∀ σ : State, InitState prog σ → ⟦inv prog.entry⟧ σ := by
 
 /-! ## The whole program, assembled
 
-`Test1Bar.lean` finishes in one line — `verified prog inv initiation vc_all
-chk` — because `verified` chains the meta-theorems for you.  Here that chain is
+`Test1Bar.lean` finishes in one line — `verified prog inv initiation vc_all` —
+because `verified` chains the meta-theorems for you.  Here that chain is
 **pulled apart into named steps**: put the cursor after each `have` and read
 what has been established so far.
 
@@ -257,12 +261,20 @@ Read top to bottom as the whole argument:
 
   `vc_all`             every block's VC holds                     ← arithmetic
   `consecution_of_VC`  therefore the annotation survives a step    ← the adapter
+  `chk_of_VC`          and every assert's obligation is inside it  ← extraction
   `inductive_sound`    therefore it holds at every reachable state ← Park induction
   `assert_safe`        therefore no assert can fail                ← the payoff
 
-Note where the seam is: `hcons` is the first statement that mentions `Step`.
-Everything above it is arithmetic; everything below is about the transition
-system.  That is the automation boundary of the design, visible as one line. -/
+Note that `vc_all` feeds **two** of these.  An assert both filters and
+obligates, so `wpStmt` puts its obligation into the block's own verification
+condition; `consecution_of_VC` uses the VC for the invariant half, and
+`chk_of_VC` pulls the obligation back out for the assertion half.  That is why a
+per-program file proves only two things, not three.
+
+Note also where the seam is: `hcons` is the first statement that mentions
+`Step`.  Everything above it is arithmetic; everything below is about the
+transition system.  That is the automation boundary of the design, visible as
+one line. -/
 example : InvariantOf prog inv ∧ ¬ AssertFails prog := by
   have hvc : ∀ B : Label, VC prog inv B := vc_all
   have hcons : ∀ (L : Label) (σ : State) (L' : Label) (σ' : State),
@@ -270,8 +282,9 @@ example : InvariantOf prog inv ∧ ¬ AssertFails prog := by
     consecution_of_VC prog inv hvc
   have hinv : InvariantOf prog inv :=
     inductive_sound prog inv initiation hcons
+  have hchk := chk_of_VC prog inv hvc
   have hsafe : ¬ AssertFails prog :=
-    assert_safe prog inv hinv chk
+    assert_safe prog inv hinv hchk
   exact ⟨hinv, hsafe⟩
 
 end Walkthrough

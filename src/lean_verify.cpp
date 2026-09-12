@@ -204,7 +204,13 @@ LeanVerdict classify(const RunOutput &out) {
   }
   // The reader names the construct it refuses, which is what lets an
   // unsupported program be reported as out of scope rather than as a failure.
-  if (out.text.find("outside the numeric core") != std::string::npos) {
+  //
+  // This phrase is a contract with the Lean side: every refusal there that means
+  // "this program is outside what the semantics models", as opposed to "the
+  // document is malformed", spells it out verbatim. Grep for it in
+  // lean/CrabberJson/Schema.lean before changing either end.
+  if (out.text.find("outside the fragment this library models") !=
+      std::string::npos) {
     return LeanVerdict::OutOfScope;
   }
   if (out.text.find("maximum number of heartbeats") != std::string::npos) {

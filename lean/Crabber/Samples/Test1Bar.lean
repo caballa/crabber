@@ -80,10 +80,10 @@ Transcribed verbatim from the JSON.  Crab's `int` domain found, for cfg `bar`:
     at the invariant at all. -/
 @[crab] def inv : Label → Assn
   | "start"          => Assn.top
-  | "loop"           => [[yGeq 0,  yLeq 9]]
-  | "edge-loop-loop" => [[yGeq 1,  yLeq 10]]
-  | "edge-loop-out"  => [[yGeq 1,  yLeq 10]]
-  | "out"            => [[yGeq 10, yLeq 10]]
+  | "loop"           => [[.lin (yGeq 0),  .lin (yLeq 9)]]
+  | "edge-loop-loop" => [[.lin (yGeq 1),  .lin (yLeq 10)]]
+  | "edge-loop-out"  => [[.lin (yGeq 1),  .lin (yLeq 10)]]
+  | "out"            => [[.lin (yGeq 10), .lin (yLeq 10)]]
   | _                => Assn.bot
 
 /-! ## One verification condition per block
@@ -160,39 +160,26 @@ theorem initiation : ∀ σ : State, InitState prog σ → ⟦inv prog.entry⟧ 
 
 /-! ## The assertion obligation -/
 
-/-- At every assert in every block, the block's invariant implies the asserted
-    condition after running the statements before it.
+/-- At every statement in every block, the block's invariant implies that
+    statement's obligation after running the statements before it.
 
-    The quantifiers range over *all* labels and *all* ways of splitting a body
-    as `pre ++ assert c :: post`, so most of this proof is showing that no such
-    split exists except in block `out` — where `pre = []`, and what remains is
-    `10 ≤ y ≤ 10 → y = 10`. -/
-theorem chk : ∀ (L : Label) (pre : List Stmt) (c : LinCon) (post : List Stmt),
-    prog.body L = pre ++ Stmt.assert c :: post →
-    ∀ σ : State, ⟦inv L⟧ σ → wp pre (fun τ => c.holds τ) σ := by
-  intro L pre c post hsplit σ hI
-  rcases label_cases L with rfl | rfl | rfl | rfl | rfl | ⟨hb, -⟩
-  -- Four blocks contain no `assert`, so `hsplit` is impossible.  `cases pre`
-  -- tries both ways the split could start; `simp` refutes each.
-  · cases pre <;> simp [prog, bodyOf] at hsplit
-  · cases pre <;> simp [prog, bodyOf] at hsplit
-  · cases pre <;> simp [prog, bodyOf] at hsplit
-  · cases pre <;> simp [prog, bodyOf] at hsplit
-  -- Block `out`: the only real case.
-  · cases pre with
-    | nil =>
-        -- `hsplit : [assert yEq10] = [] ++ assert c :: post`, so `c = yEq10`.
-        simp [prog, bodyOf] at hsplit
-        obtain ⟨hc, -⟩ := hsplit
-        subst hc
-        -- `wp [] Q = Q`, so the goal is just `yEq10.holds σ`, i.e. `y = 10`;
-        -- `hI` gives `10 ≤ y ≤ 10`.
-        simp [inv, yEq10, yGeq, yLeq, Assn.holds, Conj.holds, LinCon.holds,
-              LinCon.lhs, LinExp.eval] at hI ⊢
-        omega
-    | cons p ps => simp [prog, bodyOf] at hsplit
-  -- An unknown label has an empty body, which cannot contain an assert.
-  · rw [hb] at hsplit; simp at hsplit
+    **One line, and that is the point.** This used to be the longest proof in
+    the file: a case split over all six label cases, then — for each — an attempt
+    to refute the split `pre ++ s :: post` statement by statement, with only
+    block `out` surviving to say anything.
+
+    None of that was necessary. `wpStmt` puts an assert's obligation into the
+    precondition as a conjunct, so it is already inside `VC prog inv "out"`,
+    which `vc_all` proved above; `chk_of_VC` is the general lemma that takes it
+    back out. The work is real, it just is not per-program.
+
+    Kept as a named theorem rather than inlined into `bar_verified` because
+    `Walkthrough.lean` refers to it when pulling the chain apart, and because
+    naming it keeps the four premises of the argument visible in one file. -/
+theorem chk : ∀ (L : Label) (pre : List Stmt) (s : Stmt) (post : List Stmt),
+    prog.body L = pre ++ s :: post →
+    ∀ σ : State, ⟦inv L⟧ σ → wp pre (fun τ => s.obligation τ) σ :=
+  chk_of_VC prog inv vc_all
 
 /-! ## The result -/
 
@@ -213,7 +200,7 @@ theorem chk : ∀ (L : Label) (pre : List Stmt) (c : LinCon) (post : List Stmt),
     `State.lean`), the transcription of the program above, and Crab's invariant
     export.  Not trusted, because proved: everything else. -/
 theorem bar_verified : InvariantOf prog inv ∧ ¬ AssertFails prog :=
-  verified prog inv initiation vc_all chk
+  verified prog inv initiation vc_all
 
 end Test1Bar
 end Crabber

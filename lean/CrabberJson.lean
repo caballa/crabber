@@ -22,3 +22,4 @@ import CrabberJson.Schema
 import CrabberJson.RoundTrip
 import CrabberJson.Elab
 import CrabberJson.Samples.Test1Bar
+import CrabberJson.Samples.TestBool1

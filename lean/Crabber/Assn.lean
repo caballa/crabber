@@ -14,18 +14,50 @@ constraints mean.
 
 namespace Crabber
 
-/-- A conjunction of linear constraints: one "disjunct" in the export. -/
-abbrev Conj := List LinCon
+/-! ## Atoms
+
+One conjunct of an exported invariant. Crab's disjuncts mix two kinds of claim,
+and they are told apart by the `type` tag the export puts on every constraint.
+
+**Why booleans are their own atom rather than `1·b = 1`.** Crab writes boolean
+facts as 0/1 linear constraints, so reading them as ordinary `LinCon`s over a
+variable that happens to be boolean would typecheck and would even be
+*consistent* — but it would commit the state to representing booleans as
+integers, which `Syntax.lean` argues against at length. Measured across every
+domain crabber offers, a bool-tagged constraint is only ever `1·b = 0` or
+`1·b = 1`, so this atom is exactly as expressive as what Crab actually emits, and
+the reader refuses any other bool-tagged shape by name rather than guessing.
+
+The payoff is on both sides of a goal: a boolean fact arrives as
+`σ.bools "b" = true`, which `simp` consumes directly, and the integer half stays
+free of `if … then 1 else 0` terms that `omega` would have to be walked past. -/
+
+/-- One conjunct of an invariant. -/
+inductive Atom where
+  /-- An integer linear constraint. -/
+  | lin  (c : LinCon)
+  /-- `x` is `v` — the export's `1·x = 1` and `1·x = 0`, with `x` boolean. -/
+  | bool (x : Var) (v : Bool)
+  deriving Repr
+
+/-- What an atom claims about a state. Each kind reads its own store, and only
+    its own store. -/
+def Atom.holds : Atom → State → Prop
+  | .lin c    => fun σ => c.holds σ
+  | .bool x v => fun σ => σ.bools x = v
+
+/-- A conjunction of atoms: one "disjunct" in the export. -/
+abbrev Conj := List Atom
 
 /-- An invariant: a disjunction of conjunctions, read as "or of ands". -/
 abbrev Assn := List Conj
 
-/-- A conjunction holds when *every* constraint in it holds.
+/-- A conjunction holds when *every* atom in it holds.
 
     `∀ c ∈ k, …` is Lean's bounded quantifier, sugar for `∀ c, c ∈ k → …`.
     Writing it this way rather than folding `∧` over the list is what makes the
     degenerate cases below come out right with no special handling. -/
-def Conj.holds (k : Conj) (σ : State) : Prop := ∀ c ∈ k, c.holds σ
+def Conj.holds (k : Conj) (σ : State) : Prop := ∀ a ∈ k, a.holds σ
 
 /-- An invariant holds when *some* disjunct holds. -/
 def Assn.holds (A : Assn) (σ : State) : Prop := ∃ k ∈ A, Conj.holds k σ

@@ -14,15 +14,15 @@ there. The comparison is on `Json` values rather than on text, so key ordering
 and whitespace are irrelevant.
 
 What this does **not** check: that the wire types mean what the conversion to
-`Cfg`/`Assn` says they mean. Dropping the bitwidth, refusing boolean
-constraints, discarding an assertion's source location — those are choices
-argued for where they are made, and no round trip can validate them. What it
-covers is the mechanical half, which is the half where a silent slip is
+`Cfg`/`Assn` says they mean. Dropping the bitwidth, reading `1·b = 1` as a claim
+about the boolean store, discarding an assertion's source location — those are
+choices argued for where they are made, and no round trip can validate them.
+What it covers is the mechanical half, which is the half where a silent slip is
 plausible.
 
 Nor does it apply to documents this library refuses outright. A program using
-statements outside the numeric core fails at the reading step, loudly; there is
-nothing to round-trip. That is the intended behaviour, not a gap.
+statements outside the modelled fragment fails at the reading step, loudly;
+there is nothing to round-trip. That is the intended behaviour, not a gap.
 -/
 
 namespace CrabberJson
