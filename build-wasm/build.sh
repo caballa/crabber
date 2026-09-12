@@ -73,8 +73,13 @@ done
 emar rcs "$HERE/lib/libcrab_wasm.a" "$OBJ"/crab/*.o
 
 echo ">> compiling crabber (skipping boxes_domain.cpp)"
-srcs=("$CRABBER"/src/crabber.cpp "$CRABBER"/src/parser.cpp \
-      "$CRABBER"/src/crabir_builder.cpp "$CRABBER"/src/analyzer.cpp)
+# Globbed rather than listed, so a new source in src/ cannot silently go missing
+# here the way json_export.cpp did (it links into the CMake target, so a hardcoded
+# list drifts out of sync and only shows up as an undefined symbol at link time).
+srcs=()
+for f in "$CRABBER"/src/*.cpp; do
+  srcs+=("$f")
+done
 for f in "$CRABBER"/src/domains/*.cpp; do
   [ "$(basename "$f")" = boxes_domain.cpp ] && continue
   srcs+=("$f")
