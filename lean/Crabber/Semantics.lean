@@ -30,6 +30,7 @@ namespace Crabber
     constructors are the **only** ways a step can happen, which is what lets a
     proof do case analysis on it. -/
 inductive StmtExec : Stmt → State → State → Prop where
+  -- Integer statements.
   /-- Assignment overwrites `x` with the value of `e` in the *current* state. -/
   | assign {σ : State} {x : Var} {e : LinExp} :
       StmtExec (.assign x e) σ (σ.set x (e.eval σ))
@@ -49,6 +50,35 @@ inductive StmtExec : Stmt → State → State → Prop where
       assert mean something. -/
   | assert {σ : State} {c : LinCon} (h : c.holds σ) :
       StmtExec (.assert c) σ σ
+
+  -- Boolean statements. Nothing new happens here: each is an update, a filter,
+  -- or both, exactly as above, but against the boolean store.
+  /-- `x := c` evaluates the *integer* constraint and records the answer.
+      `LinCon.check` is the `Bool`-valued reading of `LinCon.holds`; that they
+      agree is `LinCon.check_eq_true`, and it is the only fact anything uses. -/
+  | boolAssignCst {σ : State} {x : Var} {c : LinCon} :
+      StmtExec (.boolAssignCst x c) σ (σ.setBool x (c.check σ))
+  /-- `x := y`, or `x := not y` when `negated`. `xor n` is the identity for
+      `n = false` and negation for `n = true`, which is exactly the flag's
+      meaning — so one clause covers both forms with no `if`. -/
+  | boolAssignVar {σ : State} {x y : Var} {n : Bool} :
+      StmtExec (.boolAssignVar x y n) σ (σ.setBool x (n ^^ σ.bools y))
+  /-- `x := y op z`. -/
+  | boolBinop {σ : State} {x y z : Var} {op : BoolOp} :
+      StmtExec (.boolBinop x op y z) σ (σ.setBool x (op.apply (σ.bools y) (σ.bools z)))
+  /-- `assume(y)` / `assume(not y)`: the state is unchanged, and the step exists
+      only when the boolean holds — the premise is what does the filtering, just
+      as in the integer `assume`. -/
+  | boolAssume {σ : State} {y : Var} {n : Bool} (h : (n ^^ σ.bools y) = true) :
+      StmtExec (.boolAssume y n) σ σ
+  /-- `assert(y)` — again identical to `assume` as a transition; the obligation
+      is added by the weakest-precondition calculus, not here. -/
+  | boolAssert {σ : State} {y : Var} (h : σ.bools y = true) :
+      StmtExec (.boolAssert y) σ σ
+  /-- `x := if c then l else r`. -/
+  | boolSelect {σ : State} {x c l r : Var} :
+      StmtExec (.boolSelect x c l r) σ
+        (σ.setBool x (if σ.bools c then σ.bools l else σ.bools r))
 
 /-! ## A whole block body -/
 
@@ -112,23 +142,59 @@ inductive Reachable (P : Cfg) : Config → Prop where
 
 /-! ## What it means for an assertion to fail -/
 
-/-- `AssertFails P` — some execution reaches an `assert` whose condition is false
-    at that point.
+/-- `s.obligation σ` — what `s` demands of the state it is reached in.
+
+    Every statement has one; for all but the two asserts it is `True`. Naming it
+    is what lets "an assertion fails" be stated once, over an arbitrary
+    statement, instead of once per kind of assert.
+
+    That generalisation is forced rather than tidy. Written against
+    `Stmt.assert` alone, `AssertFails` would be *vacuously* unsatisfiable for a
+    program whose only assertions are boolean — the theorem would still read
+    "no assertion can fail" while quantifying over none of them. Every
+    assert-like construct still to come (division by zero, array bounds,
+    `select`'s guard) is one clause here and nothing else anywhere.
+
+    `True` for the ordinary statements is not a placeholder: it is the claim
+    that they can be reached in any state whatsoever, which is exactly right.
+
+    **Every constructor is listed, rather than a `_ => True` catch-all.** This
+    is a trusted definition, and a catch-all would silently give `True` to the
+    next statement added to `Stmt` — `select` with its division guard, or an
+    array load needing a bounds check. Those would then be *unobligated*, and
+    `¬ AssertFails` would quietly stop covering them while still reading as
+    though it did. Spelling the cases out turns that into a missing-cases error
+    at the one place where the question has to be answered. -/
+def Stmt.obligation : Stmt → State → Prop
+  | .assert c           => fun σ => c.holds σ
+  | .boolAssert y       => fun σ => σ.bools y = true
+  | .assign _ _         => fun _ => True
+  | .havoc _            => fun _ => True
+  | .assume _           => fun _ => True
+  | .boolAssignCst _ _  => fun _ => True
+  | .boolAssignVar _ _ _ => fun _ => True
+  | .boolBinop _ _ _ _  => fun _ => True
+  | .boolAssume _ _     => fun _ => True
+  | .boolSelect _ _ _ _ => fun _ => True
+
+/-- `AssertFails P` — some execution reaches a statement whose obligation is
+    false at that point.
 
     Spelled out concretely: there is a reachable configuration `(L, σ)`, the body
-    of `L` splits as `pre ++ assert c :: post`, running `pre` from σ can reach τ,
-    and `c` is false at τ.
+    of `L` splits as `pre ++ s :: post`, running `pre` from σ can reach τ, and
+    `s`'s obligation fails at τ.
 
-    `∃ L σ pre c post τ, …` chains six existentials; `∧` chains the four
+    `∃ L σ pre s post τ, …` chains six existentials; `∧` chains the four
     conditions. `List.append` is written `++`. Quantifying over the way the body
-    splits is what makes "an assert occurring somewhere in the block" precise —
-    the append equation *is* the index of the assert. -/
+    splits is what makes "a statement occurring somewhere in the block" precise —
+    the append equation *is* its index. Positions holding an ordinary statement
+    contribute nothing, since `¬ True` is false. -/
 def AssertFails (P : Cfg) : Prop :=
-  ∃ (L : Label) (σ : State) (pre : List Stmt) (c : LinCon)
+  ∃ (L : Label) (σ : State) (pre : List Stmt) (s : Stmt)
     (post : List Stmt) (τ : State),
       Reachable P (L, σ) ∧
-      P.body L = pre ++ Stmt.assert c :: post ∧
+      P.body L = pre ++ s :: post ∧
       Exec pre σ τ ∧
-      ¬ c.holds τ
+      ¬ s.obligation τ
 
 end Crabber

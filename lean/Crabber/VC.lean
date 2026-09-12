@@ -133,4 +133,38 @@ theorem consecution_of_VC (P : Cfg) (I : Label → Assn) (hvc : ∀ B, VC P I B)
   -- of using a bounded quantifier rather than a folded conjunction.
   exact hpost L' hsucc
 
+/-- **`chk_of_VC` — the assertion obligations come free with the VCs.**
+
+    In English: *if every block's verification condition holds, then at every
+    assert in every block the invariant at that block's entry already implies the
+    asserted condition.*
+
+    This is the second hypothesis `assert_safe` wants, and it turns out not to be
+    a separate hypothesis at all. `wpStmt` puts an assert's obligation into the
+    precondition as a conjunct, so it is inside `VC` already; `wp_split` is the
+    lemma that pulls it back out. All that is left here is to rewrite the block's
+    body into the split the caller asked about.
+
+    Proving it once, here, is what keeps it out of generated files. Before this
+    lemma, a per-program file carried a `chk` theorem of its own — a case split
+    over labels, then a statement-by-statement peel of `pre` for each one. That
+    script existed only to re-derive, per program, something true of every
+    program.
+
+    **What it rests on.** The `∧` in `wpStmt`'s assert clause, and nothing else.
+    Under the assume-flavoured `→` reading weighed in `Samples/Test1Foo.lean` the
+    obligation would not be in the VC to extract, this lemma would be false, and
+    generated files would need their `chk` back. That is the price of the
+    simplification, and it is confined to this lemma and `verified`. -/
+theorem chk_of_VC (P : Cfg) (I : Label → Assn) (hvc : ∀ B, VC P I B) :
+    ∀ (L : Label) (pre : List Stmt) (s : Stmt) (post : List Stmt),
+      P.body L = pre ++ s :: post →
+      ∀ σ : State, ⟦I L⟧ σ → wp pre (fun τ => s.obligation τ) σ := by
+  intro L pre s post hsplit σ hI
+  -- The block's own verification condition, fed the invariant at L.
+  have hwp := hvc L σ hI
+  -- Replace the body by the split the caller named, so `wp_split` applies.
+  rw [hsplit] at hwp
+  exact wp_split pre s post _ σ hwp
+
 end Crabber

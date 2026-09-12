@@ -49,12 +49,14 @@ namespace Test1Foo
 
 @[crab] def prog : Cfg := { entry := "start", body := bodyOf, succ := succOf }
 
+/-- `.lin` wraps a linear constraint as an invariant atom; the other atom is the
+    boolean one, which this program has no use for. -/
 @[crab] def inv : Label → Assn
   | "start"          => Assn.top
-  | "loop"           => [[xGeq 0,  xLeq 9]]
-  | "edge-loop-loop" => [[xGeq 1,  xLeq 10]]
-  | "edge-loop-out"  => [[xGeq 1,  xLeq 10]]
-  | "out"            => [[xGeq 10, xLeq 10]]
+  | "loop"           => [[.lin (xGeq 0),  .lin (xLeq 9)]]
+  | "edge-loop-loop" => [[.lin (xGeq 1),  .lin (xLeq 10)]]
+  | "edge-loop-out"  => [[.lin (xGeq 1),  .lin (xLeq 10)]]
+  | "out"            => [[.lin (xGeq 10), .lin (xLeq 10)]]
   | _                => Assn.bot
 
 /-! ## Which obligations hold, and which does not
@@ -68,11 +70,12 @@ theorem vc_loop           : VC prog inv "loop"           := by crab_vc
 theorem vc_edge_loop_loop : VC prog inv "edge-loop-loop" := by crab_vc
 theorem vc_edge_loop_out  : VC prog inv "edge-loop-out"  := by crab_vc
 
-/-- A state in which every variable is 10.
+/-- A state in which every integer variable is 10.
 
-    `⟨…⟩` is anonymous-constructor notation for the one-field record `State`,
-    and `fun _ => 10` is the constant map — we only care about `"x"`. -/
-def sigma10 : State := ⟨fun _ => 10⟩
+    `⟨…⟩` is anonymous-constructor notation for the record `State`: one constant
+    map per store. The boolean one is irrelevant here — this program has no
+    booleans — but `State` has two fields, so it must be given. -/
+def sigma10 : State := ⟨fun _ => 10, fun _ => false⟩
 
 /-- **Block `out`'s verification condition is false.**
 
@@ -92,7 +95,8 @@ theorem vc_out_false : ¬ VC prog inv "out" := by
   -- Assume the VC held, and instantiate it at the offending state.
   intro h
   have hpre : ⟦inv "out"⟧ sigma10 := by
-    simp [crab, sigma10, Assn.holds, Conj.holds, LinCon.holds, LinCon.lhs, LinExp.eval]
+    simp [crab, sigma10, Assn.holds, Conj.holds, Atom.holds, LinCon.holds, LinCon.lhs,
+         LinExp.eval]
   have hbad := h sigma10 hpre
   -- `hbad` unfolds to `xNe10.holds sigma10 ∧ True`, i.e. `(10 : Int) ≠ 10`.
   simp [crab, sigma10, LinCon.holds, LinCon.lhs, LinExp.eval] at hbad
@@ -105,12 +109,11 @@ the fifth passes in `bar` and is *refutable* in `foo`.
 
 It also exposes a design point worth settling deliberately.  Defining the
 weakest precondition of an assert as `⟦c⟧ ∧ Q` carries the assertion obligation
-**inside** the per-block verification condition — even though `assert_safe`
-already carries it separately, in its `chk` hypothesis.  The consequence is visible right here:
-because `VC prog inv "out"` is false, `vc_all` is unprovable for `foo`, and so
-`InvariantOf prog inv` cannot be derived — *even though the invariants
-themselves are perfectly sound*.  Block `out` has no successors, so consecution
-at `out` is vacuous; only the assert makes its VC fail.
+**inside** the per-block verification condition.  The consequence is visible
+right here: because `VC prog inv "out"` is false, `vc_all` is unprovable for
+`foo`, and so `InvariantOf prog inv` cannot be derived — *even though the
+invariants themselves are perfectly sound*.  Block `out` has no successors, so
+consecution at `out` is vacuous; only the assert makes its VC fail.
 
 Both readings are sound with respect to `Exec` — a failing assert has no
 successor state either way — so this is a genuine choice, not a bug:
@@ -123,6 +126,12 @@ successor state either way — so this is a genuine choice, not a bug:
     alone, with assertion safety left entirely to `chk`.  `foo` would get its
     `InvariantOf` theorem, and the two claims could be reported independently:
     *"invariants sound; 1 of 2 assertions proved"*.
+
+The `∧` reading has since been leaned on further: `chk_of_VC` *derives* the
+assertion obligations from the verification conditions, so a per-program file no
+longer proves them separately at all.  That is a second thing switching to `→`
+would cost — `chk_of_VC` becomes false, and generated files need their `chk`
+back.  It does not change the argument above, only its price.
 
 Worth settling before any bulk run over the sample suite, since it changes what
 can be reported for programs with deliberately failing assertions — and the

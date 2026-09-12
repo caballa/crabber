@@ -394,6 +394,25 @@ Verifying the conditional claim Crab actually made needs the calling context
 modelled, which is future work. Until then the check stays where the two
 questions coincide.
 
+## Which statements are modelled ##
+
+The Lean semantics covers the integer core and the whole boolean fragment:
+
+| Modelled | |
+|---|---|
+| `assign`, `havoc`, `assume`, `assert` | Integers are unbounded `Int`, not machine words — measured against the analyser, `x:i8 := 127; x := x+1` yields 128. An `assert` is check-then-assume. |
+| `bool_assign_cst`, `bool_assign_var`, `bool_binop`, `bool_assume`, `bool_assert`, `bool_select` | Booleans live in their own store, as `Bool` rather than as 0/1 integers. Crab exports boolean facts as `b = 1`; the reader turns those back into boolean claims. |
+
+| Not modelled — refused by name, so a CFG using one is reported `not attempted` | |
+|---|---|
+| `binop`, `select`, `cast` | Multiplication and division of variables are outside what `omega` decides, and Crab's four division operators differ in rounding. `cast` is why `samples/test-6.crabir` cannot be checked despite being a boolean program; `samples/test-bool-1.crabir` is the cast-free equivalent. |
+| `callsite` | Needs a call rule and the interprocedural summaries — see above. |
+| the four array statements, and the reference/region family | Need select/store reasoning in the assertion language. |
+
+Nothing is ever silently skipped: dropping a statement would weaken every proof
+obligation in its block, so an unmodelled construct fails the read and names
+itself in the report.
+
 ## What is trusted, and what is not ##
 
 The point of the exercise is that the list of trusted things is short and

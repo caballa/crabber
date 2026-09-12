@@ -144,15 +144,40 @@ inductive WCon where
 
 /-- A statement, tagged by the `"stmt"` key.
 
-    Only the four of the numeric core are representable. The other nine kinds
-    crabber can emit — `binop`, `select`, `cast`, the six boolean ones, the four
-    array ones and `callsite` — are rejected by name when read, rather than
-    given a constructor here that the semantics could not interpret. -/
+    The four of the numeric core and the six boolean ones. The remaining kinds
+    crabber can emit — `binop`, `select`, `cast`, `unreachable`, the four array
+    ones, `callsite` and the reference/region family — are rejected by name when
+    read, rather than given a constructor here that the semantics could not
+    interpret. -/
 inductive WStmt where
   | assign (lhs : WVar) (rhs : WExp)
   | assume (cond : WCon)
   | assert (cond : WCon) (loc : Json)
   | havoc  (lhs : WVar)
+  /-- `bool_assign_cst`. The right-hand side is either a linear constraint or a
+      *reference* constraint, and the export says which in a sibling `cst_kind`
+      key rather than by the shape of `rhs`.
+
+      `rhs` is kept as raw `Json` for exactly that reason: its schema depends on
+      another field, and only one of the two schemas is modelled. References are
+      not, so parsing `rhs` is deferred to the conversion below, which reads it
+      as a `WCon` when `cst_kind` is `"linear"` and refuses it by name otherwise.
+      Holding it opaquely also keeps the round trip exact either way — `Json`'s
+      own JSON instances are the identity — so a document containing a reference
+      constraint is still reported against the construct, not against the
+      reader. -/
+  | boolAssignCst (cstKind : String) (rhs : Json) (lhs : WVar)
+  /-- `bool_assign_var`. `negated` carries `b := not(c)`; Crab has no separate
+      unary boolean statement. -/
+  | boolAssignVar (rhs : WVar) (negated : Bool) (lhs : WVar)
+  /-- `bool_binop`, with `op` one of `"and"`, `"or"`, `"xor"`. -/
+  | boolBinop (op : String) (left : WVar) (right : WVar) (lhs : WVar)
+  /-- `bool_assume`, with the same `negated` flag. -/
+  | boolAssume (cond : WVar) (negated : Bool)
+  /-- `bool_assert`. No `negated` key — the export does not write one here. -/
+  | boolAssert (cond : WVar) (loc : Json)
+  /-- `bool_select`. Crab's own parser cannot produce one; the export can. -/
+  | boolSelect (cond : WVar) (left : WVar) (right : WVar) (lhs : WVar)
   deriving Repr, BEq
 
 /-- An invariant, tagged by the `"kind"` key: `"true"`, `"false"`, or a
@@ -269,11 +294,34 @@ instance : FromJson WStmt where
     | "assume" => return .assume (← j.getObjValAs? WCon "cond")
     | "assert" => return .assert (← j.getObjValAs? WCon "cond") (← j.getObjValAs? Json "loc")
     | "havoc"  => return .havoc  (← j.getObjValAs? WVar "lhs")
+    | "bool_assign_cst" =>
+      return .boolAssignCst (← j.getObjValAs? String "cst_kind")
+                            (← j.getObjValAs? Json "rhs")
+                            (← j.getObjValAs? WVar "lhs")
+    | "bool_assign_var" =>
+      return .boolAssignVar (← j.getObjValAs? WVar "rhs")
+                            (← j.getObjValAs? Bool "negated")
+                            (← j.getObjValAs? WVar "lhs")
+    | "bool_binop" =>
+      return .boolBinop (← j.getObjValAs? String "op")
+                        (← j.getObjValAs? WVar "left")
+                        (← j.getObjValAs? WVar "right")
+                        (← j.getObjValAs? WVar "lhs")
+    | "bool_assume" =>
+      return .boolAssume (← j.getObjValAs? WVar "cond")
+                         (← j.getObjValAs? Bool "negated")
+    | "bool_assert" =>
+      return .boolAssert (← j.getObjValAs? WVar "cond") (← j.getObjValAs? Json "loc")
+    | "bool_select" =>
+      return .boolSelect (← j.getObjValAs? WVar "cond")
+                         (← j.getObjValAs? WVar "left")
+                         (← j.getObjValAs? WVar "right")
+                         (← j.getObjValAs? WVar "lhs")
     | other    =>
-      throw s!"statement kind '{other}' is outside the numeric core this library \
-               models (assign, assume, assert, havoc). It is rejected rather \
-               than skipped: dropping a statement would weaken every proof \
-               obligation in its block."
+      throw s!"statement kind '{other}' is outside the fragment this library \
+               models (assign, assume, assert, havoc, and the six boolean \
+               statements). It is rejected rather than skipped: dropping a \
+               statement would weaken every proof obligation in its block."
 
 instance : ToJson WStmt where
   toJson
@@ -283,6 +331,22 @@ instance : ToJson WStmt where
     | .assert c loc => Json.mkObj
         [("stmt", "assert"), ("cond", toJson c), ("loc", toJson loc)]
     | .havoc lhs => Json.mkObj [("stmt", "havoc"), ("lhs", toJson lhs)]
+    | .boolAssignCst k rhs lhs => Json.mkObj
+        [("stmt", "bool_assign_cst"), ("cst_kind", toJson k), ("rhs", rhs),
+         ("lhs", toJson lhs)]
+    | .boolAssignVar rhs n lhs => Json.mkObj
+        [("stmt", "bool_assign_var"), ("rhs", toJson rhs), ("negated", toJson n),
+         ("lhs", toJson lhs)]
+    | .boolBinop op l r lhs => Json.mkObj
+        [("stmt", "bool_binop"), ("op", toJson op), ("left", toJson l),
+         ("right", toJson r), ("lhs", toJson lhs)]
+    | .boolAssume c n => Json.mkObj
+        [("stmt", "bool_assume"), ("cond", toJson c), ("negated", toJson n)]
+    | .boolAssert c loc => Json.mkObj
+        [("stmt", "bool_assert"), ("cond", toJson c), ("loc", toJson loc)]
+    | .boolSelect c l r lhs => Json.mkObj
+        [("stmt", "bool_select"), ("cond", toJson c), ("left", toJson l),
+         ("right", toJson r), ("lhs", toJson lhs)]
 
 instance : FromJson WInv where
   fromJson? j := do
@@ -307,8 +371,9 @@ deriving instance FromJson, ToJson for WDoc
 /-! ## Conversion to the proof library's types
 
 Everything below can fail, and says why when it does. The failures are not
-defensive padding: `bool`-typed constraints and the nine unmodelled statement
-kinds both occur in `samples/`, so these paths are exercised. -/
+defensive padding: the unmodelled statement kinds occur throughout `samples/` —
+`test-6` reaches its booleans through a `cast` and is refused for that reason
+alone — so these paths are exercised. -/
 
 /-- Parse one of the export's decimal strings. -/
 def parseInt (s : String) : Except String Int :=
@@ -318,13 +383,14 @@ def parseInt (s : String) : Except String Int :=
 
 /-- Reject anything that is not an integer type.
 
-    Booleans are the case that matters. Crab exports them as linear constraints
-    over 0/1 — an invariant may contain `b = 1` with `b` of type `bool` — so
-    such a constraint *would* parse as an integer constraint on a variable named
-    `b`. Accepting it would silently commit this development to representing
-    booleans as 0/1 integers, which is an open question, not a detail: the other
-    option is a separate boolean map in the state, and it changes what `wp` does
-    with a boolean assignment. Refusing here keeps the choice open and visible.
+    The types that reach this are `bool`, `int_array` and the reference/region
+    family. Booleans are the case that matters, and the reason it is still an
+    error rather than a widening: an integer *expression* or *constraint* over a
+    boolean variable would mean Crab had put a boolean into arithmetic, which the
+    state's two-store representation says is not what CrabIR does. Boolean facts
+    reach the assertion language through `WCon.toAtom` below, which is the only
+    path that accepts a bool-typed constraint, and it accepts only the shapes
+    Crab actually writes.
 
     The bitwidth is deliberately ignored rather than rejected. Measured against
     the analyser, Crab's integers behave as mathematical integers — `x:i8 := 127;
@@ -333,9 +399,17 @@ def parseInt (s : String) : Except String Int :=
     consulted. -/
 def WTy.expectInt (t : WTy) (ctx : String) : Except String Unit :=
   if t.kind == "int" then .ok () else
-    .error s!"{ctx} has type '{t.kind}', but only integer-typed constructs are \
-              modelled. Booleans are exported as 0/1 constraints; reading them \
-              as integers would prejudge how the state represents them."
+    .error s!"{ctx} has type '{t.kind}', which is outside the fragment this \
+              library models. An integer type is required here: boolean \
+              variables live in their own store, and only an invariant's \
+              conjuncts may be bool-typed."
+
+/-- Reject anything that is not a boolean type. Used for the operands and
+    targets of the boolean statements, all of which the export types `bool`. -/
+def WTy.expectBool (t : WTy) (ctx : String) : Except String Unit :=
+  if t.kind == "bool" then .ok () else
+    .error s!"{ctx} has type '{t.kind}', but a boolean statement's operands must \
+              be boolean"
 
 def opOfString : String → Except String Crabber.CmpOp
   | "<=" => .ok .le
@@ -343,6 +417,12 @@ def opOfString : String → Except String Crabber.CmpOp
   | "="  => .ok .eq
   | "!=" => .ok .ne
   | s    => .error s!"unknown comparison operator '{s}'"
+
+def boolOpOfString : String → Except String Crabber.BoolOp
+  | "and" => .ok .and
+  | "or"  => .ok .or
+  | "xor" => .ok .xor
+  | s     => .error s!"unknown boolean operator '{s}' (expected and, or or xor)"
 
 /-- `[["1","y"], ["-2","x"]]` becomes `[(1, "y"), (-2, "x")]`. -/
 def termsToList (ts : Array (Array String)) : Except String (List (Int × Crabber.Var)) :=
@@ -387,8 +467,45 @@ def WCon.toLinCon : WCon → Except String Crabber.LinCon
       return { op := ← opOfString op, terms := ← termsToList terms,
                const := ← parseInt const }
 
-/-- Drops the source location: `Stmt.assert` carries only the condition, since
-    the proof obligation does not depend on where the assertion was written. -/
+/-- A bool-typed constraint, read as a claim about the boolean store.
+
+    **Only `1·b = 0` and `1·b = 1` are accepted.** That is not a simplification:
+    measured across `int`, `int-terms`, `int-set`, `zones`, `oct-snf` and `pk`,
+    it is the only bool-tagged shape Crab emits, because its booleans go through
+    a flat per-variable lattice with no relational information to export.
+
+    Anything else — a comparison other than `=`, a coefficient other than 1, more
+    than one term, a constant other than 0 or 1 — is refused, naming what was
+    seen. The alternative would be to read such a constraint as arithmetic over a
+    0/1 encoding, which is precisely the representation the state does not use;
+    it would be quietly meaningless. If a future domain does export a relational
+    boolean fact, this error is where it will surface, and the assertion language
+    will need an atom for it rather than a silent misreading. -/
+def WCon.toBoolAtom (op : String) (terms : Array (Array String))
+    (const : String) : Except String Crabber.Atom := do
+  let ts ← termsToList terms
+  match op, ts, const with
+  | "=", [(1, b)], "0" => .ok (.bool b false)
+  | "=", [(1, b)], "1" => .ok (.bool b true)
+  | _, _, _ =>
+    .error s!"a bool-typed constraint here is '{op}' over {terms.size} term(s) \
+              against '{const}', which is outside the fragment this library \
+              models. Only '1·b = 0' and '1·b = 1' are understood, and measured \
+              against every domain crabber offers that is the only shape Crab \
+              exports for a boolean. Reading anything else would mean treating \
+              a boolean as a 0/1 integer, which is not how the state \
+              represents one."
+
+/-- One conjunct of an invariant, dispatched on the type the export tagged it
+    with. This is the only place a bool-typed constraint is accepted. -/
+def WCon.toAtom : WCon → Except String Crabber.Atom
+  | .cmp op (some ty) terms const =>
+    if ty.kind == "bool" then WCon.toBoolAtom op terms const
+    else do return .lin (← WCon.toLinCon (.cmp op (some ty) terms const))
+  | c => do return .lin (← c.toLinCon)
+
+/-- Drops the source location: the asserts carry only their condition, since the
+    proof obligation does not depend on where the assertion was written. -/
 def WStmt.toStmt : WStmt → Except String Crabber.Stmt
   | .assign lhs rhs => do
       lhs.type.expectInt s!"the assignment target '{lhs.name}'"
@@ -398,11 +515,44 @@ def WStmt.toStmt : WStmt → Except String Crabber.Stmt
   | .havoc lhs  => do
       lhs.type.expectInt s!"the havoc target '{lhs.name}'"
       return .havoc lhs.name
+  -- `rhs` was held as raw JSON because its schema depends on `cst_kind`; this is
+  -- where that is resolved. A reference constraint is refused by name — the
+  -- reference and region statements are unmodelled as a group, and accepting
+  -- their constraints alone would be meaningless.
+  | .boolAssignCst kind rhs lhs => do
+      lhs.type.expectBool s!"the boolean assignment target '{lhs.name}'"
+      if kind != "linear" then
+        throw s!"a bool_assign_cst whose right-hand side is a '{kind}' \
+                 constraint. References are outside the fragment this library \
+                 models; only a linear constraint is understood here."
+      let c : WCon ← fromJson? rhs
+      return .boolAssignCst lhs.name (← c.toLinCon)
+  | .boolAssignVar rhs neg lhs => do
+      lhs.type.expectBool s!"the boolean assignment target '{lhs.name}'"
+      rhs.type.expectBool s!"the boolean assignment source '{rhs.name}'"
+      return .boolAssignVar lhs.name rhs.name neg
+  | .boolBinop op l r lhs => do
+      lhs.type.expectBool s!"the boolean operation target '{lhs.name}'"
+      l.type.expectBool s!"the left operand '{l.name}'"
+      r.type.expectBool s!"the right operand '{r.name}'"
+      return .boolBinop lhs.name (← boolOpOfString op) l.name r.name
+  | .boolAssume c neg => do
+      c.type.expectBool s!"the assumed boolean '{c.name}'"
+      return .boolAssume c.name neg
+  | .boolAssert c _ => do
+      c.type.expectBool s!"the asserted boolean '{c.name}'"
+      return .boolAssert c.name
+  | .boolSelect c l r lhs => do
+      lhs.type.expectBool s!"the boolean select target '{lhs.name}'"
+      c.type.expectBool s!"the select condition '{c.name}'"
+      l.type.expectBool s!"the left operand '{l.name}'"
+      r.type.expectBool s!"the right operand '{r.name}'"
+      return .boolSelect lhs.name c.name l.name r.name
 
 def WInv.toAssn : WInv → Except String Crabber.Assn
   | .top     => .ok Crabber.Assn.top
   | .bot     => .ok Crabber.Assn.bot
-  | .disj ds => ds.toList.mapM fun d => d.toList.mapM WCon.toLinCon
+  | .disj ds => ds.toList.mapM fun d => d.toList.mapM WCon.toAtom
 
 /-! ## Building the CFG
 
