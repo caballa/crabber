@@ -138,8 +138,8 @@ int main(int argc, char **argv) {
   unsigned descending_iters = 1;
   app.add_option("-n,--descending-iters", descending_iters, "Number of descending (narrowing) iterations (default 1)");
 
-  string fixed_tvpi_coefficients = "";
-  app.add_option("--coefficients", fixed_tvpi_coefficients, "Coefficients for fixed-tvpi: each separated by comma");
+  string tvpi_coefficients = "";
+  app.add_option("--coefficients", tvpi_coefficients, "Non-unit coefficients for tvpi-dbm: each separated by comma");
   
   bool no_checker = false;
   app.add_flag("--no-checker", no_checker, "Disable assertion checking");
@@ -240,8 +240,8 @@ int main(int argc, char **argv) {
                " (use --show-domains for descriptions)");
   }
 
-  if (fixed_tvpi_coefficients != "") {
-    stringstream ss(fixed_tvpi_coefficients);
+  if (tvpi_coefficients != "") {
+    stringstream ss(tvpi_coefficients);
     string str;
     while (getline(ss, str, ',')) {
       crab::domains::crab_domain_params_man::get().coefficients().push_back(stoul(str));

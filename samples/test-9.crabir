@@ -1,4 +1,4 @@
-cfg("fixed-tvpi")
+cfg("non-unit-coefficients")
 start:
    havoc(N:i32)
    assume(N > 0):i32

@@ -65,11 +65,18 @@ window.CRABIR_EXAMPLES = [
   "code": "cfg(\"arrays\")\nstart:\n   x_addr:i64 := 1024\n   x:i32 := 0  \n   array_store(Stack, x_addr:i64, x:i32)\n   goto loop\nloop:\n   x:i32 := array_load(Stack, x_addr:i64)\n   x:i32 := x + 1\n   array_store(Stack, x_addr:i64, x:i32)\n   if (x <= 9):i32 goto loop else goto exit\nexit:\n   x:i32 := array_load(Stack, x_addr:i64)\n   EXPECT_EQ(true, assert(x == 10):i32)\n\n"
  },
  {
-  "name": "Non-unit coefficients · non-unit oct",
+  "name": "Non-unit coefficients · template DBM",
   "file": "test-9.crabir",
-  "domain": "non-unit-oct",
+  "domain": "tvpi-dbm",
   "flags": "--coefficients 4,8",
-  "code": "cfg(\"fixed-tvpi\")\nstart:\n   havoc(N:i32)\n   assume(N > 0):i32\n   i:i32 := 0\n   x:i32 := 0\n   y:i32 := 0     \n   goto loop_header\nloop_header:\n   if (i < N):i32 goto loop_body else goto exit\nloop_body:   \n   i:i32 := i + 1\n   x:i32 := x + 4\n   y:i32 := y + 8\n   goto loop_header\nexit:\n   EXPECT_EQ(true, assert(x == 4*N):i32)\n   EXPECT_EQ(true, assert(y == 8*N):i32)   \n\n"
+  "code": "cfg(\"non-unit-coefficients\")\nstart:\n   havoc(N:i32)\n   assume(N > 0):i32\n   i:i32 := 0\n   x:i32 := 0\n   y:i32 := 0     \n   goto loop_header\nloop_header:\n   if (i < N):i32 goto loop_body else goto exit\nloop_body:   \n   i:i32 := i + 1\n   x:i32 := x + 4\n   y:i32 := y + 8\n   goto loop_header\nexit:\n   EXPECT_EQ(true, assert(x == 4*N):i32)\n   EXPECT_EQ(true, assert(y == 8*N):i32)   \n\n"
+ },
+ {
+  "name": "Non-unit bounds 2N..3N · template DBM",
+  "file": "test-12.crabir",
+  "domain": "tvpi-dbm",
+  "flags": "--coefficients 2,3",
+  "code": "# Each iteration adds a non-deterministic 2 or 3 to x, so x is bounded by 2*N\n# and 3*N. Both bounds need 2 and 3 in the coefficient template, and both must\n# survive the join at the end of the loop body; int, zones and oct-snf all fail.\n#\n# How to run:\n#   crabber test-12.crabir -d tvpi-dbm --coefficients \"2,3\"\n\ncfg(\"tvpi-dbm\")\n\nstart:\n   havoc(N:i32)\n   assume(N > 0):i32\n   i:i32 := 0\n   x:i32 := 0\n   goto header\n\nheader:\n   if (i < N):i32 goto body else goto exit\n\nbody:\n   i:i32 := i + 1\n   havoc(c:i32)\n   if (c <= 0):i32 goto add2 else goto add3\n\nadd2:\n   x:i32 := x + 2\n   goto header\n\nadd3:\n   x:i32 := x + 3\n   goto header\n\nexit:\n   EXPECT_EQ(true, assert(x >= 2*N):i32)\n   EXPECT_EQ(true, assert(x <= 3*N):i32)\n"
  },
  {
   "name": "Symbolic terms · intervals+terms",

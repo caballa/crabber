@@ -119,9 +119,9 @@
       <option value="int-val-part">val-part intervals</option>
       <option value="zones">zones</option>
       <option value="zones-val-part">val-part zones</option>
+      <option value="tvpi-dbm">template DBM</option>
       <option value="oct-snf">octagons (snf)</option>
       <option value="oct">octagons (apron)</option>
-      <option value="non-unit-oct">fixed tvpi</option>
       <option value="pk">polyhedra (apron)</option>
     </select>
   </label>
@@ -135,9 +135,9 @@
       <option value="int-val-part">val-part intervals</option>
       <option value="zones">zones</option>
       <option value="zones-val-part">val-part zones</option>
+      <option value="tvpi-dbm">template DBM</option>
       <option value="oct-snf">octagons (snf)</option>
       <option value="oct">octagons (apron)</option>
-      <option value="non-unit-oct">fixed tvpi</option>
       <option value="pk">polyhedra (apron)</option>
     </select>
   </label>
@@ -191,9 +191,9 @@ const DOMAIN_DESC = {
   'int-val-part':  'Value-partitioned intervals: splits the analysis on the values of a chosen variable.',
   'zones':         'Zones (DBM): relational, tracks x − y ≤ c. Good precision/cost balance.',
   'zones-val-part':'Value-partitioned zones.',
+  'tvpi-dbm':      'Template DBM: difference constraints a·x − b·y ≤ c over the --coefficients you pass. Zones ⊂ tDBM ⊂ TVPI.',
   'oct-snf':       'Octagons: relational, tracks ±x ± y ≤ c.',
   'oct':           'Octagons via Apron (exact/MPQ): tracks ±x ± y ≤ c.',
-  'non-unit-oct':  'fixed tvpi: a·x + b·y ≤ c for the --coefficients you pass.',
   'pk':            'Convex polyhedra via Apron (exact/MPQ): tracks arbitrary linear inequalities Σ aᵢ·xᵢ ≤ c. Most precise linear domain, most expensive.',
 };
 // Short display name per domain value (from the Domain dropdown), used to

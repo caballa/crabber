@@ -105,7 +105,7 @@ and recommit whenever you rebuild.
 
 Working in WASM:
 `int`, `dis-int`, `int-terms`, `int-set`, `int-val-part`,
-`zones`, `zones-val-part`, `oct-snf`, `non-unit-oct`,
+`zones`, `zones-val-part`, `tvpi-dbm`, `oct-snf`,
 and — via the cross-compiled Apron (`build-apron.sh`) — `oct` and `pk` (polyhedra).
 
 Excluded — need other external C libraries not ported here (selecting one prints

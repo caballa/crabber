@@ -30,7 +30,9 @@ constexpr Type BOXES(3, "boxes", "Disjunctive intervals based on Linear Decision
 constexpr Type ZONES(4, "zones", "Zones domain using DBMs in Split Normal Form");
 constexpr Type OCTAGONS_SNF(5, "oct-snf","Octagons domain using DBMs in Split Normal Form");
 constexpr Type OCTAGONS(6, "oct","Octagons domain from Apron or Elina");
-constexpr Type NON_UNIT_OCTAGONS(7, "non-unit-oct","Fixed TVPI using Octagons");    
+constexpr Type TVPI_DBM(7, "tvpi-dbm",
+			"Template DBM: extend difference constraints with "
+			"non-unit coefficients from a fixed set provided by the user");
 constexpr Type PK(8, "pk", "Polyhedra domain from Apron or Elina");
 constexpr Type PK_PPLITE(9, "pk-pplite", "Polyhedra domain from PPLite");
 
@@ -45,7 +47,7 @@ constexpr std::array<Type, 14>
 List = {INTERVALS, DIS_INTERVALS, TERMS_INTERVALS, SET_INTERVALS, VAL_PARTITION_INTERVALS, BOXES,
 	ZONES, VAL_PARTITION_ZONES,
 	OCTAGONS_SNF, OCTAGONS,
-	NON_UNIT_OCTAGONS,
+	TVPI_DBM,
 	PK, PK_PPLITE, SET_PK_PPLITE};
 } // end namespace AbstractDomain
 

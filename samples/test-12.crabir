@@ -1,0 +1,35 @@
+# Each iteration adds a non-deterministic 2 or 3 to x, so x is bounded by 2*N
+# and 3*N. Both bounds need 2 and 3 in the coefficient template, and both must
+# survive the join at the end of the loop body; int, zones and oct-snf all fail.
+#
+# How to run:
+#   crabber test-12.crabir -d tvpi-dbm --coefficients "2,3"
+
+cfg("tvpi-dbm")
+
+start:
+   havoc(N:i32)
+   assume(N > 0):i32
+   i:i32 := 0
+   x:i32 := 0
+   goto header
+
+header:
+   if (i < N):i32 goto body else goto exit
+
+body:
+   i:i32 := i + 1
+   havoc(c:i32)
+   if (c <= 0):i32 goto add2 else goto add3
+
+add2:
+   x:i32 := x + 2
+   goto header
+
+add3:
+   x:i32 := x + 3
+   goto header
+
+exit:
+   EXPECT_EQ(true, assert(x >= 2*N):i32)
+   EXPECT_EQ(true, assert(x <= 3*N):i32)
