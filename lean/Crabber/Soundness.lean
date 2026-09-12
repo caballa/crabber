@@ -56,53 +56,68 @@ theorem inductive_sound (P : Cfg) (I : Label → Assn)
 
 /-- **`assert_safe` — the result users actually care about.**
 
-    In English: *if the annotation is an invariant, and at every assert in every
-    block the invariant at that block's entry implies the asserted condition
-    (after running the statements that precede it in the block), then no
-    execution of the program ever fails an assert.*
+    In English: *if the annotation is an invariant, and at every statement in
+    every block the invariant at that block's entry implies that statement's
+    obligation (after running the statements that precede it in the block), then
+    no execution of the program ever fails an assert.*
 
     The `chk` hypothesis quantifies over every way a block body splits as
-    `pre ++ assert c :: post` — the append equation is what makes "an assert
-    occurring somewhere in the block" precise. For a block whose assert is
-    first, `pre` is `[]` and `wp [] Q = Q`, so the obligation is just "the
-    invariant implies the condition". -/
+    `pre ++ s :: post` — the append equation is what makes "a statement occurring
+    somewhere in the block" precise. For a block whose assert is first, `pre` is
+    `[]` and `wp [] Q = Q`, so the obligation is just "the invariant implies the
+    condition"; for a statement that is not an assert the obligation is `True`
+    and there is nothing to show.
+
+    Quantifying over an arbitrary statement, rather than over `Stmt.assert c`, is
+    what makes this cover the boolean asserts too — and every assert-like
+    construct still to come, each of which is a clause in `Stmt.obligation` and
+    nothing here.
+
+    `chk` need not be supplied by hand: `chk_of_VC` derives it from the block
+    verification conditions, which is how `verified` below obtains it. It stays a
+    hypothesis so that this theorem remains true independently of that
+    derivation, which depends on how `wpStmt` treats an assert. -/
 theorem assert_safe (P : Cfg) (I : Label → Assn)
     (hinv : InvariantOf P I)
-    (chk : ∀ (L : Label) (pre : List Stmt) (c : LinCon) (post : List Stmt),
-        P.body L = pre ++ Stmt.assert c :: post →
-        ∀ σ : State, ⟦I L⟧ σ → wp pre (fun τ => c.holds τ) σ) :
+    (chk : ∀ (L : Label) (pre : List Stmt) (s : Stmt) (post : List Stmt),
+        P.body L = pre ++ s :: post →
+        ∀ σ : State, ⟦I L⟧ σ → wp pre (fun τ => s.obligation τ) σ) :
     ¬ AssertFails P := by
   -- `rintro` assumes `AssertFails P` and immediately destructs its six
   -- existentials and four conjuncts into named pieces.
-  rintro ⟨L, σ, pre, c, post, τ, hreach, hbody, hexec, hfail⟩
+  rintro ⟨L, σ, pre, s, post, τ, hreach, hbody, hexec, hfail⟩
   -- The invariant holds at the reachable configuration we landed on…
   have hI : ⟦I L⟧ σ := hinv (L, σ) hreach
-  -- …so by `chk` the weakest precondition of the *prefix* for "c holds" is true
-  -- at σ…
-  have hwp := chk L pre c post hbody σ hI
-  -- …and `wp_sound`, given that the prefix really ran σ to τ, says `c` holds at
-  -- τ. But `hfail` says it does not. Contradiction.
+  -- …so by `chk` the weakest precondition of the *prefix* for "s's obligation
+  -- holds" is true at σ…
+  have hwp := chk L pre s post hbody σ hI
+  -- …and `wp_sound`, given that the prefix really ran σ to τ, says the
+  -- obligation holds at τ. But `hfail` says it does not. Contradiction.
   exact hfail (wp_sound hwp hexec)
 
 /-- **The bundle a per-program file proves.**
 
-    In English: *given (i) the entry obligation, (ii) every block's verification
-    condition, and (iii) the assert obligations, the annotation is a genuine
-    invariant and no assertion can fail.*
+    In English: *given (i) the entry obligation and (ii) every block's
+    verification condition, the annotation is a genuine invariant and no
+    assertion can fail.*
 
     This is the single entry point for per-program files: it chains
-    `consecution_of_VC`, `inductive_sound` and `assert_safe` so that such a file
-    never mentions `Step`, `Reachable`, or `wp_sound`. -/
+    `consecution_of_VC`, `chk_of_VC`, `inductive_sound` and `assert_safe` so that
+    such a file never mentions `Step`, `Reachable`, or `wp_sound`.
+
+    **Two hypotheses, not three.** The assert obligations used to be a third
+    argument, generated per program. They are not, because `wpStmt` already puts
+    an assert's obligation inside its block's verification condition, and
+    `chk_of_VC` extracts it. A per-program file now supplies only what is
+    genuinely program-specific: the entry invariant is satisfied, and each block
+    preserves the annotation. -/
 theorem verified (P : Cfg) (I : Label → Assn)
     (initiation : ∀ σ : State, InitState P σ → ⟦I P.entry⟧ σ)
-    (vcs : ∀ B : Label, VC P I B)
-    (chk : ∀ (L : Label) (pre : List Stmt) (c : LinCon) (post : List Stmt),
-        P.body L = pre ++ Stmt.assert c :: post →
-        ∀ σ : State, ⟦I L⟧ σ → wp pre (fun τ => c.holds τ) σ) :
+    (vcs : ∀ B : Label, VC P I B) :
     InvariantOf P I ∧ ¬ AssertFails P :=
   -- `have` names the intermediate result so both halves can use it; the
   -- anonymous constructor `⟨_, _⟩` builds the conjunction.
   have hinv := inductive_sound P I initiation (consecution_of_VC P I vcs)
-  ⟨hinv, assert_safe P I hinv chk⟩
+  ⟨hinv, assert_safe P I hinv (chk_of_VC P I vcs)⟩
 
 end Crabber

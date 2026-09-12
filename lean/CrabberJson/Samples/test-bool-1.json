@@ -1,0 +1,701 @@
+{
+  "schema": 1,
+  "kind": "invariants",
+  "source": {"name": "samples/test-bool-1.crabir"},
+  "options": {"simplify_cfg": false},
+  "analysis": {
+    "domain": "int",
+    "widening_delay": 2,
+    "descending_iters": 1,
+    "thresholds": 0,
+    "checker": true
+  },
+  "cfgs": [
+    {
+      "name": "safe",
+      "declaration": {
+        "inputs": [],
+        "outputs": []
+      },
+      "entry": "start",
+      "exit": "end",
+      "blocks": [
+        {
+          "label": "edge-loop-loop",
+          "stmts": [
+            {
+              "stmt": "assume",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "x"]
+                ],
+                "const": "9"
+              }
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["loop"]
+        },
+        {
+          "label": "edge-loop-post",
+          "stmts": [
+            {
+              "stmt": "assume",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["-1", "x"]
+                ],
+                "const": "-10"
+              }
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["post"]
+        },
+        {
+          "label": "end",
+          "stmts": [
+            {
+              "stmt": "bool_assert",
+              "cond": {"name": "b2", "type": {"kind": "bool"}},
+              "loc": {"file": "no-filename", "line": 39, "col": 0, "id": 0}
+            },
+            {
+              "stmt": "bool_assert",
+              "cond": {"name": "b4", "type": {"kind": "bool"}},
+              "loc": {"file": "no-filename", "line": 40, "col": 0, "id": 1}
+            },
+            {
+              "stmt": "bool_assert",
+              "cond": {"name": "b5", "type": {"kind": "bool"}},
+              "loc": {"file": "no-filename", "line": 41, "col": 0, "id": 2}
+            },
+            {
+              "stmt": "bool_assert",
+              "cond": {"name": "b6", "type": {"kind": "bool"}},
+              "loc": {"file": "no-filename", "line": 42, "col": 0, "id": 3}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "-10"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "10"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b0"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b1"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b2"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b3"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b4"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b5"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b6"]
+                  ],
+                  "const": "1"
+                }
+              ]
+            ]
+          },
+          "succs": []
+        },
+        {
+          "label": "guard",
+          "stmts": [
+            {
+              "stmt": "bool_assume",
+              "cond": {"name": "b2", "type": {"kind": "bool"}},
+              "negated": false
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "-10"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "10"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b0"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b1"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b2"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b3"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b4"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b5"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "b6"]
+                  ],
+                  "const": "1"
+                }
+              ]
+            ]
+          },
+          "succs": ["end"]
+        },
+        {
+          "label": "loop",
+          "stmts": [
+            {
+              "stmt": "assign",
+              "rhs": {
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "x"]
+                ],
+                "const": "1"
+              },
+              "lhs": {"name": "x", "type": {"kind": "int", "bitwidth": 32}}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "9"
+                }
+              ]
+            ]
+          },
+          "succs": ["edge-loop-loop", "edge-loop-post"]
+        },
+        {
+          "label": "post",
+          "stmts": [
+            {
+              "stmt": "bool_assign_cst",
+              "cst_kind": "linear",
+              "rhs": {
+                "op": "=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "x"]
+                ],
+                "const": "10"
+              },
+              "lhs": {"name": "b0", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "bool_assign_cst",
+              "cst_kind": "linear",
+              "rhs": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["-1", "x"]
+                ],
+                "const": "0"
+              },
+              "lhs": {"name": "b1", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "bool_binop",
+              "op": "and",
+              "left": {"name": "b0", "type": {"kind": "bool"}},
+              "right": {"name": "b1", "type": {"kind": "bool"}},
+              "lhs": {"name": "b2", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "bool_assign_var",
+              "rhs": {"name": "b2", "type": {"kind": "bool"}},
+              "negated": true,
+              "lhs": {"name": "b3", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "bool_binop",
+              "op": "or",
+              "left": {"name": "b0", "type": {"kind": "bool"}},
+              "right": {"name": "b3", "type": {"kind": "bool"}},
+              "lhs": {"name": "b4", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "bool_binop",
+              "op": "xor",
+              "left": {"name": "b0", "type": {"kind": "bool"}},
+              "right": {"name": "b3", "type": {"kind": "bool"}},
+              "lhs": {"name": "b5", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "bool_assign_var",
+              "rhs": {"name": "b2", "type": {"kind": "bool"}},
+              "negated": false,
+              "lhs": {"name": "b6", "type": {"kind": "bool"}}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "x"]
+                  ],
+                  "const": "-10"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "x"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["guard"]
+        },
+        {
+          "label": "start",
+          "stmts": [
+            {
+              "stmt": "assign",
+              "rhs": {
+                "type": null,
+                "terms": [],
+                "const": "0"
+              },
+              "lhs": {"name": "x", "type": {"kind": "int", "bitwidth": 32}}
+            }
+          ],
+          "invariant": {
+            "kind": "true"
+          },
+          "succs": ["loop"]
+        }
+      ]
+    },
+    {
+      "name": "unsafe",
+      "declaration": {
+        "inputs": [],
+        "outputs": []
+      },
+      "entry": "start",
+      "exit": "end",
+      "blocks": [
+        {
+          "label": "edge-loop-loop",
+          "stmts": [
+            {
+              "stmt": "assume",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "y"]
+                ],
+                "const": "9"
+              }
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["loop"]
+        },
+        {
+          "label": "edge-loop-post",
+          "stmts": [
+            {
+              "stmt": "assume",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["-1", "y"]
+                ],
+                "const": "-10"
+              }
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["post"]
+        },
+        {
+          "label": "end",
+          "stmts": [
+            {
+              "stmt": "bool_assert",
+              "cond": {"name": "c1", "type": {"kind": "bool"}},
+              "loc": {"file": "no-filename", "line": 59, "col": 0, "id": 4}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "-10"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "10"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "c0"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "c1"]
+                  ],
+                  "const": "0"
+                }
+              ]
+            ]
+          },
+          "succs": []
+        },
+        {
+          "label": "loop",
+          "stmts": [
+            {
+              "stmt": "assign",
+              "rhs": {
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "y"]
+                ],
+                "const": "1"
+              },
+              "lhs": {"name": "y", "type": {"kind": "int", "bitwidth": 32}}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "9"
+                }
+              ]
+            ]
+          },
+          "succs": ["edge-loop-loop", "edge-loop-post"]
+        },
+        {
+          "label": "post",
+          "stmts": [
+            {
+              "stmt": "bool_assign_cst",
+              "cst_kind": "linear",
+              "rhs": {
+                "op": "=",
+                "type": {"kind": "int", "bitwidth": 32},
+                "terms": [
+                  ["1", "y"]
+                ],
+                "const": "10"
+              },
+              "lhs": {"name": "c0", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "bool_assign_var",
+              "rhs": {"name": "c0", "type": {"kind": "bool"}},
+              "negated": true,
+              "lhs": {"name": "c1", "type": {"kind": "bool"}}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["-1", "y"]
+                  ],
+                  "const": "-10"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "int", "bitwidth": 32},
+                  "terms": [
+                    ["1", "y"]
+                  ],
+                  "const": "10"
+                }
+              ]
+            ]
+          },
+          "succs": ["end"]
+        },
+        {
+          "label": "start",
+          "stmts": [
+            {
+              "stmt": "assign",
+              "rhs": {
+                "type": null,
+                "terms": [],
+                "const": "0"
+              },
+              "lhs": {"name": "y", "type": {"kind": "int", "bitwidth": 32}}
+            }
+          ],
+          "invariant": {
+            "kind": "true"
+          },
+          "succs": ["loop"]
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {"file": "no-filename", "line": 39, "col": 0, "id": 0, "result": "safe"},
+    {"file": "no-filename", "line": 40, "col": 0, "id": 1, "result": "safe"},
+    {"file": "no-filename", "line": 41, "col": 0, "id": 2, "result": "safe"},
+    {"file": "no-filename", "line": 42, "col": 0, "id": 3, "result": "safe"},
+    {"file": "no-filename", "line": 59, "col": 0, "id": 4, "result": "warning"}
+  ]
+}

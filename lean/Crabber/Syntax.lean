@@ -30,7 +30,11 @@ abbrev Label := String
 
 /-- A variable name. CrabIR is strongly typed with disjoint namespaces for
     integers, booleans and arrays, so a name alone identifies a variable and no
-    sum type of values is needed. -/
+    sum type of values is needed.
+
+    That disjointness is what lets `State` hold one map per type and index all of
+    them by the same `Var`: a name occurring in a boolean statement is a boolean
+    variable, and the integer map's answer for it is never consulted. -/
 abbrev Var := String
 
 /-! ## Linear expressions
@@ -74,33 +78,84 @@ inductive CmpOp where
   | le | lt | eq | ne
   deriving Repr, DecidableEq
 
-/-- A single linear constraint `Σ (coef * var)  op  const`. -/
+/-- A single linear constraint `Σ (coef * var)  op  const`.
+
+    **Integer-typed, always.** The export tags every constraint with a type, and
+    a bool-tagged one is not one of these: it is a claim about a boolean
+    variable, and lives in the assertion language as its own atom (see
+    `Assn.lean`). Nothing in a `LinCon` ever reads the boolean store, which is
+    what keeps `LinCon.lhs` — and therefore every goal `omega` is handed —
+    purely integer arithmetic. -/
 structure LinCon where
   op    : CmpOp
   terms : List (Int × Var)
   const : Int
   deriving Repr
 
+/-! ## Boolean operators
+
+The three Crab emits, under the names its export uses. `xor` rather than
+"not-equal" because that is the operator's name in CrabIR; `not` is not here,
+because Crab has no unary boolean statement — a negation is carried as the
+`negated` flag on `bool_assign_var`, and `b := not(c)` in the surface syntax
+compiles to exactly that. -/
+
+/-- The boolean binary operators Crab can emit: `and`, `or`, `xor`. -/
+inductive BoolOp where
+  | and | or | xor
+  deriving Repr, DecidableEq
+
+/-- What a `BoolOp` computes. Kept next to the syntax rather than in `State`
+    because it involves no state: it is the meaning of the operator itself, and
+    `Bool`'s own connectives are that meaning. -/
+def BoolOp.apply : BoolOp → Bool → Bool → Bool
+  | .and => (· && ·)
+  | .or  => (· || ·)
+  | .xor => (· ^^ ·)
+
 /-! ## Statements
 
-The numeric core. Deliberately small: these four constructors are exactly what
-the first sample program needs, and they already exercise every interesting case
-of the weakest-precondition calculus — substitution, quantifier introduction,
-implication, and proof obligation.
+The numeric core, plus the boolean fragment.
+
+The four numeric constructors already exercise every interesting case of the
+weakest-precondition calculus — substitution, quantifier introduction,
+implication, and proof obligation. The six boolean ones add no new case to that
+calculus: they are substitution, implication and obligation again, over the
+boolean store instead of the integer one.
+
+### How the booleans are represented, and why
+
+Crab exports boolean *facts* as 0/1 linear constraints — an invariant contains
+`b = 1`, tagged with type `bool` — so an invariant looks like one uniform linear
+system. `State` deliberately does **not** follow suit. It carries a separate
+`Var → Bool` map, and the assertion language gets a boolean atom of its own.
+
+Measured against the analyser, across `int`, `int-terms`, `int-set`, `zones`,
+`oct-snf` and `pk`, a bool-tagged constraint is *always* `1·b = 0` or `1·b = 1`:
+never relational, never a non-unit coefficient. Crab's booleans go through a flat
+per-variable lattice, so there is no relational information to lose. The uniform
+linear encoding therefore buys nothing here, and costs two things:
+
+  * `b2 := b0 and b1` would have to be `min`, or a multiplication, and would drag
+    `if … then 1 else 0` terms into every arithmetic goal;
+  * nothing would confine a boolean to `{0, 1}`. A havoc'd or never-assigned
+    boolean would be an arbitrary integer, so `b or not b` would come out `7` and
+    Crab's (correct) `= 1` would be unprovable — unless `State` also carried a
+    type environment and `InitState` restricted it.
+
+The objection previously recorded against a separate map was that the meaning
+function would then need each variable's type. It does — and the wire format
+already supplies it, on every constraint, which is how the reader tells a boolean
+atom from a linear one.
 
 Deferred, and named here so the omission is visible rather than silent:
 
-  * Boolean statements (`bool_assign_cst`, `bool_binop`, `bool_assume`, …).
-    Crab exports booleans as 0/1 linear constraints, so an invariant is one
-    uniform linear system; but whether `State` should follow suit (booleans as
-    0/1 integers, which makes `b2 := b0 and b1` non-linear) or keep a separate
-    boolean map (clean, but the meaning function then needs each variable's
-    type) is undecided. Adding a half-answer here would prejudge it.
   * `select`, `cast`, `unreachable`, and the non-linear binary operators.
     Multiplication and division of variables are outside what `omega` decides,
     and the exact rounding behaviour of Crab's four division operators —
     signed and unsigned quotient and remainder are distinct in the export — has
-    not been pinned down.
+    not been pinned down. `cast` is the one that bites soonest: `samples/test-6`
+    reaches its booleans through `trunc`, so it stays out of scope even now.
   * Procedure calls, which need a call rule and Crab's interprocedural
     summaries; and the array statements, which need select/store reasoning in
     the assertion language.
@@ -119,6 +174,31 @@ inductive Stmt where
       after `havoc(x); assert(x >= 10)` the next block's invariant is
       `x ∈ [10, +∞]`, even though the assert itself only produces a warning. -/
   | assert (c : LinCon)
+  /-- `x := c` — the boolean `x` records whether the *integer* constraint `c`
+      holds. This is the only statement that crosses between the two stores, and
+      it crosses one way: it reads the integer state and writes the boolean one.
+
+      `c` is a `LinCon`, so integer-typed. The export permits a reference
+      constraint here too (`cst_kind` distinguishes them); references are not
+      modelled, and the reader refuses that form by name. -/
+  | boolAssignCst (x : Var) (c : LinCon)
+  /-- `x := y` or `x := not y`, according to `negated`. Crab has no separate
+      negation statement: the surface `b := not(c)` compiles to this with the
+      flag set. -/
+  | boolAssignVar (x : Var) (y : Var) (negated : Bool)
+  /-- `x := y op z` for `op` one of `and`, `or`, `xor`. -/
+  | boolBinop (x : Var) (op : BoolOp) (y : Var) (z : Var)
+  /-- `assume(y)`, or `assume(not y)` when `negated`. Execution continues only
+      when the boolean holds. -/
+  | boolAssume (y : Var) (negated : Bool)
+  /-- `assert(y)` — check-then-assume, exactly as the integer `assert`. There is
+      no `negated` flag: the export does not carry one for boolean asserts. -/
+  | boolAssert (y : Var)
+  /-- `x := if c then l else r`, all four boolean. Crab's own parser cannot
+      produce this — it arrives from LLVM-style frontends — but the export can
+      contain it, so modelling it costs one clause and avoids an unmodelled
+      member of an otherwise complete group. -/
+  | boolSelect (x : Var) (c : Var) (l : Var) (r : Var)
   deriving Repr
 
 /-! ## Control-flow graphs -/

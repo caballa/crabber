@@ -77,44 +77,24 @@ theorem initiation : ∀ σ : State, InitState prog σ → ⟦inv prog.entry⟧ 
 
 /-! ## The assertion obligation
 
-At every assert in every block, the invariant at that block's entry must imply
-the asserted condition after the statements preceding it. The quantifiers range
-over all labels and all ways of splitting a body as `pre ++ assert c :: post`,
-so most of the work is showing no such split exists outside block `out`. -/
+At every statement in every block, the invariant at that block's entry must imply
+that statement's obligation after the statements preceding it. Where the
+statement is not an assert the obligation is `True`.
 
-theorem chk : ∀ (L : Label) (pre : List Stmt) (c : LinCon) (post : List Stmt),
-    prog.body L = pre ++ Stmt.assert c :: post →
-    ∀ σ : State, ⟦inv L⟧ σ → wp pre (fun τ => c.holds τ) σ := by
-  intro L pre c post hsplit σ hI
-  by_cases hm : L ∈ labels
-  · simp only [labels, List.mem_cons, List.not_mem_nil, or_false] at hm
-    rcases hm with rfl | rfl | rfl | rfl | rfl
-    -- The blocks are in the order the export lists them, which is the order
-    -- `labels` records: edge-loop-loop, edge-loop-out, loop, out, start. Four of
-    -- them contain no `assert`, so the split is impossible.
-    · simp [prog, bodyTable, table] at hsplit; cases pre <;> simp_all
-    · simp [prog, bodyTable, table] at hsplit; cases pre <;> simp_all
-    · simp [prog, bodyTable, table] at hsplit; cases pre <;> simp_all
-    -- Block `out`: the only real case, and `pre` must be empty.
-    · simp [prog, bodyTable, table] at hsplit
-      cases pre with
-      | nil =>
-          -- `hsplit` becomes "the asserted constraint is `c`, and nothing
-          -- follows it".
-          simp at hsplit
-          obtain ⟨hc, -⟩ := hsplit
-          subst hc
-          simp [inv, invTable, table, Assn.holds, Conj.holds, LinCon.holds,
-                LinCon.lhs, LinExp.eval] at hI ⊢
-          omega
-      | cons p ps => simp at hsplit
-    · simp [prog, bodyTable, table] at hsplit; cases pre <;> simp_all
-  -- A label naming no block has an empty body, which contains no assert.
-  · have hb : prog.body L = [] := by
-      show table [] bodyTable L = []
-      exact table_not_mem [] bodyTable L (body_keys ▸ hm)
-    rw [hb] at hsplit
-    cases pre <;> simp at hsplit
+This used to be the longest proof in the file: a case split over the five
+blocks, then an attempt to refute the split `pre ++ s :: post` in each of the
+four that contain no assert. All of it was redundant. `wpStmt` puts an assert's
+obligation into the precondition as a conjunct, so it is already inside the
+verification conditions `vc_all` proved above, and `chk_of_VC` is the general
+lemma that takes it back out.
+
+The generated form of this file (`crab_verify`) no longer emits anything here at
+all, for the same reason. -/
+
+theorem chk : ∀ (L : Label) (pre : List Stmt) (s : Stmt) (post : List Stmt),
+    prog.body L = pre ++ s :: post →
+    ∀ σ : State, ⟦inv L⟧ σ → wp pre (fun τ => s.obligation τ) σ :=
+  chk_of_VC prog inv vc_all
 
 /-! ## The result -/
 
@@ -129,7 +109,7 @@ theorem chk : ∀ (L : Label) (pre : List Stmt) (c : LinCon) (post : List Stmt),
     the JSON reader — whose faithfulness to the document was checked when this
     file was elaborated. Not trusted, because proved: everything else. -/
 theorem bar_verified : InvariantOf prog inv ∧ ¬ AssertFails prog :=
-  verified prog inv initiation vc_all chk
+  verified prog inv initiation vc_all
 
 end Test1Bar
 end CrabberJson

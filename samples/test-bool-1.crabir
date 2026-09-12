@@ -1,0 +1,59 @@
+# How to run:
+#   crabber test-bool-1.crabir -d int
+#   crabber test-bool-1.crabir -d int --verify-with-lean
+#
+# The boolean fragment, exercised deliberately: every boolean statement Crab's
+# parser can produce appears here, and the two cfgs differ only in whether the
+# asserted boolean is the one the analysis actually knows.
+#
+# Note test-6.crabir also uses booleans, but reaches them through trunc, which
+# the Lean semantics does not model. This file avoids casts on purpose, so it is
+# the one that can be checked end to end.
+
+# `safe`: the four assertions all hold, and Crab proves them.
+cfg("safe")
+  start:
+   x:i32 := 0
+   goto loop
+  loop:
+   x:i32 := x + 1
+   if (x <= 9):i32 goto loop else goto post
+  post:
+   # bool_assign_cst: record whether an integer constraint holds
+   b0 := (x == 10):i32
+   b1 := (x >= 0):i32
+   # bool_binop: and / or / xor
+   b2 := b0 and b1
+   # bool_assign_var, negated (the surface `not` compiles to the flag)
+   b3 := not(b2)
+   b4 := b0 or b3          # b0 ∨ ¬(b0 ∧ b1): true whatever b0 and b1 are
+   b5 := b0 xor b3         # b0 ⊕ ¬(b0 ∧ b1)
+   # bool_assign_var, plain
+   b6:i1 := b2
+   goto guard
+  guard:
+   # bool_assume: everything after this may take b2 for granted
+   assume(b2)
+   goto end
+  end:
+   EXPECT_EQ(true, assert(b2))
+   EXPECT_EQ(true, assert(b4))
+   EXPECT_EQ(true, assert(b5))
+   EXPECT_EQ(true, assert(b6))
+
+# `unsafe`: the same program asserting the negation. Crab reports an error, and
+# Lean refutes the block's verification condition rather than merely failing to
+# prove it -- the boolean counterpart of test-1's foo/bar pair.
+cfg("unsafe")
+  start:
+   y:i32 := 0
+   goto loop
+  loop:
+   y:i32 := y + 1
+   if (y <= 9):i32 goto loop else goto post
+  post:
+   c0 := (y == 10):i32
+   c1 := not(c0)
+   goto end
+  end:
+   EXPECT_EQ(false, assert(c1))

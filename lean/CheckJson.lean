@@ -11,8 +11,8 @@ non-zero if anything failed.
 
 This is how the reader is exercised against the whole sample suite without
 writing a per-program Lean file for each. A program using constructs outside the
-numeric core is *expected* to fail here, with the construct named; that is the
-reader refusing to silently drop it.
+modelled fragment is *expected* to fail here, with the construct named; that is
+the reader refusing to silently drop it.
 
 ## This program proves nothing
 
