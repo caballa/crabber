@@ -59,12 +59,12 @@ add_executable(crabber
   src/json_export.cpp
   src/domains/boxes_domain.cpp
   src/domains/dis_interval_domain.cpp    
-  src/domains/fixed_tvpi_domain.cpp
   src/domains/interval_domain.cpp
   src/domains/octagons_domain.cpp
   src/domains/pk_domain.cpp
   src/domains/pk_pplite_domain.cpp
   src/domains/symbolic_terms.cpp
+  src/domains/tvpi_dbm_domain.cpp
   src/domains/zones_domain.cpp
 )
 target_link_libraries(crabber PRIVATE ${CRAB_LIBS})
@@ -103,8 +103,13 @@ if (TopLevel)
   add_crabber_test(test-7-int-val-part   test-7.crabir -d int-val-part   --widening-delay 10)
   add_crabber_test(test-7-zones-val-part test-7.crabir -d zones-val-part --widening-delay 10)
   add_crabber_test(test-8  test-8.crabir  -d zones)
-  add_crabber_test(test-9  test-9.crabir  -d non-unit-oct --coefficients "4,8")
+  add_crabber_test(test-9  test-9.crabir  -d tvpi-dbm --coefficients "4,8")
   add_crabber_test(test-10 test-10.crabir -d int-terms)
+  # Neither zones nor oct-snf can prove these: the invariants need the non-unit
+  # coefficients in the template. test-12 additionally needs two coefficients to
+  # survive a join, which the superseded fixed_tvpi_domain could not do.
+  add_crabber_test(test-tvpi-dbm-1 tvpi.crabir    -d tvpi-dbm --coefficients "2")
+  add_crabber_test(test-tvpi-dbm-2 test-12.crabir -d tvpi-dbm --coefficients "2,3")
 
   # Function-call tests (cfg parameters + call sites).
   add_crabber_test(test-call-1 test-call-1.crabir -d zones)

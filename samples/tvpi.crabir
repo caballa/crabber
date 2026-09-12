@@ -1,0 +1,26 @@
+# How to run:
+#   crabber tvpi.crabir -d tvpi-dbm --coefficients "2"
+#
+# The invariant x == 2*n needs a domain that tracks non-unit coefficients;
+# int, zones and oct-snf all fail to prove it (-d pk also works).
+
+cfg("tvpi-example")
+
+start:
+   i:i64 := 0
+   x:i64 := 0
+   havoc(n:i64)
+   assume(n > 0):i64
+goto header
+
+header:
+   if (i <= n-1):i64 goto body else goto exit
+
+body: 
+   i:i64 := i + 1
+   x:i64 := x + 2
+goto header
+
+exit:
+  EXPECT_EQ(true, assert(x == 2*n):i64) 
+

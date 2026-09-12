@@ -16,14 +16,13 @@
 #
 # Apron IS cross-compiled to wasm (build-mpfr.sh + build-apron.sh), so this build
 # enables HAVE_APRON via wasm-config/crab/config.h. That turns on the Apron-backed
-# domains: pk (polyhedra) and oct; non-unit-oct is also routed through Apron oct,
-# matching a native -DCRAB_USE_APRON=ON build.
+# domains: pk (polyhedra) and oct, matching a native -DCRAB_USE_APRON=ON build.
 #
 # Still excluded vs. the native build (need other external C libraries):
 #   boxes (LDD), pk-pplite (PPLite), elina.
 # Only boxes_domain.cpp is skipped. Working domains:
 #   int, dis-int, int-terms, int-set, int-val-part,
-#   zones, zones-val-part, oct-snf, non-unit-oct, oct, pk.
+#   zones, zones-val-part, tvpi-dbm, oct-snf, oct, pk.
 #
 set -euo pipefail
 

@@ -15,10 +15,10 @@
 #include <crab/domains/combined_congruences.hpp>
 #include <crab/domains/dis_intervals.hpp>
 #include <crab/domains/elina_domains.hpp>
-#include <crab/domains/fixed_tvpi_domain.hpp>
 #include <crab/domains/intervals.hpp>
 #include <crab/domains/split_dbm.hpp>
 #include <crab/domains/split_oct.hpp>
+#include <crab/domains/tvpi_dbm.hpp>
 #include <crab/domains/value_partitioning_domain.hpp>
 #include <crab/domains/wrapped_interval_domain.hpp>
 
@@ -104,15 +104,10 @@ using BASE(sdbm_domain_t) = split_dbm_domain<number_t, varname_t, dbm_graph_t>;
 using sdbm_domain_t =  ARRAY_FUN(BOOL_NUM(BASE(sdbm_domain_t)));  
 using val_partition_sdbm_domain_t = VAL_PARTITIONING(ARRAY_FUN(BOOL_NUM(BASE(sdbm_domain_t))));
   
-// non-unit octagons using the fixed-tvpi domain
-#ifdef HAVE_APRON  
-using BASE(non_unit_oct_domain_t) = fixed_tvpi_domain<BASE(oct_apron_domain_t)>;
-#elif defined(HAVE_ELINA)
-using BASE(non_unit_oct_domain_t) = fixed_tvpi_domain<BASE(oct_elina_domain_t)>;
-#else
-using BASE(non_unit_oct_domain_t) = fixed_tvpi_domain<BASE(soct_domain_t)>;  
-#endif   
-using non_unit_oct_domain_t = ARRAY_FUN(BOOL_NUM(BASE(non_unit_oct_domain_t)));  
+// Template DBM (tDBM): difference constraints extended with the non-unit
+// coefficients in crab's fixed_tvpi.coefficients. 
+using BASE(tvpi_dbm_domain_t) = tvpi_dbm_domain<BASE(sdbm_domain_t)>;
+using tvpi_dbm_domain_t = ARRAY_FUN(BOOL_NUM(BASE(tvpi_dbm_domain_t)));
 // symbolic terms
 using terms_interval_domain_t =  ARRAY_FUN(BOOL_NUM(TERM_FUN(BASE(interval_domain_t))));
 } // namespace crabber
