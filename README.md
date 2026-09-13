@@ -311,6 +311,11 @@ Enabled at configure time:
 cmake -DLAKE_EXECUTABLE=$(which lake) ../
 ```
 
+The rest of this section is the short version. For the conceptual tour — how an inductive
+invariant turns into one arithmetic obligation per block, what is proved once versus per
+program, and where the CrabIR semantics enters — see
+[**How the proof works**](lean/how-the-proof-works.md).
+
 ## What "proved" means ##
 
 For that CFG, Lean's kernel has accepted a proof of two things:
