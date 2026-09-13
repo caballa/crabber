@@ -202,9 +202,21 @@ if (TopLevel)
     add_lean_test(lean-test-4-oct "proved octagons"           test-4.crabir -d oct)
     add_lean_test(lean-test-4-int "could not verify octagons" test-4.crabir -d int)
 
+    # The narrowing options, on the same case. These are the two commands that
+    # localise a failure to the entry obligation or to the blocks, so a break in
+    # either would cost exactly what it cost before they existed.
+    add_lean_test(lean-test-4-oct-init "proved octagons" test-4.crabir -d oct
+                  --lean-only init)
+    add_lean_test(lean-test-4-oct-vc   "proved octagons" test-4.crabir -d oct
+                  --lean-only vc)
+    add_lean_test(lean-test-4-oct-block "proved octagons" test-4.crabir -d oct
+                  --lean-block header)
+
     # Both outcomes of the same file: `bar` is provable, `foo` asserts something
-    # that is genuinely false and must stay unproved.
+    # that is genuinely false and must stay unproved. --lean-cfg picks one of
+    # the two, and suppresses the other rather than reporting it as skipped.
     add_lean_test(lean-test-1 "proved bar,could not verify foo" test-1.crabir -d int)
+    add_lean_test(lean-test-1-cfg "proved bar" test-1.crabir -d int --lean-cfg bar)
 
     # The boolean fragment end to end, and its own negative. test-6 also uses
     # booleans but reaches them through a cast, so this is the one that can be
