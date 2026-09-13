@@ -12,6 +12,38 @@ never a false theorem. That is why the tactic owes no correctness argument.
 
 namespace Crabber
 
+/-! ## The `crab_meaning` set
+
+Every unfolding on the path from invariant *data* to arithmetic, named once.
+
+`⟦A⟧ σ` is a chain: `Assn.holds` picks a disjunct, `Conj.holds` picks a conjunct,
+`Atom.holds` says which store that conjunct reads, and `LinCon.holds`,
+`LinCon.lhs` and `LinExp.eval` evaluate it down to a comparison of `Int`s.
+`omega` decides the last link and nothing above it, so a proof that stops
+partway leaves it staring at an opaque application. `Assn.top` and `Assn.bot`
+join them because the chain cannot start on a degenerate invariant until they
+are unfolded to their list encodings, and `BoolOp.apply` because the boolean
+atoms bottom out there instead.
+
+**This set exists because two proofs need the identical list and drifted apart.**
+`crab_vc` below is one consumer; the entry obligation `crab_verify` generates in
+`CrabberJson.Elab` is the other. That one carried a hand-copied subset missing
+`Atom.holds`, which cost nothing on the interval domain — its entry invariant is
+literally `Assn.top`, closed by a different branch — and silently failed every
+octagon run, where the domain exports the nullary constraint `{"op": "true"}`
+and the entry invariant is `[[0 ≤ 0]]` instead. The obligation reached `omega` as
+`(Atom.lin …).holds σ` and it reported "no usable constraints found".
+
+So: add a meaning function here, not at a call site. A new atom kind that is
+unfolded in one of the two proofs and not the other reproduces exactly that bug,
+and it reproduces it as a *verdict*, never as a wrong answer — which is what
+makes it cheap to ship and expensive to find. -/
+attribute [crab_meaning]
+  Assn.holds Conj.holds Atom.holds
+  LinCon.holds LinCon.lhs LinExp.eval
+  BoolOp.apply
+  Assn.top Assn.bot
+
 /-- **`crab_vc` — discharge one block's verification condition.**
 
     In English: *unfold everything until the goal is linear integer arithmetic,
@@ -22,7 +54,8 @@ namespace Crabber
     1. `intro σ hpre` — `VC` is a `def`, so it unfolds definitionally as `intro`
        looks at the goal; no explicit unfolding step is needed. Take the state
        arbitrary, assume the invariant at the block's entry.
-    2. `simp` with the `crab` set — this does four things at once:
+    2. `simp` with the `crab` and `crab_meaning` sets — this does four things at
+       once:
          * unfolds the program and the annotation, so the block's concrete
            statement list and successor list appear;
          * unfolds the weakest-precondition calculus over that list, pushing the
@@ -70,11 +103,9 @@ namespace Crabber
 macro "crab_vc" : tactic =>
   `(tactic| (
       intro σ hpre
-      simp [crab, table, Assn.holds, Conj.holds, Atom.holds, LinCon.holds,
-            LinCon.lhs, LinExp.eval, BoolOp.apply, Assn.top, Assn.bot] at hpre ⊢
+      simp [crab, table, crab_meaning] at hpre ⊢
       all_goals (try omega)
-      all_goals (try simp_all [Atom.holds, LinCon.holds, LinCon.lhs, LinExp.eval,
-                               BoolOp.apply])
+      all_goals (try simp_all [crab_meaning])
       all_goals omega))
 
 end Crabber
