@@ -40,6 +40,22 @@ This is the single most important design decision, and it has two consequences:
 - The job stays **bounded.** Formalising an abstract domain is a research project;
   checking a candidate invariant is a per-block arithmetic question.
 
+The first of those is a claim about the *theorem*, and it holds. It is not a claim about
+the *proof search*, and there the domain does leak in — through the shape of what it
+exports rather than through its contents. Two domains can say the same thing differently:
+asked about a block it knows nothing about, `-d int` exports the explicit top marker
+`{"kind": "true"}` while `-d oct` and `-d pk` export a disjunct holding the nullary
+constraint `{"op": "true"}`, which reads as `0 ≤ 0`. Both mean "no information"; they
+reach the tactics as different terms and take different branches of the entry obligation.
+
+That is worth knowing because it is how the one real bug in this development escaped
+notice. The arithmetic branch was missing an unfolding step, so *every* `-d oct` and
+`-d pk` run failed its entry obligation whatever its invariants said, while every native
+domain went through the other branch and passed. A proof that works on the domain you
+test with can be broken on the domain you do not — which is why the regression tests in
+`CMakeLists.txt` pin an Apron-backed domain specifically, and why `oct-snf` cannot stand
+in for `oct` there.
+
 ## The idea: inductive invariants
 
 The whole thing rests on a classical observation. To show an annotation `I` holds at every
