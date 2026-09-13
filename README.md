@@ -420,3 +420,35 @@ This reports the exported JSON, the generated Lean file, and the exact command
 that re-runs it. That file is all Lean was given, so it can be opened in an
 editor, its tactics taken apart, and the failing goal inspected directly.
 
+## Narrowing the question ##
+
+A failure is reported against the whole CFG, because the proof Lean runs is
+generated as one command and every error inside it lands on that command's line.
+"`omega` could not prove the goal" does not say whether what failed was the
+entry obligation or one block out of thirty.
+
+These ask a smaller question instead:
+
+| Option | Checks |
+|---|---|
+| `--lean-cfg NAME` | only that CFG |
+| `--lean-only init` | the entry obligation alone |
+| `--lean-only vc` | every block, each reported separately |
+| `--lean-block LABEL` | one block's verification condition |
+
+`--lean-only vc` is the one to reach for first on a failing CFG: it reports
+*every* failing block rather than stopping at the first, and names each one. If
+the blocks all go through, the entry obligation is what is left:
+
+``` bash
+crabber samples/test-4.crabir -d oct --verify-with-lean --lean-only vc
+crabber samples/test-4.crabir -d oct --verify-with-lean --lean-only init
+```
+
+`--lean-block` needs `--lean-cfg` when the file has more than one CFG, since a
+block label only means something within one of them.
+
+A narrowed run that succeeds says so in those terms — it reports which
+obligation held, not `invariants sound, all assertions proved`, which remains
+the claim only the full check makes.
+

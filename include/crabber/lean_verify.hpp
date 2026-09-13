@@ -41,9 +41,51 @@ namespace crabber {
 
 class CrabIrBuilder;
 
+/**
+ * Which obligations to ask Lean for.
+ *
+ * `All` is the only one that establishes anything: it is the whole claim, and
+ * the others each prove a *subset* of it. They exist because a failure of the
+ * whole is reported at the `crab_verify` command and nowhere more precise --
+ * the theorems under it are built from quotations, which carry no source
+ * position, so every failure lands on the same line whatever caused it.
+ *
+ * Narrowing turns that one line into a question with an answer: was it the
+ * entry obligation or a block, and if a block, which one. The verdicts are
+ * worded differently for a narrowed run, because "proved" for a subset is not
+ * the claim "proved" normally makes.
+ */
+enum class LeanScope {
+  /** Everything: the entry obligation, every block, and the assertions. */
+  All,
+  /** Every block's verification condition, one theorem each. */
+  Vc,
+  /** The entry obligation alone. */
+  Init,
+  /** One named block's verification condition. */
+  Block,
+};
+
 struct LeanVerifyOpts {
   /** Run the check after the analysis. */
   bool enabled = false;
+  /** Which obligations to generate. */
+  LeanScope scope = LeanScope::All;
+  /**
+   * The block `scope == Block` asks about.
+   *
+   * Checked against the cfg's block list on the Lean side rather than here,
+   * because a label naming no block is *provable*: `Cfg.body` and `Cfg.succ`
+   * are total functions defaulting to empty, so a typo would otherwise be
+   * reported as "proved" without anything having been checked.
+   *
+   * Lean is the side that checks because the block list lives in the export and
+   * Lean is the side that reads it; a second copy here could disagree with it.
+   * A refusal comes back as an error rather than as a verdict.
+   */
+  std::string block;
+  /** When non-empty, the only CFG to check. */
+  std::string cfg;
   /**
    * Elaboration budget, as Lean heartbeats rather than seconds.
    *
@@ -90,6 +132,17 @@ enum class LeanVerdict {
 struct LeanResult {
   std::string cfg_name;
   LeanVerdict verdict;
+  /**
+   * The question that was asked, carried so the answer can be worded for it.
+   *
+   * A narrowed run that succeeds has *not* shown the invariants sound; it has
+   * shown one obligation out of several. Keeping the scope on the result is
+   * what lets `describe` say which, rather than printing a claim that was never
+   * established.
+   */
+  LeanScope scope = LeanScope::All;
+  /** The block asked about, when the scope was `Block`. */
+  std::string block;
   /** Lean's own first line of output, kept for the unproved cases. */
   std::string detail;
   /** Everything Lean printed. Empty when it printed nothing. */
