@@ -155,4 +155,62 @@ if (TopLevel)
   add_crabber_test(test-call-2 test-call-2.crabir -d zones)
   add_crabber_test(test-call-3 test-call-3.crabir -d zones)
   add_crabber_test(test-call-4 test-call-4.crabir -d zones)
+
+  # --verify-with-lean, pinned by verdict.
+  #
+  # The tests above cannot see this feature at all: their oracle is crabber's
+  # exit code, which reports whether Crab's own assertion checking matched the
+  # EXPECT_EQs and is identical whether Lean proved the invariants or was never
+  # asked. test-4 was a registered, passing test throughout a period when its
+  # octagon verification did not go through, so these exist to make a change in
+  # what Lean can prove visible as a test failure rather than as a line of
+  # output nobody reads.
+  #
+  # Each case is here for a distinct reason; see lean/tools/check-verdicts.sh
+  # for what is compared and what deliberately is not.
+  if (LAKE_EXECUTABLE)
+    function(add_lean_test test_name expected)
+      add_test(
+        NAME ${test_name}
+        COMMAND sh ${crabber_SOURCE_DIR}/lean/tools/check-verdicts.sh
+                $<TARGET_FILE:crabber> ${expected} ${ARGN}
+        WORKING_DIRECTORY ${crabber_SOURCE_DIR}/samples)
+    endfunction()
+
+    # The regression that motivated the suite. Whether the entry invariant is
+    # literally ⊤ or the nullary constraint `{"op": "true"}` is a property of the
+    # *domain*, not of the program, so the two runs of the same file exercise
+    # different branches of the entry obligation. Only the octagon one broke.
+    add_lean_test(lean-test-4-oct "proved octagons"           test-4.crabir -d oct)
+    add_lean_test(lean-test-4-int "could not verify octagons" test-4.crabir -d int)
+
+    # Both outcomes of the same file: `bar` is provable, `foo` asserts something
+    # that is genuinely false and must stay unproved.
+    add_lean_test(lean-test-1 "proved bar,could not verify foo" test-1.crabir -d int)
+
+    # The boolean fragment end to end, and its own negative. test-6 also uses
+    # booleans but reaches them through a cast, so this is the one that can be
+    # checked.
+    add_lean_test(lean-test-bool-1 "proved safe,could not verify unsafe"
+                  test-bool-1.crabir -d int)
+
+    # Loops and widening thresholds -- the two shapes where an inductive
+    # invariant is doing real work.
+    add_lean_test(lean-test-3 "proved nested-loops" test-3.crabir -d int)
+    add_lean_test(lean-test-5 "proved thresholds"   test-5.crabir -d int
+                  --widening-thresholds 10)
+
+    # An unmodelled construct must be reported as out of scope, not as a failure
+    # to prove: `z := x * y` is nonlinear, and the reader refuses it by name.
+    add_lean_test(lean-test-10 "not attempted terms" test-10.crabir -d int-terms)
+
+    # Only call-graph roots are checked, because a callee's invariants are
+    # conditional on its callers. Pinning both halves keeps that visible.
+    add_lean_test(lean-test-call-1 "not attempted main,not checked inc"
+                  test-call-1.crabir -d zones)
+
+    # Deliberately absent: test-9 and test-11 exhaust the elaboration budget, so
+    # they would each spend the full --lean-heartbeats allowance to assert that
+    # nothing was proved.
+  endif()
 endif()
