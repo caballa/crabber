@@ -177,22 +177,43 @@ if (TopLevel)
         WORKING_DIRECTORY ${crabber_SOURCE_DIR}/samples)
     endfunction()
 
-    # The regression that motivated the suite. Whether the entry invariant is
-    # literally ⊤ or the nullary constraint `{"op": "true"}` is a property of the
-    # *domain*, not of the program, so the two runs of the same file exercise
-    # different branches of the entry obligation. Only the octagon one broke.
-    add_lean_test(lean-test-4-oct "proved octagons"           test-4.crabir -d oct)
+    # The half of the regression that needs no Apron: with intervals the
+    # assertion does not follow from the invariant, so this pins the negative.
     add_lean_test(lean-test-4-int "could not verify octagons" test-4.crabir -d int)
 
-    # The narrowing options, on the same case. These are the two commands that
-    # localise a failure to the entry obligation or to the blocks, so a break in
-    # either would cost exactly what it cost before they existed.
-    add_lean_test(lean-test-4-oct-init "proved octagons" test-4.crabir -d oct
-                  --lean-only init)
-    add_lean_test(lean-test-4-oct-vc   "proved octagons" test-4.crabir -d oct
-                  --lean-only vc)
-    add_lean_test(lean-test-4-oct-block "proved octagons" test-4.crabir -d oct
-                  --lean-block header)
+    # The positive half needs an Apron-backed domain, and not by accident.
+    #
+    # Whether the entry invariant arrives as the explicit top marker
+    # {"kind": "true"} or as a disjunct holding the nullary constraint
+    # {"op": "true"} -- which reads as [[0 <= 0]] -- is a property of the
+    # *domain*. Crab's native domains (int, zones, oct-snf, the partitioning
+    # ones) emit the first and take the `Assn.holds_top` branch of the entry
+    # obligation. The Apron-backed ones, `oct` and `pk`, emit the second and
+    # take the arithmetic branch, which is the branch that was broken.
+    #
+    # So oct-snf cannot stand in for oct here: it would exercise the wrong
+    # branch and pass either way. A build without Apron genuinely cannot run
+    # this regression test, which is why these are guarded rather than
+    # rewritten to a native domain.
+    if (CRAB_USE_APRON)
+      add_lean_test(lean-test-4-oct "proved octagons" test-4.crabir -d oct)
+
+      # `pk` was blocked by the same bug and for the same reason -- every pk run
+      # failed its entry obligation whatever the invariants said. These two are
+      # proved by no other domain here, so they also pin what pk buys.
+      add_lean_test(lean-test-tvpi-pk "proved tvpi-example" tvpi.crabir -d pk)
+      add_lean_test(lean-test-12-pk   "proved tvpi-dbm"     test-12.crabir -d pk)
+
+      # The narrowing options. These are the commands that localise a failure to
+      # the entry obligation or to the blocks, so a break in either would cost
+      # exactly what it cost before they existed.
+      add_lean_test(lean-test-4-oct-init "proved octagons" test-4.crabir -d oct
+                    --lean-only init)
+      add_lean_test(lean-test-4-oct-vc   "proved octagons" test-4.crabir -d oct
+                    --lean-only vc)
+      add_lean_test(lean-test-4-oct-block "proved octagons" test-4.crabir -d oct
+                    --lean-block header)
+    endif()
 
     # Both outcomes of the same file: `bar` is provable, `foo` asserts something
     # that is genuinely false and must stay unproved. --lean-cfg picks one of
