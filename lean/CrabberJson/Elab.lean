@@ -166,6 +166,36 @@ may be beyond `omega`; the entry invariant may not be ⊤; or the program may ha
 an assertion that really can fail, which under the current reading of `assert`
 makes a block's verification condition false rather than merely hard. A failure
 here is never by itself evidence that Crab is wrong. -/
+/-- The entry obligation, emitted under whatever name the caller wants.
+
+    Shared by `crab_verify` and `crab_verify_init` so the two cannot drift; the
+    lesson of the `crab_meaning` set below applies to whole proof scripts too. -/
+private def emitInitiation (thmName : Name) : CommandElabM Unit := do
+  let progId := mkIdent `prog
+  let invId  := mkIdent `inv
+  let invTId := mkIdent `invTable
+  let initId := mkIdent thmName
+  -- `InitState` constrains nothing, so this goes through exactly when Crab
+  -- claimed ⊤ at the entry block.
+  elabCommand (← `(command|
+    theorem $initId : ∀ σ : Crabber.State, Crabber.InitState $progId σ →
+        Crabber.Assn.holds ($invId ($progId).entry) σ := by
+      intro σ _
+      simp only [$progId:ident, $invId:ident, $invTId:ident, Crabber.table, if_pos]
+      first
+        | exact Crabber.Assn.holds_top σ
+        -- `crab_meaning`, not a list spelled out here: this proof and `crab_vc`
+        -- need the same unfoldings, and when the list was written out twice the
+        -- copies drifted. See `Crabber.Tactic` for what that cost.
+        --
+        -- `all_goals omega`, not `omega`: an entry invariant that is trivially
+        -- true without being literally ⊤ -- `[[0 ≤ 0]]`, which the octagon
+        -- domain exports where the interval domain exports an empty conjunction
+        -- -- is closed by `simp` alone, and `omega` would then fail for want of
+        -- a goal.
+        | (simp [crab_meaning]
+           all_goals omega)))
+
 syntax (name := crabVerify) "crab_verify" : command
 
 @[command_elab crabVerify]
@@ -177,7 +207,6 @@ def elabCrabVerify : CommandElab := fun _ => do
   let labelsId   := mkIdent `labels
   let bodyId     := mkIdent `bodyTable
   let succId     := mkIdent `succTable
-  let invTId     := mkIdent `invTable
   let bodyKeysId := mkIdent `body_keys
   let succKeysId := mkIdent `succ_keys
   let vcAllId    := mkIdent `vc_all
@@ -211,26 +240,8 @@ def elabCrabVerify : CommandElab := fun _ => do
         all_goals (try subst_vars)
         all_goals crab_vc))
 
-  -- The entry obligation. `InitState` constrains nothing, so this goes through
-  -- exactly when Crab claimed ⊤ at the entry block.
-  elabCommand (← `(command|
-    theorem $initId : ∀ σ : Crabber.State, Crabber.InitState $progId σ →
-        Crabber.Assn.holds ($invId ($progId).entry) σ := by
-      intro σ _
-      simp only [$progId:ident, $invId:ident, $invTId:ident, Crabber.table, if_pos]
-      first
-        | exact Crabber.Assn.holds_top σ
-        -- `crab_meaning`, not a list spelled out here: this proof and `crab_vc`
-        -- need the same unfoldings, and when the list was written out twice the
-        -- copies drifted. See `Crabber.Tactic` for what that cost.
-        --
-        -- `all_goals omega`, not `omega`: an entry invariant that is trivially
-        -- true without being literally ⊤ -- `[[0 ≤ 0]]`, which the octagon
-        -- domain exports where the interval domain exports an empty conjunction
-        -- -- is closed by `simp` alone, and `omega` would then fail for want of
-        -- a goal.
-        | (simp [crab_meaning]
-           all_goals omega)))
+  -- The entry obligation, under its usual name.
+  emitInitiation `initiation
 
   -- The assertion obligations are *not* generated. `wpStmt` puts an assert's
   -- obligation inside its block's verification condition, so `Crabber.chk_of_VC`
@@ -246,5 +257,107 @@ def elabCrabVerify : CommandElab := fun _ => do
     theorem $resultId :
         Crabber.InvariantOf $progId $invId ∧ ¬ Crabber.AssertFails $progId :=
       Crabber.verified $progId $invId $initId $vcAllId))
+
+/-! ## Asking a narrower question
+
+`crab_verify` proves the whole thing or reports one failure, and the failure is
+reported *at the command*, because every theorem below it is built from a
+quotation and a quotation carries no source position. So "omega could not prove
+the goal, line 5, column 0" is the entire diagnosis, whether what failed was the
+entry obligation or one block out of thirty.
+
+The three commands here let the question be narrowed instead. They exist only
+for debugging, they are what `crabber --lean-only` and `--lean-block` generate,
+and none of them builds `verified_program`: proving a subset of the obligations
+establishes nothing on its own, and none of these should ever be mistaken for a
+verified program.
+
+Their ancestor is a scratch file written by hand — `example : VC prog inv "body"
+:= by crab_vc`, once per label, to find which block was failing. That worked and
+took twenty minutes; this is the same idea with the labels checked. -/
+
+/-- The `labels` list of the program loaded in this namespace.
+
+    Read back out of the declaration `crab_program` installed, by taking apart
+    the `List String` literal `ToExpr` built. The alternative, `evalExpr`, is
+    `unsafe` and would need an `implemented_by` dance for something this small.
+
+    Reading it matters because an unknown label is *provable*: `Cfg.body` and
+    `Cfg.succ` are total and default to `[]`, so `VC prog inv "tpyo"` is the
+    trivial obligation and `crab_vc` discharges it. A mistyped `--lean-block`
+    would report "proved" without having checked anything. -/
+private partial def decodeLabels (e : Expr) : Option (List String) :=
+  match e.getAppFnArgs with
+  | (``List.nil, _)            => some []
+  | (``List.cons, #[_, x, xs]) =>
+      match x with
+      | .lit (.strVal s) => (decodeLabels xs).map (s :: ·)
+      | _                => none
+  | _ => none
+
+private def programLabels : CommandElabM (List String) := do
+  let name := (← getCurrNamespace) ++ `labels
+  let some info := (← getEnv).find? name
+    | throwError "no program is loaded in this namespace: \
+                  run `crab_program` before this command"
+  let some value := info.value?
+    | throwError "'{name}' has no value to read the block list from"
+  let some ls := decodeLabels value
+    | throwError "cannot read the block list out of '{name}'"
+  return ls
+
+/-- One block's verification condition, as a theorem named after the block. -/
+private def emitBlockVc (label : String) : CommandElabM Unit := do
+  let progId := mkIdent `prog
+  let invId  := mkIdent `inv
+  -- The label verbatim, so the declaration the error names is the block the
+  -- user asked about. Labels are CrabIR block names and routinely contain
+  -- characters an identifier may not -- `edge-header-body` is one crabber
+  -- generates itself -- which Lean prints back guillemet-quoted.
+  let thmId  := mkIdent (Name.mkSimple s!"vc_{label}")
+  elabCommand (← `(command|
+    theorem $thmId : Crabber.VC $progId $invId $(quote label) := by crab_vc))
+
+/-- **`crab_verify_init`** — the entry obligation alone.
+
+    Crab claimed something at the entry block; this asks whether it is implied by
+    `InitState`, which constrains nothing. Cheap, and independent of every block,
+    so it is the first thing to try when `crab_verify` fails and the blocks look
+    innocent. -/
+syntax (name := crabVerifyInit) "crab_verify_init" : command
+
+@[command_elab crabVerifyInit]
+def elabCrabVerifyInit : CommandElab := fun _ => do
+  emitInitiation `initiation
+
+/-- **`crab_verify_block "body"`** — one block's verification condition.
+
+    Fails, naming the blocks that do exist, if the label names none of them. -/
+syntax (name := crabVerifyBlock) "crab_verify_block " str : command
+
+@[command_elab crabVerifyBlock]
+def elabCrabVerifyBlock : CommandElab := fun stx => do
+  match stx with
+  | `(command| crab_verify_block $labelStx:str) => do
+    let label := labelStx.getString
+    let ls ← programLabels
+    unless ls.contains label do
+      throwErrorAt labelStx
+        "this cfg has no block named '{label}'. Its blocks are: {", ".intercalate ls}"
+    emitBlockVc label
+  | _ => throwUnsupportedSyntax
+
+/-- **`crab_verify_blocks`** — every block's verification condition, separately.
+
+    One theorem per block rather than `crab_verify`'s single `vc_all`, which
+    buys two things. A failure names the block it belongs to. And because each
+    is its own declaration, they all elaborate: *every* failing block is
+    reported, where `vc_all`'s `all_goals crab_vc` stops at the first. -/
+syntax (name := crabVerifyBlocks) "crab_verify_blocks" : command
+
+@[command_elab crabVerifyBlocks]
+def elabCrabVerifyBlocks : CommandElab := fun _ => do
+  for label in (← programLabels) do
+    emitBlockVc label
 
 end CrabberJson

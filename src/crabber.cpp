@@ -230,7 +230,33 @@ int main(int argc, char **argv) {
   bool lean_show_output = false;
   app.add_flag("--lean-show-output", lean_show_output,
                "Print Lean's full output for a CFG that was not proved");
-  
+
+  // Narrowing the question asked. A whole-program failure is reported at the
+  // generated `crab_verify` command and nowhere more precise, because every
+  // theorem under it comes from a quotation and quotations carry no source
+  // position. These turn "something failed" into "this failed".
+  string lean_cfg = "";
+  app.add_option("--lean-cfg", lean_cfg,
+                 "Check only this CFG with --verify-with-lean")
+      ->type_name("NAME");
+
+  string lean_only = "all";
+  auto *lean_only_opt =
+      app.add_option("--lean-only", lean_only,
+                     "Which obligations to check: all (default), vc (every "
+                     "block, reported separately), init (the entry obligation)")
+          ->check(CLI::IsMember({"all", "vc", "init"}));
+
+  string lean_block = "";
+  auto *lean_block_opt =
+      app.add_option("--lean-block", lean_block,
+                     "Check only this block's verification condition "
+                     "(needs --lean-cfg when the file has several CFGs)")
+          ->type_name("LABEL")
+          ->excludes(lean_only_opt);
+  lean_only_opt->excludes(lean_block_opt);
+
+
   /// Options for debugging/logging in crab
 
   unsigned cverbose = 0;
@@ -274,6 +300,15 @@ int main(int argc, char **argv) {
   leanOpts.heartbeats = lean_heartbeats;
   leanOpts.keep_temp = lean_keep_temp;
   leanOpts.show_output = lean_show_output;
+  leanOpts.cfg = lean_cfg;
+  leanOpts.block = lean_block;
+  if (!lean_block.empty()) {
+    leanOpts.scope = LeanScope::Block;
+  } else if (lean_only == "vc") {
+    leanOpts.scope = LeanScope::Vc;
+  } else if (lean_only == "init") {
+    leanOpts.scope = LeanScope::Init;
+  }
 
   // Written here rather than left to a temporary that outlives this scope: the
   // path has to stay valid until run_program has both exported to it and had

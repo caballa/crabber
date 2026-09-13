@@ -44,12 +44,40 @@ std::string leanUnavailableReason() {
          "-DLAKE_EXECUTABLE=$(which lake)";
 }
 
+namespace {
+
+/**
+ * What a `Proved` verdict established, which depends on what was asked.
+ *
+ * Only the whole check licenses the usual sentence. A narrowed run proved a
+ * *subset* of the obligations, and saying "invariants sound, all assertions
+ * proved" for one of those would be a claim nobody made -- the same care the
+ * `Unproved` wording takes, in the other direction.
+ */
+std::string provedDetail(const LeanResult &r) {
+  switch (r.scope) {
+  case LeanScope::All:
+    return "invariants sound, all assertions proved";
+  case LeanScope::Vc:
+    return "every block's verification condition holds (--lean-only vc: the "
+           "entry obligation was not checked)";
+  case LeanScope::Init:
+    return "the entry obligation holds (--lean-only init: no block was "
+           "checked)";
+  case LeanScope::Block:
+    return "block '" + r.block +
+           "' holds (--lean-block: no other obligation was checked)";
+  }
+  return "";
+}
+
+} // namespace
+
 std::string describe(const LeanResult &r) {
   std::ostringstream os;
   switch (r.verdict) {
   case LeanVerdict::Proved:
-    os << "proved            " << r.cfg_name
-       << " : invariants sound, all assertions proved";
+    os << "proved            " << r.cfg_name << " : " << provedDetail(r);
     break;
   case LeanVerdict::OutOfScope:
     os << "not attempted     " << r.cfg_name << " : " << r.detail;
@@ -129,16 +157,31 @@ std::string tempDir() {
   return "/tmp";
 }
 
+/** The command that asks for `scope`'s obligations. */
+std::string verifyCommand(const LeanVerifyOpts &opts) {
+  switch (opts.scope) {
+  case LeanScope::All:
+    return "crab_verify";
+  case LeanScope::Vc:
+    return "crab_verify_blocks";
+  case LeanScope::Init:
+    return "crab_verify_init";
+  case LeanScope::Block:
+    return "crab_verify_block " + leanString(opts.block);
+  }
+  return "crab_verify";
+}
+
 /** The Lean file for one CFG. Everything program-specific is the two strings. */
 void writeProofFile(const std::string &path, const std::string &jsonAbs,
-                    const std::string &cfgName, unsigned heartbeats) {
+                    const std::string &cfgName, const LeanVerifyOpts &opts) {
   std::ofstream ofs(path);
   ofs << "import CrabberJson.Elab\n"
-      << "set_option maxHeartbeats " << heartbeats << "\n"
+      << "set_option maxHeartbeats " << opts.heartbeats << "\n"
       << "namespace CrabberJson.Generated\n"
       << "crab_program " << leanString(jsonAbs) << " cfg "
       << leanString(cfgName) << "\n"
-      << "crab_verify\n"
+      << verifyCommand(opts) << "\n"
       << "end CrabberJson.Generated\n";
 }
 
@@ -372,6 +415,44 @@ std::vector<LeanResult> verifyWithLean(const std::string &jsonPath,
     entries.insert(entries.end(), p.first, p.second);
   }
 
+  // --lean-cfg narrows to one root. Collected first rather than skipped inside
+  // the loop so that naming a cfg that is not a root can be reported against the
+  // list of those that are, instead of silently checking nothing.
+  std::vector<std::string> rootNames;
+  for (auto n : entries) {
+    auto cfg_ref = n.get_cfg();
+    if (cfg_ref.has_func_decl()) {
+      rootNames.push_back(cfg_ref.get_func_decl().get_func_name());
+    }
+  }
+  if (!opts.cfg.empty()) {
+    bool found = false;
+    for (auto const &name : rootNames) {
+      if (name == opts.cfg) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      std::string known;
+      for (auto const &name : rootNames) {
+        known += (known.empty() ? "" : ", ") + name;
+      }
+      CRAB_ERROR("--lean-cfg names '", opts.cfg,
+                 "', which is not a cfg this check runs on. It runs on the "
+                 "roots of the call graph, which here are: ",
+                 known);
+    }
+  }
+
+  // A block label only means something within one cfg, so asking for one while
+  // several would be checked is a question with no single answer.
+  if (opts.scope == LeanScope::Block && opts.cfg.empty() &&
+      rootNames.size() > 1) {
+    CRAB_ERROR("--lean-block needs a single cfg, but this file has several to "
+               "check. Add --lean-cfg to say which one the block is in.");
+  }
+
   unsigned index = 0;
   for (auto n : entries) {
     auto cfg_ref = n.get_cfg();
@@ -379,16 +460,35 @@ std::vector<LeanResult> verifyWithLean(const std::string &jsonPath,
       continue;
     }
     const std::string name = cfg_ref.get_func_decl().get_func_name();
+    if (!opts.cfg.empty() && name != opts.cfg) {
+      continue;
+    }
 
     std::ostringstream fileName;
     fileName << dir << "/crabber-lean-" << pid << "-" << index++ << ".lean";
     const std::string leanFile = fileName.str();
 
-    writeProofFile(leanFile, jsonAbs, name, opts.heartbeats);
+    writeProofFile(leanFile, jsonAbs, name, opts);
     const RunOutput out = runLean(leanFile);
+
+    // A --lean-block that names no block is a mistake in the invocation, not a
+    // verdict about the program, and reporting it as "could not verify" would
+    // put it next to the note about Lean not having found a proof.
+    //
+    // Recognised from Lean's message rather than checked here, because the list
+    // of blocks lives in the export and Lean is the side that reads it. A second
+    // copy of that list on this side could disagree with it, which is a worse
+    // failure than the one being prevented. Another phrase-level contract with
+    // the Lean side; see `classify` below.
+    if (out.text.find("has no block named") != std::string::npos) {
+      std::remove(leanFile.c_str());
+      CRAB_ERROR(firstMessage(out.text));
+    }
 
     LeanResult r;
     r.cfg_name = name;
+    r.scope = opts.scope;
+    r.block = opts.block;
     r.verdict = classify(out);
     r.output = out.text;
     if (r.verdict == LeanVerdict::OutOfScope) {
@@ -410,6 +510,13 @@ std::vector<LeanResult> verifyWithLean(const std::string &jsonPath,
 
   // Anything the analysis covered but this check did not, named so the gap is
   // visible in the report rather than inferred from an absence.
+  //
+  // Not when --lean-cfg narrowed the run: the `Skipped` verdict explains itself
+  // as "called by another CFG", which would be the wrong reason. Those CFGs were
+  // left out because the user asked for one, and that needs no reporting back.
+  if (!opts.cfg.empty()) {
+    return results;
+  }
   for (auto n : boost::make_iterator_range(cg.nodes())) {
     auto cfg_ref = n.get_cfg();
     if (!cfg_ref.has_func_decl()) {
