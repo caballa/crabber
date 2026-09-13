@@ -220,13 +220,16 @@ def elabCrabVerify : CommandElab := fun _ => do
       simp only [$progId:ident, $invId:ident, $invTId:ident, Crabber.table, if_pos]
       first
         | exact Crabber.Assn.holds_top σ
+        -- `crab_meaning`, not a list spelled out here: this proof and `crab_vc`
+        -- need the same unfoldings, and when the list was written out twice the
+        -- copies drifted. See `Crabber.Tactic` for what that cost.
+        --
         -- `all_goals omega`, not `omega`: an entry invariant that is trivially
         -- true without being literally ⊤ -- `[[0 ≤ 0]]`, which the octagon
         -- domain exports where the interval domain exports an empty conjunction
         -- -- is closed by `simp` alone, and `omega` would then fail for want of
         -- a goal.
-        | (simp [Crabber.Assn.holds, Crabber.Conj.holds, Crabber.LinCon.holds,
-                 Crabber.LinCon.lhs, Crabber.LinExp.eval]
+        | (simp [crab_meaning]
            all_goals omega)))
 
   -- The assertion obligations are *not* generated. `wpStmt` puts an assert's
