@@ -173,7 +173,6 @@ here is never by itself evidence that Crab is wrong. -/
 private def emitInitiation (thmName : Name) : CommandElabM Unit := do
   let progId := mkIdent `prog
   let invId  := mkIdent `inv
-  let invTId := mkIdent `invTable
   let initId := mkIdent thmName
   -- `InitState` constrains nothing, so this goes through exactly when Crab
   -- claimed ⊤ at the entry block.
@@ -181,7 +180,29 @@ private def emitInitiation (thmName : Name) : CommandElabM Unit := do
     theorem $initId : ∀ σ : Crabber.State, Crabber.InitState $progId σ →
         Crabber.Assn.holds ($invId ($progId).entry) σ := by
       intro σ _
-      simp only [$progId:ident, $invId:ident, $invTId:ident, Crabber.table, if_pos]
+      -- Work out *which* invariant the entry block has, by evaluating the
+      -- lookup rather than by rewriting it. `conv` aims at argument 1 of
+      -- `Assn.holds` -- the invariant -- and `whnf` reduces it there.
+      --
+      -- `inv` is `table Assn.bot invTable`, a linear scan comparing the entry
+      -- label against each key, so `inv prog.entry` is a chain of `if`s over
+      -- string equalities. `simp` used to do that chain, and it is the wrong
+      -- tool twice over: unfolding `invTable` pastes every block's invariant
+      -- into the goal, which simp then rescans after each of the six steps,
+      -- and every `if` needs a `String` disequality decided -- which, since a
+      -- `String` is a `List Char` and a `Char` carries a validity proof, is
+      -- nothing like comparing bytes.
+      --
+      -- The cost is superlinear in the label lengths, and it is paid by every
+      -- program, before anything about the invariant is even looked at. On
+      -- `test-9 -d pk` -- labels like `edge-loop_header-loop_body` -- it stopped
+      -- being survivable: 117s of `simp` and then a `whnf` timeout at 4M
+      -- heartbeats, for a lookup `rfl` does instantly. Hence doing it the way
+      -- `rfl` does.
+      --
+      -- `whnf` stops at the outermost constructor, which is enough: the
+      -- expensive part is the scan, and the `simp` below finishes the rest.
+      conv => enter [1]; whnf
       first
         | exact Crabber.Assn.holds_top σ
         -- `crab_meaning`, not a list spelled out here: this proof and `crab_vc`
