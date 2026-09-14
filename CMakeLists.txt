@@ -147,8 +147,8 @@ if (TopLevel)
   # Neither zones nor oct-snf can prove these: the invariants need the non-unit
   # coefficients in the template. test-12 additionally needs two coefficients to
   # survive a join, which the superseded fixed_tvpi_domain could not do.
-  add_crabber_test(test-tvpi-dbm-1 tvpi.crabir    -d tvpi-dbm --coefficients "2")
-  add_crabber_test(test-tvpi-dbm-2 test-12.crabir -d tvpi-dbm --coefficients "2,3")
+  add_crabber_test(tvpi tvpi.crabir    -d tvpi-dbm --coefficients "2")
+  add_crabber_test(test-12 test-12.crabir -d tvpi-dbm --coefficients "2,3")
 
   # Function-call tests (cfg parameters + call sites).
   add_crabber_test(test-call-1 test-call-1.crabir -d zones)
@@ -209,6 +209,16 @@ if (TopLevel)
       add_lean_test(lean-test-4-oct-block "proved octagons" test-4.crabir -d oct --lean-block header)
     endif()
 
+    # test-9 on the domain it was written for -- and the other half of a pair.
+    #
+    # `-d pk` above and `-d tvpi-dbm` here prove the same program through
+    # *different* branches of the entry obligation: pk exports the nullary
+    # constraint and takes the arithmetic branch, tvpi-dbm exports the explicit
+    # top marker and takes `Assn.holds_top`. Together they cover both, and this
+    # half needs no Apron.
+    add_lean_test(lean-test-9-tvpi-dbm "proved non-unit-coefficients"
+                  test-9.crabir -d tvpi-dbm --coefficients "4,8")
+
     add_lean_test(lean-test-1 "proved bar,could not verify foo" test-1.crabir -d int)
     add_lean_test(lean-test-1-cfg "proved bar" test-1.crabir -d int --lean-cfg bar)
     add_lean_test(lean-test-bool-1 "proved safe,could not verify unsafe" test-bool-1.crabir -d int)
@@ -223,8 +233,9 @@ if (TopLevel)
     # conditional on its callers. Pinning both halves keeps that visible.
     add_lean_test(lean-test-call-1 "not attempted main,not checked inc" test-call-1.crabir -d zones)
 
-    # Deliberately absent: test-9 and test-11 exhaust the elaboration budget, so
-    # they would each spend the full --lean-heartbeats allowance to assert that
-    # nothing was proved.
+    # Deliberately absent: test-11, which still exhausts the elaboration budget
+    # and would spend the full --lean-heartbeats allowance to assert that nothing
+    # was proved. Its cost is the twenty block obligations, not the entry one;
+    # it proves at --lean-heartbeats 1200000.
   endif()
 endif()
