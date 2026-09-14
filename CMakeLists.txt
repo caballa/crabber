@@ -197,41 +197,23 @@ if (TopLevel)
     # rewritten to a native domain.
     if (CRAB_USE_APRON)
       add_lean_test(lean-test-4-oct "proved octagons" test-4.crabir -d oct)
-
-      # `pk` was blocked by the same bug and for the same reason -- every pk run
-      # failed its entry obligation whatever the invariants said. These two are
-      # proved by no other domain here, so they also pin what pk buys.
       add_lean_test(lean-test-tvpi-pk "proved tvpi-example" tvpi.crabir -d pk)
       add_lean_test(lean-test-12-pk   "proved tvpi-dbm"     test-12.crabir -d pk)
+      add_lean_test(lean-test-9-pk "proved non-unit-coefficients" test-9.crabir -d pk)
 
       # The narrowing options. These are the commands that localise a failure to
       # the entry obligation or to the blocks, so a break in either would cost
       # exactly what it cost before they existed.
-      add_lean_test(lean-test-4-oct-init "proved octagons" test-4.crabir -d oct
-                    --lean-only init)
-      add_lean_test(lean-test-4-oct-vc   "proved octagons" test-4.crabir -d oct
-                    --lean-only vc)
-      add_lean_test(lean-test-4-oct-block "proved octagons" test-4.crabir -d oct
-                    --lean-block header)
+      add_lean_test(lean-test-4-oct-init "proved octagons" test-4.crabir -d oct --lean-only init)
+      add_lean_test(lean-test-4-oct-vc   "proved octagons" test-4.crabir -d oct --lean-only vc)
+      add_lean_test(lean-test-4-oct-block "proved octagons" test-4.crabir -d oct --lean-block header)
     endif()
 
-    # Both outcomes of the same file: `bar` is provable, `foo` asserts something
-    # that is genuinely false and must stay unproved. --lean-cfg picks one of
-    # the two, and suppresses the other rather than reporting it as skipped.
     add_lean_test(lean-test-1 "proved bar,could not verify foo" test-1.crabir -d int)
     add_lean_test(lean-test-1-cfg "proved bar" test-1.crabir -d int --lean-cfg bar)
-
-    # The boolean fragment end to end, and its own negative. test-6 also uses
-    # booleans but reaches them through a cast, so this is the one that can be
-    # checked.
-    add_lean_test(lean-test-bool-1 "proved safe,could not verify unsafe"
-                  test-bool-1.crabir -d int)
-
-    # Loops and widening thresholds -- the two shapes where an inductive
-    # invariant is doing real work.
+    add_lean_test(lean-test-bool-1 "proved safe,could not verify unsafe" test-bool-1.crabir -d int)
     add_lean_test(lean-test-3 "proved nested-loops" test-3.crabir -d int)
-    add_lean_test(lean-test-5 "proved thresholds"   test-5.crabir -d int
-                  --widening-thresholds 10)
+    add_lean_test(lean-test-5 "proved thresholds"   test-5.crabir -d int --widening-thresholds 10)
 
     # An unmodelled construct must be reported as out of scope, not as a failure
     # to prove: `z := x * y` is nonlinear, and the reader refuses it by name.
@@ -239,8 +221,7 @@ if (TopLevel)
 
     # Only call-graph roots are checked, because a callee's invariants are
     # conditional on its callers. Pinning both halves keeps that visible.
-    add_lean_test(lean-test-call-1 "not attempted main,not checked inc"
-                  test-call-1.crabir -d zones)
+    add_lean_test(lean-test-call-1 "not attempted main,not checked inc" test-call-1.crabir -d zones)
 
     # Deliberately absent: test-9 and test-11 exhaust the elaboration budget, so
     # they would each spend the full --lean-heartbeats allowance to assert that
