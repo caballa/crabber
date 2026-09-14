@@ -1,3 +1,7 @@
+# How to run:
+#   crabber test-call-2.crabir -d zones
+#
+
 # Function calls: multiple inputs and multiple outputs.
 #
 # When a call has more than one output, the outputs are written as a

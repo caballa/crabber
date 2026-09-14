@@ -1,3 +1,6 @@
+# How to run:
+#   crabber test-9.crabir -d tvpi-dbm --coefficients "4,8"
+
 cfg("non-unit-coefficients")
 start:
    havoc(N:i32)

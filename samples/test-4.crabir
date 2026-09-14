@@ -1,3 +1,6 @@
+# How to run:
+#   crabber test-4.crabir -d oct-snf
+
 cfg("octagons")
 
 start:
