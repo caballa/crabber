@@ -7,6 +7,6 @@
 #   CRAB ERROR: interprocedural analysis requires that for each function
 #               its set of inputs and outputs must be disjoint.
 
-cfg("foo", a:i32:in, a:i32:out)
+cfg("foo", in a:int, out a:int)
   start:
    exit

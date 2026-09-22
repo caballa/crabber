@@ -2,23 +2,23 @@
 # callee itself has non-trivial control flow (a loop).
 
 # clamp(a) returns min(a, 10) for a non-negative a
-cfg("clamp", a:i32:in, b:i32:out)
+cfg("clamp", in a:int, out b:int)
   start:
-   b:i32 := a
+   b := a
    goto loop
   loop:
-   if (b <= 10):i32 goto out else goto dec
+   if (b <= 10) goto out else goto dec
   dec:
-   b:i32 := b - 1
+   b := b - 1
    goto loop
   out:
    exit
 
 cfg("main")
   start:
-   x:i32 := 3
-   u:i32 := call clamp(x:i32)
-   EXPECT_EQ(true, assert(u <= 10):i32)
-   y:i32 := 100
-   v:i32 := call clamp(y:i32)
-   EXPECT_EQ(true, assert(v <= 10):i32)
+   x := 3
+   u:int := call clamp(x:int)
+   EXPECT_EQ(true, assert(u <= 10))
+   y := 100
+   v:int := call clamp(y:int)
+   EXPECT_EQ(true, assert(v <= 10))

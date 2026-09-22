@@ -1,40 +1,49 @@
-# this is a comment
-# newline is used to delimit a new instruction, new block or new cfg
-# A cfg must have a name
-# Blocks are defined as a name followed by ":" 
-# The entry block of a cfg must be called "start"
-# Left-hand side of assignments must be typed
-# Constraints that appear in conditionals, assume, and assert must be also typed
+# Booleans.
+#
+# The sort of a boolean is determined by the operator in almost every case:
+# and/or/xor/not take booleans, a comparison on the right-hand side makes the
+# left-hand side one, and a bare variable in assume/assert is one. The only
+# statements that need ":bool" are a copy and a havoc, where nothing else says
+# what the sort is.
 
  cfg("booleans")
  start:
-   # left-hand side must be typed
-   y:i32 := 0
+   y := 0
    goto loop
  loop:
-   # left-hand side must be typed but not right-hand side
-   y:i32 := y + 1
-   if (y <=  9):i32 goto loop else goto loop_exit
+   y := y + 1
+   if (y <=  9) goto loop else goto loop_exit
  loop_exit:
-   trunc(y:i32, x1:i16)
-   # do not type left-hand side (it can be infered as i1)
-   b := (x1 == 10):i16 
-
-   # parser doesn't support either
-   #   b1 := true
-   # or tautologies nor contradictions
-   #   b1 := (1 == 1):i32
-   # but it allows to truncate to i1 and use the result as a i1
-   w:i32 := 1
-   trunc(w:i32, b1:i1)
-
-   # do not type any variable (they can be infered as i1)
+   # int -> bool is a comparison; no cast is involved
+   b  := y == 10
+   # boolean constants are first class
+   b1 := true
+   # operands inferred as booleans from the operator
    b2 := b and b1
-   # do not type any variable (they can be infered as i1)
    b4 := not(b2)
-   # lhs must be typed
-   b3:i1 := b2    
+   # a copy is one of the two places an annotation is required
+   b3:bool := b2
    goto end
  end:
   EXPECT_EQ(true, assert(b2))
-  EXPECT_EQ(false, assert(b4))  
+  EXPECT_EQ(false, assert(b4))
+
+# Branching on a boolean. A bare variable as an "if" condition is a boolean,
+# the same reading assume(b) and assert(b) already have: the then-edge gets
+# assume(b) and the else-edge assume(not(b)).
+#
+# The condition here is a havoc'd boolean rather than a comparison, so no
+# constraint could stand in for it -- this is the case only the boolean form
+# can express, and both edges are live because its value is unknown.
+cfg("branch-on-boolean")
+ start:
+   havoc(b:bool)
+   if (b) goto pos else goto neg
+ pos:
+   EXPECT_EQ(true, assert(b))
+   goto join
+ neg:
+   EXPECT_EQ(false, assert(b))
+   goto join
+ join:
+   exit

@@ -12,14 +12,14 @@
 namespace crabber {
 enum class expected_result { OK, FAILED };
   
+// No type parameter: every variable in a linear expression or constraint is a
+// mathematical integer, the only numeric sort the language has.
 cfg::linear_expression_t parse_linear_expression(const std::string &exp,
                                                  cfg::variable_factory_t &vfac,
-                                                 crab::variable_type ty,
                                                  unsigned line_number);
 
 cfg::linear_constraint_t parse_linear_constraint(const std::string &cst,
                                                  cfg::variable_factory_t &vfac,
-                                                 crab::variable_type ty,
                                                  unsigned line_number);
 
 void parse_instruction(const std::string &instruction, unsigned line_number,

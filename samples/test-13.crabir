@@ -1,0 +1,21 @@
+# Wide-byte semantics with extent 8: the store at 0x1004 overlaps the cell
+# [0x1000, 0x1008) written by the store at 0x1000, so reloading 0x1000 yields
+# top. Reloading 0x1004 is exact.
+#
+# This is the only sample that reaches the overlap machinery in the array
+# domains (get_overlap_cells / kill_cells). Programs that leave the element
+# size implicit use extent 1, under which distinct indices never interfere.
+
+cfg("wide-byte-overlap")
+start:
+   a := 4096      # 0x1000
+   b := 4100      # 0x1004
+   v := 305419896
+   w := 42
+   array_store(M, a, v, 8)
+   array_store(M, b, w, 8)
+   r := array_load(M, a, 8)
+   EXPECT_EQ(false, assert(r == 305419896))
+   s := array_load(M, b, 8)
+   EXPECT_EQ(true, assert(s == 42))
+   exit

@@ -16,8 +16,10 @@
    '(".str.[0-9]+" . font-lock-variable-name-face)   
    ;; Labels
    '("[-a-zA-Z$\._0-9]+:" . font-lock-variable-name-face)
-   ;; Types
-   `(,(regexp-opt '("i1" "i8" "i16" "i32" "i64") 'symbols) . font-lock-type-face)
+   ;; Types. Integers are mathematical integers, so there are no widths: the
+   ;; only sorts are "int" and "bool", and both are optional wherever the
+   ;; operator already determines the sort.
+   `(,(regexp-opt '("int" "bool") 'symbols) . font-lock-type-face)
    ;; Integer literals
    '("\\b[-]?[0-9]+\\b" . font-lock-preprocessor-face)
    ;; Keywords
@@ -38,8 +40,14 @@
    `(,(regexp-opt '("not") 'symbols) . font-lock-keyword-face)
    ;; Memory operators
    `(,(regexp-opt '("region_init" "region_copy" "region_cast" "make_ref" "remove_ref" "load_from_ref" "store_to_ref" "gep_ref" "ref_to_int" "int_to_ref") 'symbols) . font-lock-keyword-face)
-   ;; Casts
-   `(,(regexp-opt '("trunc" "sext" "zext") 'symbols) . font-lock-keyword-face))
+   ;; Casts. bool_to_int is the only one: false becomes 0 and true becomes 1.
+   ;; trunc/sext/zext are gone, having been meaningful only between widths.
+   `(,(regexp-opt '("bool_to_int") 'symbols) . font-lock-keyword-face)
+   ;; Direction markers in a cfg parameter list, e.g. cfg("f", in a:int, out b:int).
+   ;; Matched together with the parameter that follows but highlighting only
+   ;; group 1, so that a block label named "out" is left alone. Emacs regexps
+   ;; have no lookahead, hence the subexpression form rather than "(?=...)".
+   '("\\_<\\(in\\|out\\)\\_>[ \t]+[-a-zA-Z$\._][-a-zA-Z$\._0-9]*[ \t]*:" 1 font-lock-keyword-face))
   "Syntax highlighting for CrabIR.")
 
 ;; Emacs 23 compatibility.

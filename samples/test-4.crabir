@@ -1,19 +1,19 @@
 cfg("octagons")
 
 start:
-n:i64 := 100
-x:i64 := 0
-y:i64 := 200
+n := 100
+x := 0
+y := 200
 goto header
 
 header:
-if (x <= n-1):i64 goto body else goto exit
+if (x <= n-1) goto body else goto exit
 
 body: 
-x:i64 := x + 1
-t:i64 := 2*x
-y:i64 := 200 - t
+x := x + 1
+t := 2*x
+y := 200 - t
 goto header
 
 exit:
- EXPECT_EQ(true, assert(x + y <= 200):i64) 
+ EXPECT_EQ(true, assert(x + y <= 200)) 

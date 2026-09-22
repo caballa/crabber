@@ -43,13 +43,13 @@ it, though, is to skim the ready-to-run programs under [`samples/`](samples/).
 
 cfg("foo")            # a cfg is introduced by cfg("<name>"). Quotes required.
   start:              # a block is a label followed by ':'. Entry MUST be "start".
-   x:i32 := 0         # instructions belong to the block above them
+   x := 0             # instructions belong to the block above them
    goto loop
   loop:               # another block
-   x:i32 := x + 1
-   if (x <= 9):i32 goto loop else goto out
+   x := x + 1
+   if (x <= 9) goto loop else goto out
   out:
-   EXPECT_EQ(true, assert(x == 10):i32)
+   EXPECT_EQ(true, assert(x == 10))
 ```
 
 Rules of the game:
@@ -63,18 +63,42 @@ Rules of the game:
 
 ## Types ##
 
-The language is **strongly typed and has no type inference**, so every
-instruction must carry enough type annotations for the parser to know the type
-of each variable. In practice this means the left-hand side of assignments is
-typed, and the constraints inside `if`, `assume`, and `assert` are typed.
+There are four types and no bit widths:
 
-| Type          | Meaning                                            |
-|---------------|----------------------------------------------------|
-| `iN`          | integer of `N` bits, e.g. `i8`, `i32`, `i64`       |
-| `i1`          | Boolean (a 1-bit integer is treated as a Boolean)  |
-| array         | array of integers; indices must be `i64`           |
+| Type           | Meaning                                                     |
+|----------------|-------------------------------------------------------------|
+| `int`          | a mathematical integer — unbounded, no representation width |
+| `bool`         | a Boolean                                                   |
+| array of `int` | array whose elements are mathematical integers              |
+| array of `bool`| array whose elements are Booleans                           |
 
-A type annotation is written `:iN` right after a variable, e.g. `x:i32`.
+Integers are *mathematical* integers: they do not wrap, and there is no `i8` /
+`i32` / `i64`. That matches what the analyses actually compute — every abstract
+domain crabber can run interprets values over ℤ — so a width would be
+decoration that never changes a result.
+
+An annotation is written `:int` or `:bool` right after a variable, and is
+**optional wherever the statement already determines the sort**:
+
+- an unannotated variable is an `int`;
+- `and` / `or` / `xor` / `not` take Booleans, so their operands are Booleans;
+- a comparison on the right-hand side makes the left-hand side a Boolean;
+- a bare variable used as a condition — `assume(b)`, `assert(b)`, `if (b)` — is
+  a Boolean.
+
+That leaves exactly two statements where `:bool` is required, because nothing
+else says what the sort is: a copy, and a `havoc`.
+
+```
+b:bool := c
+havoc(b:bool)
+```
+
+An annotation that contradicts the operator is an error, e.g. `b:int := c and d`.
+
+Function interfaces are the one place annotations are *mandatory* rather than
+optional — a signature is a contract. See [Function calls](#function-calls).
+
 Variable names match `[.@a-zA-Z_][.a-zA-Z0-9_]*` (`true` and `false` are
 reserved). Integer literals are decimal (`-3`, `42`) or hexadecimal (`0x1F`).
 
@@ -86,11 +110,11 @@ and `L1`/`L2` block labels.
 ### Integer assignments ###
 
 ```
-x:i32 := 5              # immediate (decimal); the LHS must be typed
-x:i32 := 0x1F           # immediate (hexadecimal)
-x:i32 := 2*y - 3*z + 1  # linear expression; the RHS need NOT be typed
-x:i32 := y * z          # multiplication of two variables (non-linear)
-x:i32 := y / z          # division of two variables (non-linear)
+x := 5              # immediate (decimal)
+x := 0x1F           # immediate (hexadecimal)
+x := 2*y - 3*z + 1  # linear expression
+x := y * z          # multiplication of two variables (non-linear)
+x := y / z          # division of two variables (non-linear)
 ```
 
 A *linear expression* is a sum of terms `k*var` and integer constants. Use the
@@ -99,51 +123,68 @@ A *linear expression* is a sum of terms `k*var` and integer constants. Use the
 ### Boolean assignments ###
 
 ```
-b3:i1 := b2             # copy another Boolean (LHS typed with :i1)
-b := (x <= 10):i32      # truth value of a constraint (LHS type is inferred as i1)
+b := true               # Boolean constants
+b := false
+b := x <= 10            # truth value of a constraint
 b := b1 and b2          # Boolean and / or / xor
 b := b1 or  b2
 b := b1 xor b2
 b := not(b1)            # Boolean negation
+b3:bool := b2           # copy another Boolean
 ```
 
-Note the asymmetry: a plain Boolean **copy** types the left-hand side (`b3:i1`),
-whereas assignments from a constraint, `and`/`or`/`xor`, and `not` leave the
-left-hand side untyped because it is inferred to be `i1`.
+Only the copy needs an annotation: every other form has an operator that
+already says its operands are Booleans, whereas the right-hand side of a copy
+is a bare variable that says nothing.
 
-### Integer casts ###
+### bool to int ###
 
 ```
-trunc(x:i32, y:i16)     # truncate  (destination narrower than source)
-sext(x:i32,  y:i64)     # sign-extend  (destination wider than source)
-zext(x:i32,  y:i64)     # zero-extend  (destination wider than source)
+x := bool_to_int(b)     # false becomes 0, true becomes 1
 ```
 
-The first argument is the source, the second the destination. `trunc` may
-target `i1` (a handy way to obtain a Boolean).
+This is the only cast in the language. `trunc`, `sext` and `zext` are gone:
+they relate values of different widths, and there are no widths. The other
+direction needs no cast at all, since a comparison already yields a Boolean —
+`b := x != 0` is int to bool.
 
 ### Non-deterministic value ###
 
 ```
-havoc(x:i32)            # assign an arbitrary (unknown) value to x
+havoc(x)                # assign an arbitrary (unknown) value to x
+havoc(b:bool)           # ... and for a Boolean, where :bool is required
 ```
 
 ### Arrays ###
 
 ```
-array_store(arr, idx:i64, val:i32)   # arr[idx] := val
-x:i32 := array_load(arr, idx:i64)    # x := arr[idx]
+array_store(arr, idx, val)      # arr[idx] := val
+x := array_load(arr, idx)       # x := arr[idx]
+array_store(arr, idx, val, 8)   # ... with an explicit element size
+x := array_load(arr, idx, 8)
 ```
 
-Array variables are named without a type annotation; the element size is taken
-from the value/result type and the index must be `i64`.
+An array variable is never annotated: its position in the statement is what
+makes it an array, and its element sort follows the value stored or loaded.
+`array_store(arr, i, v)` makes `arr` an array of integers, while
+`array_store(arr, i, b:bool)` makes it an array of Booleans.
+
+The last operand is the **element size** in bytes — how many addresses an
+access covers — and it defaults to 1. With the default, distinct indices are
+independent and an array behaves like a plain map from addresses to values.
+
+A size greater than 1 makes an access span several addresses, so overlapping
+accesses invalidate one another: a store of size 8 at address `0x1000` followed
+by one at `0x1004` leaves a reload of `0x1000` unknown. A load must use the
+same size as the store that wrote the cell, or it reads unknown. See
+[`samples/test-13.crabir`](samples/test-13.crabir).
 
 ### assume ###
 
 `assume` restricts the analysis to states satisfying a condition.
 
 ```
-assume(x <= y):i32      # integer linear constraint (typed)
+assume(x <= y)          # linear constraint
 assume(b)               # Boolean variable
 assume(true)            # trivially true / false
 assume(false)
@@ -155,7 +196,7 @@ assume(false)
 whether each assertion holds.
 
 ```
-assert(x == 10):i32     # integer linear constraint (typed)
+assert(x == 10)         # linear constraint
 assert(b)               # Boolean variable
 assert(true)            # trivial
 assert(false)
@@ -168,27 +209,29 @@ outcome, driving the `### TESTS RESULTS ###` summary. `expected` is `true` if
 the assertion should be proven, or `false` if it is expected to fail.
 
 ```
-EXPECT_EQ(true,  assert(x == 10):i32)   # expected to hold
-EXPECT_EQ(false, assert(x == 11):i32)   # expected to fail
+EXPECT_EQ(true,  assert(x == 10))       # expected to hold
+EXPECT_EQ(false, assert(x == 11))       # expected to fail
 EXPECT_EQ(true,  assert(b))             # also works with Boolean/trivial asserts
 ```
 
 ### Control flow ###
 
 ```
-goto L1                        # unconditional jump
-if (x <= 9):i32 goto L1 else goto L2   # conditional; the constraint is typed
+goto L1                          # unconditional jump
+if (x <= 9) goto L1 else goto L2 # conditional on a constraint
+if (b) goto L1 else goto L2      # conditional on a Boolean variable
 ```
 
-On the `then` edge the constraint is assumed to hold; on the `else` edge its
-negation is assumed.
+On the `then` edge the condition is assumed to hold; on the `else` edge its
+negation is assumed. A bare variable as the condition is read as a Boolean,
+the same way `assume(b)` and `assert(b)` are.
 
 ### Value partitioning (advanced) ###
 
 ```
-value_partition_start(x:i32)   # begin partitioning the analysis on values of x
+value_partition_start(x)       # begin partitioning the analysis on values of x
 ...
-value_partition_end(x:i32)     # end the partition
+value_partition_end(x)         # end the partition
 ```
 
 ### exit ###
@@ -205,14 +248,18 @@ from another cfg through a call site.
 ## Declaring parameters ##
 
 Parameters are written after the cfg name as a comma-separated list of
-`name:type:direction`, where `direction` is `in` or `out`. A cfg without
-parameters keeps the old `cfg("name")` form.
+`direction name:type`, where `direction` is `in` or `out`. A cfg without
+parameters keeps the plain `cfg("name")` form.
+
+Unlike everywhere else in the language, **every parameter must carry its type**.
+A signature is a contract: a reader should be able to check a call against it
+without reading either function body.
 
 ```
 # inc(a) returns a + 1
-cfg("inc", a:i32:in, b:i32:out)
+cfg("inc", in a:int, out b:int)
   start:
-   b:i32 := a + 1
+   b := a + 1
    exit
 ```
 
@@ -222,29 +269,29 @@ declared both as an input and as an output.
 ## Call sites ##
 
 A call is written with the (optional) outputs on the left-hand side and the
-inputs as arguments. As everywhere else in the language, both the outputs and
-the arguments must be typed.
+inputs as arguments. Like a parameter list, and unlike the rest of the
+language, both the outputs and the arguments must be typed.
 
 ```
-call foo(a:i32)                         # no outputs
-b:i32 := call foo(a:i32)                # single output
-(b:i32) := call foo(a:i32)             # single output, parenthesized
-(y:i32, w:i64) := call g(x:i32, z:i64) # multiple outputs
+call foo(a:int)                          # no outputs
+b:int := call foo(a:int)                 # single output
+(b:int) := call foo(a:int)               # single output, parenthesized
+(y:int, w:bool) := call g(x:int, z:bool) # multiple outputs
 ```
 
 Putting it together:
 
 ```
-cfg("inc", a:i32:in, b:i32:out)
+cfg("inc", in a:int, out b:int)
   start:
-   b:i32 := a + 1
+   b := a + 1
    exit
 
 cfg("main")
   start:
-   x:i32 := 5
-   y:i32 := call inc(x:i32)
-   EXPECT_EQ(true, assert(y == 6):i32)
+   x := 5
+   y:int := call inc(x:int)
+   EXPECT_EQ(true, assert(y == 6))
 ```
 
 See `samples/test-call-*.crabir` for more examples, including negative tests
