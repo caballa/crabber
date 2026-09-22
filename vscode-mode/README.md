@@ -9,7 +9,8 @@ counterpart to `emacs-mode/crabir-mode.el`.
 - Comments (`# ...`)
 - `cfg` and block labels (`start:`, `loop:`, ...)
 - String literals (`cfg("foo")`)
-- Types (`i1`, `i8`, `i16`, `i32`, `i64`, `i256`, ... any `iN`)
+- Types (`int`, `bool`) in annotation position, and the `in` / `out` direction
+  markers of a `cfg` parameter list
 - Integer literals
 - Constants / declarations (`declare`, `true`, `false`)
 - Arithmetic & logical operators (`add`, `sub`, `mul`, `sdiv`, `udiv`, `urem`,
@@ -17,7 +18,7 @@ counterpart to `emacs-mode/crabir-mode.el`.
 - Control instructions (`if`, `else`, `goto`, `assume`, `unreachable`)
 - Verification instructions (`havoc`, `assert`) and `EXPECT_*` test macros
 - Special instructions (`call`, `ite`)
-- Casts (`trunc`, `sext`, `zext`)
+- Casts (`bool_to_int`)
 - Array/memory/region operations (`array_store`, `array_load`, `array_assign`,
   `region_init`, `region_copy`, `region_cast`, `make_ref`, `remove_ref`,
   `load_from_ref`, `store_to_ref`, `gep_ref`, `ref_to_int`, `int_to_ref`)

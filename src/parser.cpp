@@ -20,13 +20,12 @@
 
 // A cfg header optionally followed by a comma-separated parameter list, e.g.
 //   cfg("foo")
-//   cfg("foo", a:i32:in, b:i32:out)
+//   cfg("foo", in a:int, out b:int)
 // Group 1: cfg name. Group 2: parameter list (empty if there are no params).
 #define CFG_START                                                              \
   R"_(\s*cfg\s*\(\s*")_" ANY R"_("\s*(?:,)_" ANY R"_()?\)\s*)_"
 
 #define CMPOP R"_(\s*(<=|<|>=|>|==|=|!=)\s*)_"
-#define CASTOP R"_(\s*(trunc|sext|zext)\s*)_"
 #define BOOLEANOP R"_(\s*(and|or|xor)\s*)_"
 #define UNARYOP R"_(\s*(not)\s*)_"
 #define MUL_OR_DIV R"_(\s*([\*/])\s*)_"
@@ -50,39 +49,63 @@
 #define LITERAL                                                                \
   R"_(\s*([-+]?)\s*(\d*)\s*\*?\s*([\.@a-zA-Z_][\.a-zA-Z0-9_]*)|\s*([-+]?)\s*(\d+)\s*)_"
 #define NONLINEAR_MUL_OR_DIV VAR MUL_OR_DIV VAR
-#define TYPE R"_(\s*:\s*i(\d+)\s*)_"
-#define BOOLEAN_TYPE R"_(\s*:\s*i1\s*)_"
+// A sort annotation. There are no widths: the only scalar sorts are the
+// mathematical integer and the boolean, spelled ":int" and ":bool".
+#define SORT R"_(\s*:\s*(int|bool)\s*)_"
+// ":bool" spelled out, for the one rule that requires it: a boolean copy,
+// where nothing on the right-hand side says what the sort is.
+#define BOOL_SORT R"_(\s*:\s*bool\s*)_"
+// The same, optional. Group is empty when absent, which means "int" (see
+// parse_sort): the operator determines the sort almost everywhere, so an
+// annotation is only written where nothing else can supply it.
+#define OPT_SORT R"_(\s*(?::\s*(int|bool)\s*)?\s*)_"
+// An array element size in bytes -- the extent of the access. Optional;
+// absent means 1, which makes distinct indices independent.
+#define OPT_EXTENT R"_(\s*(?:,\s*(\d+)\s*)?)_"
+
 #define LINCST ANY CMPOP ANY
-#define ASSUME R"_(\s*assume)_" LPAREN LINCST RPAREN TYPE
-#define ASSUME_TRIVIAL R"_(\s*assume)_" LPAREN TRUE_OR_FALSE RPAREN 
-#define BOOLEAN_ASSUME R"_(\s*assume)_" LPAREN VAR RPAREN 
-#define ASSERT R"_(\s*assert)_" LPAREN LINCST RPAREN TYPE
-#define ASSERT_TRIVIAL R"_(\s*assert)_" LPAREN TRUE_OR_FALSE RPAREN 
+#define ASSUME R"_(\s*assume)_" LPAREN LINCST RPAREN
+#define ASSUME_TRIVIAL R"_(\s*assume)_" LPAREN TRUE_OR_FALSE RPAREN
+#define BOOLEAN_ASSUME R"_(\s*assume)_" LPAREN VAR RPAREN
+#define ASSERT R"_(\s*assert)_" LPAREN LINCST RPAREN
+#define ASSERT_TRIVIAL R"_(\s*assert)_" LPAREN TRUE_OR_FALSE RPAREN
 #define BOOLEAN_ASSERT R"_(\s*assert)_" LPAREN VAR RPAREN
 #define EXPECT_EQ R"_(\s*EXPECT_EQ)_" LPAREN TRUE_OR_FALSE COMMA ASSERT RPAREN
 #define EXPECT_EQ_TRIVIAL R"_(\s*EXPECT_EQ)_" LPAREN TRUE_OR_FALSE COMMA ASSERT_TRIVIAL RPAREN
 #define BOOLEAN_EXPECT_EQ R"_(\s*EXPECT_EQ)_" LPAREN TRUE_OR_FALSE COMMA BOOLEAN_ASSERT RPAREN
-#define HAVOC R"_(\s*havoc)_" LPAREN VAR TYPE RPAREN
-#define VALUE_PARTITION_START R"_(\s*value_partition_start)_" LPAREN VAR TYPE RPAREN
-#define VALUE_PARTITION_END R"_(\s*value_partition_end)_" LPAREN VAR TYPE RPAREN
-#define ARRAY_LOAD VAR TYPE ASSIGN R"_(\s*array_load)_" LPAREN VAR COMMA VAR TYPE RPAREN
-#define ARRAY_STORE R"_(\s*array_store)_" LPAREN VAR COMMA VAR TYPE COMMA VAR TYPE RPAREN
+#define HAVOC R"_(\s*havoc)_" LPAREN VAR OPT_SORT RPAREN
+#define VALUE_PARTITION_START R"_(\s*value_partition_start)_" LPAREN VAR RPAREN
+#define VALUE_PARTITION_END R"_(\s*value_partition_end)_" LPAREN VAR RPAREN
+// Array accesses. The element sort of the array is taken from the value
+// loaded or stored, so an array of booleans is written by annotating that
+// value; an unannotated value makes it an array of mathematical integers.
+// Group 1: lhs. 2: lhs sort. 3: array. 4: index. 5: extent (empty = 1).
+#define ARRAY_LOAD                                                             \
+  VAR OPT_SORT ASSIGN R"_(\s*array_load)_" LPAREN VAR COMMA VAR OPT_EXTENT RPAREN
+// Group 1: array. 2: index. 3: value. 4: value sort. 5: extent (empty = 1).
+#define ARRAY_STORE                                                            \
+  R"_(\s*array_store)_" LPAREN VAR COMMA VAR COMMA VAR OPT_SORT OPT_EXTENT RPAREN
+// The one cast: false becomes 0 and true becomes 1. Named as Crab names it,
+// so a dump reads back the way it was written.
+#define BOOL_TO_INT VAR OPT_SORT ASSIGN R"_(\s*bool_to_int)_" LPAREN VAR RPAREN
 #define EXIT R"_(\s*exit)_"
 
 // A direction marker for a cfg formal parameter.
-#define DIRECTION R"_(\s*(in|out)\s*)_"
-// A single cfg formal parameter: name:type:direction, e.g. a:i32:in
-// Group 1: name. Group 2: bitwidth. Group 3: direction.
-#define CFG_PARAM VAR TYPE COLON DIRECTION
-// A single typed variable: name:type, e.g. a:i32
-// Group 1: name. Group 2: bitwidth.
-#define TYPED_VAR VAR TYPE
+#define DIRECTION R"_(\s*(in|out)\s+)_"
+// A single cfg formal parameter: direction name:sort, e.g. "in a:int".
+// Function interfaces are always fully typed, so the sort is not optional.
+// Group 1: direction. Group 2: name. Group 3: sort.
+#define CFG_PARAM DIRECTION VAR SORT
+// A single typed variable: name:sort, e.g. "a:int". Used for callsite
+// argument and output lists, which are interfaces and so also fully typed.
+// Group 1: name. Group 2: sort.
+#define TYPED_VAR VAR SORT
 
 // A call site with optional outputs on the left, e.g.
-//   call foo(a:i32)
-//   b:i32 := call foo(a:i32)
-//   (b:i32) := call foo(a:i32)
-//   (y:i32, w:i64) := call g(x:i32, z:i64)
+//   call foo(a:int)
+//   b:int := call foo(a:int)
+//   (b:int) := call foo(a:int)
+//   (y:int, w:bool) := call g(x:int, z:bool)
 // Group 1: outputs (empty if none). Group 2: callee name. Group 3: arguments.
 #define CALLSITE                                                               \
   R"_(\s*(?:(.+?)\s*:=\s*)?call\s+)_" LABEL LPAREN ANY_OR_EMPTY RPAREN
@@ -110,11 +133,16 @@ static const regex re_callsite(CALLSITE);
 static const regex re_havoc(HAVOC);
 static const regex re_array_load(ARRAY_LOAD);
 static const regex re_array_store(ARRAY_STORE);
-static const regex re_bool_assign_var(VAR BOOLEAN_TYPE ASSIGN VAR);
-static const regex re_bool_assign_cst(VAR ASSIGN ANY TYPE);
-static const regex re_int_assign_imm(VAR TYPE ASSIGN IMM);
-static const regex re_int_assign_muldiv(VAR TYPE ASSIGN NONLINEAR_MUL_OR_DIV);
-static const regex re_int_assign_lin(VAR TYPE ASSIGN ANY);
+static const regex re_bool_to_int(BOOL_TO_INT);
+static const regex re_bool_assign_true_or_false(VAR OPT_SORT ASSIGN TRUE_OR_FALSE);
+static const regex re_bool_assign_var(VAR BOOL_SORT ASSIGN VAR);
+// The right-hand side contains a comparison, which is what makes the
+// left-hand side a boolean. Must be tried before the linear-assignment rule,
+// whose ANY would swallow the whole constraint.
+static const regex re_bool_assign_cst(VAR OPT_SORT ASSIGN ANY CMPOP ANY);
+static const regex re_int_assign_imm(VAR OPT_SORT ASSIGN IMM);
+static const regex re_int_assign_muldiv(VAR OPT_SORT ASSIGN NONLINEAR_MUL_OR_DIV);
+static const regex re_int_assign_lin(VAR OPT_SORT ASSIGN ANY);
 static const regex re_assume(ASSUME);
 static const regex re_assume_trivial(ASSUME_TRIVIAL);
 static const regex re_bool_assume(BOOLEAN_ASSUME);
@@ -124,27 +152,54 @@ static const regex re_bool_assert(BOOLEAN_ASSERT);
 static const regex re_expect_eq(EXPECT_EQ);
 static const regex re_expect_eq_trivial(EXPECT_EQ_TRIVIAL);
 static const regex re_bool_expect_eq(BOOLEAN_EXPECT_EQ);
-static const regex re_if(IF LPAREN ANY RPAREN TYPE GOTO LABEL ELSE GOTO LABEL);
+static const regex re_if(IF LPAREN ANY RPAREN GOTO LABEL ELSE GOTO LABEL);
 static const regex re_goto(GOTO LABEL);
-static const regex re_cast(CASTOP LPAREN VAR TYPE COMMA VAR TYPE RPAREN);
-static const regex re_bool_binop(VAR ASSIGN VAR BOOLEANOP VAR);
-static const regex re_bool_unop(VAR ASSIGN UNARYOP LPAREN VAR RPAREN);
+static const regex re_bool_binop(VAR OPT_SORT ASSIGN VAR BOOLEANOP VAR);
+static const regex re_bool_unop(VAR OPT_SORT ASSIGN UNARYOP LPAREN VAR RPAREN);
 static const regex re_value_partition_start(VALUE_PARTITION_START);
 static const regex re_value_partition_end(VALUE_PARTITION_END);
 static const regex re_exit(EXIT);
 
-// Remove a trailing '#' comment from a line. A '#' inside a double-quoted
-// string (e.g. a cfg name) does not start a comment.
+// Remove a trailing '#' comment from a line and canonicalize its whitespace:
+// every run of whitespace outside a quoted string becomes a single space, and
+// leading and trailing whitespace is dropped. A '#' inside a double-quoted
+// string (e.g. a cfg name) does not start a comment, and whitespace inside one
+// is left exactly as written, since it is part of the cfg's name.
+//
+// Collapsing the runs is not cosmetic. The grammar is whitespace-insensitive
+// by construction -- every token pattern carries its own "\s*" -- so patterns
+// like ANY CMPOP ANY expand to adjacent "\s*" runs surrounding lazy wildcards.
+// Each such adjacency is an independent way to split a run of spaces, and they
+// multiply: on a line that fails to match, std::regex explores them all. A run
+// of a dozen spaces in an assignment was enough to exceed libc++'s
+// backtracking limit, which throws std::regex_error and aborts. Canonicalizing
+// first bounds every "\s*" to at most one character, so the blow-up cannot
+// arise whatever the line looks like.
 static string strip_comment(const string &line) {
+  string out;
+  out.reserve(line.size());
   bool in_quotes = false;
+  bool pending_space = false;
   for (size_t i = 0, n = line.size(); i < n; ++i) {
-    if (line[i] == '"') {
+    const char c = line[i];
+    if (c == '"') {
       in_quotes = !in_quotes;
-    } else if (line[i] == '#' && !in_quotes) {
-      return line.substr(0, i);
+    } else if (c == '#' && !in_quotes) {
+      break;
+    } else if (!in_quotes &&
+               std::isspace(static_cast<unsigned char>(c))) {
+      // Emit at most one space, and only once something follows it, which
+      // also takes care of trailing whitespace.
+      pending_space = !out.empty();
+      continue;
     }
+    if (pending_space) {
+      out.push_back(' ');
+      pending_space = false;
+    }
+    out.push_back(c);
   }
-  return line;
+  return out;
 }
 
 static variable_t make_variable(variable_factory_t &vfac, string name,
@@ -152,9 +207,57 @@ static variable_t make_variable(variable_factory_t &vfac, string name,
   smatch m;
   if (!regex_match(name, m, re_var) ||
       name == "true" || name == "false") {
-    CRAB_ERROR("cannot create a variable name \"", name, "\"");        
+    CRAB_ERROR("cannot create a variable name \"", name, "\"");
   }
   return variable_t(vfac[name], type);
+}
+
+// The two scalar sorts. Integers are mathematical: there is no width to
+// carry, so nothing here has to invent one.
+static variable_type int_type() { return variable_type(MATH_INT_TYPE); }
+static variable_type bool_type() { return variable_type(BOOL_TYPE); }
+
+// An OPT_SORT capture: "int", "bool", or empty. Empty means int, because that
+// is the sort the language defaults to; rules whose operator already fixes the
+// sort do not call this, they call expect_sort instead.
+static variable_type parse_sort(const string &annotation) {
+  return (annotation == "bool") ? bool_type() : int_type();
+}
+
+// Same, for a rule whose operator already determines the sort: the annotation
+// is optional but may not contradict it.
+static variable_type expect_sort(const string &annotation, bool want_bool,
+                                 const string &instruction,
+                                 unsigned line_number) {
+  if (!annotation.empty() && (annotation == "bool") != want_bool) {
+    CRAB_ERROR("cannot annotate the left-hand side of ", instruction,
+               " with :", annotation, " at line ", line_number,
+               ": the right-hand side makes it ",
+               (want_bool ? "a boolean" : "an integer"));
+  }
+  return want_bool ? bool_type() : int_type();
+}
+
+// The element size of an array access, in bytes -- the extent, i.e. how many
+// addresses the value spans and therefore which neighbouring cells the access
+// invalidates. An absent operand means 1, under which distinct indices are
+// independent and an array behaves as a plain map.
+static number_t parse_extent(const string &extent, const string &instruction,
+                             unsigned line_number) {
+  if (extent.empty()) {
+    return number_t(1);
+  }
+  auto n = std::stoul(extent);
+  if (n != 1 && n != 2 && n != 4 && n != 8) {
+    CRAB_ERROR("cannot parse ", instruction, " at line ", line_number,
+               ": the element size must be 1, 2, 4 or 8 bytes, found ", n);
+  }
+  return number_t(static_cast<int64_t>(n));
+}
+
+// The array type holding elements of the given scalar sort.
+static variable_type array_type_of(const variable_type &elem_ty) {
+  return variable_type(elem_ty.is_bool() ? ARR_BOOL_TYPE : ARR_MATH_INT_TYPE);
 }
 
 static linear_constraint_t
@@ -186,9 +289,7 @@ static vector<variable_t> parse_typed_var_list(const string &s,
   auto end = sregex_iterator();
   for (sregex_iterator it = begin; it != end; ++it) {
     smatch m = *it;
-    auto bitwidth = std::stoi(m[2]);
-    variable_type ty((bitwidth == 1) ? BOOL_TYPE : INT_TYPE, bitwidth);
-    result.push_back(make_variable(vfac, m[1], ty));
+    result.push_back(make_variable(vfac, m[1], parse_sort(m[2])));
   }
   return result;
 }
@@ -202,10 +303,8 @@ static void parse_function_params(const string &s, variable_factory_t &vfac,
   auto end = sregex_iterator();
   for (sregex_iterator it = begin; it != end; ++it) {
     smatch m = *it;
-    auto bitwidth = std::stoi(m[2]);
-    variable_type ty((bitwidth == 1) ? BOOL_TYPE : INT_TYPE, bitwidth);
-    variable_t var = make_variable(vfac, m[1], ty);
-    if (m[3] == "in") {
+    variable_t var = make_variable(vfac, m[2], parse_sort(m[3]));
+    if (m[1] == "in") {
       inputs.push_back(var);
     } else {
       outputs.push_back(var);
@@ -291,9 +390,10 @@ static number_t parse_number(const string &s) {
   return number_t(s, 0); // default base which is choosen based on above description
 }
 
-static variable_t parse_variable(const string &s, variable_factory_t &vfac,
-                                 variable_type ty) {
-  return variable_t(vfac[s], ty);
+// Every variable occurring in a linear expression or constraint is an
+// integer; booleans never appear in one.
+static variable_t parse_variable(const string &s, variable_factory_t &vfac) {
+  return variable_t(vfac[s], int_type());
 }
 
 static expected_result parse_expected_result(const std::string str) {
@@ -371,7 +471,6 @@ parse_crabir(istream &is, variable_factory_t &vfac) {
 
 linear_expression_t parse_linear_expression(const string &exp_text,
                                             variable_factory_t &vfac,
-                                            variable_type ty,
                                             unsigned line_number) {
   smatch m;
   if (regex_match(exp_text, m, re_imm)) {
@@ -419,9 +518,9 @@ linear_expression_t parse_linear_expression(const string &exp_text,
           (coefficient_text == "" ? number_t(1)
                                   : parse_number(coefficient_text));
       if (polarity_text == "+" || polarity_text == "") {
-        e = e + (coefficient * parse_variable(var_text, vfac, ty));
+        e = e + (coefficient * parse_variable(var_text, vfac));
       } else if (polarity_text == "-") {
-        e = e - (coefficient * parse_variable(var_text, vfac, ty));
+        e = e - (coefficient * parse_variable(var_text, vfac));
       } else {
         CRAB_ERROR("parser of linear expression cannot recognize polarity ",
                    polarity_text, " in ", exp_text, " at line ", line_number);
@@ -448,7 +547,6 @@ linear_expression_t parse_linear_expression(const string &exp_text,
 
 linear_constraint_t parse_linear_constraint(const string &cst_text,
                                             variable_factory_t &vfac,
-                                            variable_type ty,
                                             unsigned line_number) {
   smatch m;
   if (regex_match(cst_text, m, re_true)) {
@@ -456,11 +554,9 @@ linear_constraint_t parse_linear_constraint(const string &cst_text,
   } else if (regex_match(cst_text, m, re_false)) {
     return linear_constraint_t::get_false();
   } else if (regex_match(cst_text, m, re_lincst)) {
-    linear_expression_t e1 =
-        parse_linear_expression(m[1], vfac, ty, line_number);
+    linear_expression_t e1 = parse_linear_expression(m[1], vfac, line_number);
     string op = m[2];
-    linear_expression_t e2 =
-        parse_linear_expression(m[3], vfac, ty, line_number);
+    linear_expression_t e2 = parse_linear_expression(m[3], vfac, line_number);
     return make_linear_constraint(op, e1 - e2);
   } else {
     CRAB_ERROR("cannot parse ", cst_text, " as a linear constraint at line ",
@@ -469,14 +565,13 @@ linear_constraint_t parse_linear_constraint(const string &cst_text,
 }
 
 static void parse_assertion_or_assume(const string &op1, const string &op2,
-				      const string &cmp_op, const string &type,
+				      const string &cmp_op,
 				      bool is_assertion, unsigned line_number,
 				      block_t &b, variable_factory_t &vfac,
 				      unsigned &assertion_counter) {
 
-  variable_type ty(INT_TYPE, std::stoi(type));
-  linear_expression_t e1 = parse_linear_expression(op1, vfac, ty, line_number);
-  linear_expression_t e2 = parse_linear_expression(op2, vfac, ty, line_number);
+  linear_expression_t e1 = parse_linear_expression(op1, vfac, line_number);
+  linear_expression_t e2 = parse_linear_expression(op2, vfac, line_number);
   linear_constraint_t cst = make_linear_constraint(cmp_op, e1 - e2);
   if (is_assertion) {
     crab::cfg::debug_info dbg("no-filename", line_number, 0,
@@ -515,38 +610,15 @@ static void parse_assertion_or_assume(const string &lit,
   }
 }
 
-static void parse_int_cast(const string &op,
-			   const string &src_str, const string &src_type_str,
-			   const string &dst_str, const string &dst_type_str,
-			   block_t &b, variable_factory_t &vfac) {
-
-  auto src_bitwidth = std::stoi(src_type_str);
-  auto dst_bitwidth = std::stoi(dst_type_str);
-  variable_type src_type((src_bitwidth == 1) ? BOOL_TYPE: INT_TYPE, src_bitwidth);
-  variable_t src = make_variable(vfac, src_str, src_type);
-  variable_type dst_type((dst_bitwidth == 1) ? BOOL_TYPE: INT_TYPE, dst_bitwidth);
-  variable_t dst = make_variable(vfac, dst_str, dst_type);
-
-  if (op == "trunc") {
-    b.truncate(src, dst);
-  } else if (op == "sext") {
-    b.sext(src, dst);
-  } else if (op == "zext") {
-    b.zext(src, dst);
-  } else {
-    CRAB_ERROR("unrecognized integer cast operation ", op);
-  }
-}
-
 static void parse_boolean_binary_op(const string &op,
 				    const string &lhs_str,
 				    const string &op1_str,
 				    const string &op2_str,
 				    block_t &b, variable_factory_t &vfac) {
 
-  variable_t lhs = make_variable(vfac, lhs_str, variable_type(BOOL_TYPE));
-  variable_t op1 = make_variable(vfac, op1_str, variable_type(BOOL_TYPE));
-  variable_t op2 = make_variable(vfac, op2_str, variable_type(BOOL_TYPE));
+  variable_t lhs = make_variable(vfac, lhs_str, bool_type());
+  variable_t op1 = make_variable(vfac, op1_str, bool_type());
+  variable_t op2 = make_variable(vfac, op2_str, bool_type());
 
   if (op == "and") {
     b.bool_and(lhs, op1, op2);
@@ -564,8 +636,8 @@ static void parse_unary_op(const string &op,
 			   const string &rhs_str,
 			   block_t &b, variable_factory_t &vfac) {
   if (op == "not") {
-    variable_t lhs = make_variable(vfac, lhs_str, variable_type(BOOL_TYPE));
-    variable_t rhs = make_variable(vfac, rhs_str, variable_type(BOOL_TYPE));
+    variable_t lhs = make_variable(vfac, lhs_str, bool_type());
+    variable_t rhs = make_variable(vfac, rhs_str, bool_type());
     b.bool_not_assign(lhs, rhs);
   } else {
     CRAB_ERROR("unrecognized unary operator ", op);
@@ -590,62 +662,73 @@ void parse_instruction(const string &instruction, unsigned line_number,
     vector<variable_t> inputs = parse_typed_var_list(m[3], vfac);
     b.callsite(m[2], outputs, inputs);
   } else if (regex_match(instruction_stripped, m, re_havoc)) {
-    variable_type ty(INT_TYPE, std::stoi(m[2]));
-    variable_t var = make_variable(vfac, m[1], ty);
-    b.havoc(var);
+    b.havoc(make_variable(vfac, m[1], parse_sort(m[2])));
   } else if (regex_match(instruction_stripped, m, re_array_load)) {
-    variable_type lhs_ty(INT_TYPE, std::stoi(m[2]));
+    // The array's element sort comes from the destination: annotate it
+    // :bool to read from an array of booleans.
+    variable_type lhs_ty = parse_sort(m[2]);
     auto lhs_var = make_variable(vfac, m[1], lhs_ty);
-    auto array_var = make_variable(vfac, m[3],variable_type(ARR_INT_TYPE));
-
-    variable_type idx_ty(INT_TYPE, std::stoi(m[5]));
-    if (idx_ty.get_integer_bitwidth() != 64) {
-      CRAB_ERROR("cannot parse ", instruction_stripped,
-		 " because array indexes must be i64 at line ", line_number);
-    }
-    auto idx_var = make_variable(vfac, m[4], idx_ty);
-    b.array_load(lhs_var, array_var, idx_var, lhs_ty.get_integer_bitwidth()/8);
+    auto array_var = make_variable(vfac, m[3], array_type_of(lhs_ty));
+    auto idx_var = make_variable(vfac, m[4], int_type());
+    b.array_load(lhs_var, array_var, idx_var,
+                 parse_extent(m[5], instruction_stripped, line_number));
   } else if (regex_match(instruction_stripped, m, re_array_store)) {
-    auto array_var = make_variable(vfac, m[1],variable_type(ARR_INT_TYPE));
-    variable_type idx_ty(INT_TYPE, std::stoi(m[3]));
-    if (idx_ty.get_integer_bitwidth() != 64) {
-      CRAB_ERROR("cannot parse ", instruction_stripped,
-		 " because array indexes must be i64 at line ", line_number);
-    }
-    auto idx_var = make_variable(vfac, m[2], idx_ty);
-    variable_type val_ty(INT_TYPE, std::stoi(m[5]));
-    auto val_var = make_variable(vfac, m[4], val_ty);
-    b.array_store(array_var, idx_var, val_var, val_ty.get_integer_bitwidth()/8);
+    // Likewise, from the value stored.
+    variable_type val_ty = parse_sort(m[4]);
+    auto array_var = make_variable(vfac, m[1], array_type_of(val_ty));
+    auto idx_var = make_variable(vfac, m[2], int_type());
+    auto val_var = make_variable(vfac, m[3], val_ty);
+    b.array_store(array_var, idx_var, val_var,
+                  parse_extent(m[5], instruction_stripped, line_number));
+  } else if (regex_match(instruction_stripped, m, re_bool_to_int)) {
+    // The only cast in the language. Must precede the assignment rules,
+    // whose right-hand side would otherwise swallow "bool_to_int(b)".
+    variable_t dst = make_variable(
+        vfac, m[1],
+        expect_sort(m[2], false /*want_bool*/, instruction_stripped,
+                    line_number));
+    variable_t src = make_variable(vfac, m[3], bool_type());
+    b.bool_to_int(src, dst);
+  } else if (regex_match(instruction_stripped, m, re_bool_assign_true_or_false)) {
+    // boolean constant
+    variable_t lhs = make_variable(
+        vfac, m[1],
+        expect_sort(m[2], true /*want_bool*/, instruction_stripped,
+                    line_number));
+    b.bool_assign(lhs, m[3] == "true" ? linear_constraint_t::get_true()
+                                      : linear_constraint_t::get_false());
+  } else if (regex_match(instruction_stripped, m, re_bool_binop)) {
+    // boolean binary operations (and/or/xor)
+    expect_sort(m[2], true /*want_bool*/, instruction_stripped, line_number);
+    parse_boolean_binary_op(m[4], m[1], m[3], m[5], b, vfac);
+  } else if (regex_match(instruction_stripped, m, re_bool_unop)) {
+    expect_sort(m[2], true /*want_bool*/, instruction_stripped, line_number);
+    parse_unary_op(m[3], m[1], m[4], b, vfac);
   } else if (regex_match(instruction_stripped, m, re_bool_assign_var)) {
-    // boolean assignment
-    variable_t lhs = make_variable(vfac, m[1], variable_type(BOOL_TYPE));
-    variable_t rhs = make_variable(vfac, m[2], variable_type(BOOL_TYPE));
+    // boolean copy. The one assignment whose right-hand side says nothing
+    // about the sort, which is why the annotation is mandatory here.
+    variable_t lhs = make_variable(vfac, m[1], bool_type());
+    variable_t rhs = make_variable(vfac, m[2], bool_type());
     b.bool_assign(lhs, rhs);
   } else if (regex_match(instruction_stripped, m, re_bool_assign_cst)) {
-    // boolean assignment
-    variable_t lhs = make_variable(vfac, m[1], variable_type(BOOL_TYPE));
-    variable_type ty(INT_TYPE, std::stoi(m[3]));
-    linear_constraint_t cst =
-      parse_linear_constraint(m[2], vfac, ty, line_number);
-    b.bool_assign(lhs, cst);
+    // the right-hand side is a comparison, so the left-hand side is boolean
+    variable_t lhs = make_variable(
+        vfac, m[1],
+        expect_sort(m[2], true /*want_bool*/, instruction_stripped,
+                    line_number));
+    linear_expression_t e1 = parse_linear_expression(m[3], vfac, line_number);
+    linear_expression_t e2 = parse_linear_expression(m[5], vfac, line_number);
+    b.bool_assign(lhs, make_linear_constraint(m[4], e1 - e2));
   } else if (regex_match(instruction_stripped, m, re_int_assign_imm)) {
     // integer assignment where rhs is an immediate value
-    auto bitwidth = std::stoi(m[2]);
-    if (bitwidth == 1) {
-      CRAB_ERROR("cannot assign an immediate value to a Boolean variable in ",
-		 instruction_stripped, " at line ", line_number);
-    }
-    variable_type ty(INT_TYPE, bitwidth);
-    variable_t lhs = make_variable(vfac, m[1], ty);
-    number_t rhs = parse_number(m[3]);
-    b.assign(lhs, rhs);
+    variable_t lhs = make_variable(
+        vfac, m[1],
+        expect_sort(m[2], false /*want_bool*/, instruction_stripped,
+                    line_number));
+    b.assign(lhs, parse_number(m[3]));
   } else if (regex_match(instruction_stripped, m, re_int_assign_muldiv)) {
-    auto bitwidth = std::stoi(m[2]);
-    if (bitwidth == 1) {
-      CRAB_ERROR("cannot assign the result of an arithmetic operation to a boolean in ",
-		 instruction_stripped, " at line ", line_number);
-    }
-    variable_type ty(INT_TYPE, bitwidth);
+    variable_type ty = expect_sort(m[2], false /*want_bool*/,
+                                   instruction_stripped, line_number);
     variable_t lhs = make_variable(vfac, m[1], ty);
     variable_t op1 = make_variable(vfac, m[3], ty);
     variable_t op2 = make_variable(vfac, m[5], ty);
@@ -658,106 +741,89 @@ void parse_instruction(const string &instruction, unsigned line_number,
       CRAB_ERROR("unrecognized operator on the rhs in ", instruction_stripped,
 		 " at line ", line_number);
     }
-
   } else if (regex_match(instruction_stripped, m, re_int_assign_lin)) {
-    auto bitwidth = std::stoi(m[2]);
-    if (bitwidth == 1) {
-      CRAB_ERROR("cannot parse ", instruction_stripped, " at line ", line_number,
-		 ". Two possible reasons:\n",
-		 "- cannot assign a linear expression to a Boolean variable or\n",
-		 "- typing unnecessarily the left-hand side with i1");
-    }
     // integer assignment where rhs is a linear expression
-    variable_type ty(INT_TYPE, bitwidth);
-    variable_t lhs = make_variable(vfac, m[1], ty);
-    linear_expression_t e =
-      parse_linear_expression(m[3], vfac, ty, line_number);
-    b.assign(lhs, e);
+    variable_t lhs = make_variable(
+        vfac, m[1],
+        expect_sort(m[2], false /*want_bool*/, instruction_stripped,
+                    line_number));
+    b.assign(lhs, parse_linear_expression(m[3], vfac, line_number));
   } else if (regex_match(instruction_stripped, m, re_assume)) {
     // integer assume
-    parse_assertion_or_assume(m[1], m[3], m[2], m[4], false /*is_assertion*/,
+    parse_assertion_or_assume(m[1], m[3], m[2], false /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
   } else if (regex_match(instruction_stripped, m, re_assume_trivial)) {
-    // integer assume
     parse_assertion_or_assume(m[1], false /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
   } else if (regex_match(instruction_stripped, m, re_bool_assume)) {
     // boolean assume
-    variable_t v = make_variable(vfac, m[1], variable_type(BOOL_TYPE));
-    b.bool_assume(v);
+    b.bool_assume(make_variable(vfac, m[1], bool_type()));
   } else if (regex_match(instruction_stripped, m, re_assert)) {
     // integer assert
-    parse_assertion_or_assume(m[1], m[3], m[2], m[4], true /*is_assertion*/,
+    parse_assertion_or_assume(m[1], m[3], m[2], true /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
   } else if (regex_match(instruction_stripped, m, re_assert_trivial)) {
-    // integer assert
     parse_assertion_or_assume(m[1], true /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
   } else if (regex_match(instruction_stripped, m, re_bool_assert)) {
     // boolean assert
-    variable_t v = make_variable(vfac, m[1], variable_type(BOOL_TYPE));
+    variable_t v = make_variable(vfac, m[1], bool_type());
     crab::cfg::debug_info dbg("no-filename", line_number, 0,
                               assertion_counter++);
     b.bool_assert(v, dbg);
   } else if (regex_match(instruction_stripped, m, re_expect_eq)) {
-    // integer expect_eq
-    parse_assertion_or_assume(m[2], m[4], m[3], m[5], true /*is_assertion*/,
+    parse_assertion_or_assume(m[2], m[4], m[3], true /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
-    unsigned assertion_id = assertion_counter - 1;
-    expected_results[assertion_id] = parse_expected_result(m[1]);
+    expected_results[assertion_counter - 1] = parse_expected_result(m[1]);
   } else if (regex_match(instruction_stripped, m, re_expect_eq_trivial)) {
-    // integer expect_eq
     parse_assertion_or_assume(m[2], true /*is_assertion*/,
                               line_number, b, vfac, assertion_counter);
-    unsigned assertion_id = assertion_counter - 1;
-    expected_results[assertion_id] = parse_expected_result(m[1]);
+    expected_results[assertion_counter - 1] = parse_expected_result(m[1]);
   } else if (regex_match(instruction_stripped, m, re_bool_expect_eq)) {
     // boolean expect_eq
-    variable_t v = make_variable(vfac, m[2], variable_type(BOOL_TYPE));
+    variable_t v = make_variable(vfac, m[2], bool_type());
     unsigned assertion_id = assertion_counter;
-    crab::cfg::debug_info dbg("no-filename", line_number, 0,
-                              assertion_id);
+    crab::cfg::debug_info dbg("no-filename", line_number, 0, assertion_id);
     assertion_counter++;
     b.bool_assert(v, dbg);
     expected_results[assertion_id] = parse_expected_result(m[1]);
   } else if (regex_match(instruction_stripped, m, re_if)) {
-    variable_type ty(INT_TYPE, std::stoi(m[2]));
-    linear_constraint_t cst =
-        parse_linear_constraint(m[1], vfac, ty, line_number);
-
-    string then_label = m[3];
-    string else_label = m[4];
+    string cond_text = m[1];
+    string then_label = m[2];
+    string else_label = m[3];
     block_t &edge_then_bb = cfg.insert("edge-" + b.label() + "-" + then_label);
     block_t &edge_else_bb = cfg.insert("edge-" + b.label() + "-" + else_label);
-    block_t &then_bb = cfg.get_node(m[3]);
-    block_t &else_bb = cfg.get_node(m[4]);
+    block_t &then_bb = cfg.get_node(then_label);
+    block_t &else_bb = cfg.get_node(else_label);
     b >> edge_then_bb;
     b >> edge_else_bb;
     edge_then_bb >> then_bb;
     edge_else_bb >> else_bb;
-    edge_then_bb.assume(cst);
-    edge_else_bb.assume(cst.negate());
+    // A bare variable as the condition is a boolean, the same reading
+    // assume(b) and assert(b) already have. "true" and "false" are excluded
+    // so they keep falling through to the constraint path below, which maps
+    // them to a tautology and a contradiction; treated as variables they
+    // would be rejected as illegal names instead.
+    smatch cond;
+    if (regex_match(cond_text, cond, re_var) && cond[1] != "true" &&
+        cond[1] != "false") {
+      variable_t c = make_variable(vfac, cond[1], bool_type());
+      edge_then_bb.bool_assume(c);
+      edge_else_bb.bool_not_assume(c);
+    } else {
+      linear_constraint_t cst =
+          parse_linear_constraint(cond_text, vfac, line_number);
+      edge_then_bb.assume(cst);
+      edge_else_bb.assume(cst.negate());
+    }
   } else if (regex_match(instruction_stripped, m, re_goto)) {
-    string label = m[1];
     block_t &next_bb = cfg.get_node(m[1]);
     b >> next_bb;
-  } else if (regex_match(instruction_stripped, m, re_cast)) {
-    // integer cast
-    parse_int_cast(m[1],
-		   m[2], m[3], m[4], m[5],
-		   b, vfac);
-  } else if (regex_match(instruction_stripped, m, re_bool_binop)) {
-    // boolean binary operations (and/or/xor)
-    parse_boolean_binary_op(m[3], m[1], m[2], m[4], b, vfac);
-  } else if (regex_match(instruction_stripped, m, re_bool_unop)) {
-    parse_unary_op(m[2], m[1], m[3], b, vfac);
   } else if (regex_match(instruction_stripped, m, re_value_partition_start)) {
-    variable_type ty(INT_TYPE, std::stoi(m[2]));
-    auto var = variable_or_constant_t(make_variable(vfac, m[1], ty));
+    auto var = variable_or_constant_t(make_variable(vfac, m[1], int_type()));
     b.intrinsic("value_partition_start",{},{var});
   } else if (regex_match(instruction_stripped, m, re_value_partition_end)) {
-    variable_type ty(INT_TYPE, std::stoi(m[2]));
-    auto var = variable_or_constant_t(make_variable(vfac, m[1], ty));
+    auto var = variable_or_constant_t(make_variable(vfac, m[1], int_type()));
     b.intrinsic("value_partition_end",{},{var});
   } else if (regex_match(instruction_stripped, m, re_exit)) {
     // do nothing

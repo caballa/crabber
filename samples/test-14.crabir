@@ -1,0 +1,26 @@
+# Arrays of booleans.
+#
+# An array's element sort comes from the value stored or loaded: annotate that
+# value ":bool" and the array is an array of booleans. The array variable
+# itself is never annotated -- its position in the statement is what makes it
+# an array, and the element sort follows the value. An unannotated value would
+# make the same array an array of mathematical integers instead.
+
+cfg("bool-arrays")
+start:
+   i := 0
+   j := 1
+   t:bool := true
+   f:bool := false
+   array_store(A, i, t:bool)
+   array_store(A, j, f:bool)
+   # The element size defaults to 1, so the two indices are independent and
+   # the second store does not disturb the first.
+   u:bool := array_load(A, i)
+   v:bool := array_load(A, j)
+   nv := not(v)
+   goto check
+check:
+   EXPECT_EQ(true, assert(u))
+   EXPECT_EQ(true, assert(nv))
+   exit

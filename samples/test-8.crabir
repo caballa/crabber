@@ -1,15 +1,18 @@
+# Arrays. The element size of an access is optional and defaults to 1, under
+# which distinct indices are independent and the array behaves as a plain map
+# from addresses to values. See test-13 for an access with a wider extent.
+
 cfg("arrays")
 start:
-   x_addr:i64 := 1024
-   x:i32 := 0  
-   array_store(Stack, x_addr:i64, x:i32)
+   x_addr := 1024
+   x := 0  
+   array_store(Stack, x_addr, x)
    goto loop
 loop:
-   x:i32 := array_load(Stack, x_addr:i64)
-   x:i32 := x + 1
-   array_store(Stack, x_addr:i64, x:i32)
-   if (x <= 9):i32 goto loop else goto exit
+   x := array_load(Stack, x_addr)
+   x := x + 1
+   array_store(Stack, x_addr, x)
+   if (x <= 9) goto loop else goto exit
 exit:
-   x:i32 := array_load(Stack, x_addr:i64)
-   EXPECT_EQ(true, assert(x == 10):i32)
-
+   x := array_load(Stack, x_addr)
+   EXPECT_EQ(true, assert(x == 10))

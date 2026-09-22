@@ -1,21 +1,23 @@
 # Function calls: a cfg with one input and one output parameter.
 #
 # A cfg parameter list is written after the cfg name as a comma-separated
-# sequence of "name:type:direction" where direction is "in" or "out".
+# sequence of "direction name:sort" where direction is "in" or "out".
+# Function interfaces are always fully typed, at the declaration and at the
+# call site, even though ":int" is optional everywhere else.
 #
 # A call is written with the (optional) outputs on the left-hand side and the
 # inputs as arguments:
-#     out:type := call callee(in:type)
+#     out:sort := call callee(in:sort)
 # A single output may be written with or without parentheses.
 
 # inc(a) returns a + 1
-cfg("inc", a:i32:in, b:i32:out)
+cfg("inc", in a:int, out b:int)
   start:
-   b:i32 := a + 1
+   b := a + 1
    exit
 
 cfg("main")
   start:
-   x:i32 := 5
-   y:i32 := call inc(x:i32)
-   EXPECT_EQ(true, assert(y == 6):i32)
+   x := 5
+   y:int := call inc(x:int)
+   EXPECT_EQ(true, assert(y == 6))

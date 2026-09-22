@@ -7,20 +7,19 @@
 cfg("tvpi-example")
 
 start:
-   i:i64 := 0
-   x:i64 := 0
-   havoc(n:i64)
-   assume(n > 0):i64
+   i := 0
+   x := 0
+   havoc(n)
+   assume(n > 0)
 goto header
 
 header:
-   if (i <= n-1):i64 goto body else goto exit
+   if (i <= n-1) goto body else goto exit
 
 body: 
-   i:i64 := i + 1
-   x:i64 := x + 2
+   i := i + 1
+   x := x + 2
 goto header
 
 exit:
-  EXPECT_EQ(true, assert(x == 2*n):i64) 
-
+  EXPECT_EQ(true, assert(x == 2*n))

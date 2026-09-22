@@ -1,13 +1,22 @@
-# Parsing example
+# Parsing example: irregular but legal whitespace everywhere.
+#
+# The long runs of spaces below are deliberate. The grammar is
+# whitespace-insensitive, so every token pattern carries its own "\s*"; that
+# makes patterns like ANY CMPOP ANY expand to adjacent "\s*" runs around lazy
+# wildcards, and on a line that fails to match std::regex used to explore
+# every way of splitting a run of spaces between them. A dozen spaces in an
+# assignment was enough to exceed libc++'s backtracking limit and abort. The
+# parser now canonicalizes whitespace before matching, and these lines keep
+# that fixed.
 
     cfg("parsing-example")
 start : 
-    havoc  (y : i64 )
-   havoc ( z :i64)
-    x:i64 := 0
+    havoc  ( y )
+	havoc	(	z	)
+    x                     :=                     0
    goto loop
   loop   : 
-   x:i64 := y +    2 *   z + 6 - z 
-      if ( x <=  9):i64 goto loop else goto out
+   x := y +    2 *   z + 6 - z                              
+      if ( x <=  9) goto loop else goto out
  out : 
-    assert ( 2*x -6 !=    y + 10 ):i64
+    assert ( 2*x -6 !=    y + 10 )

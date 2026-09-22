@@ -6,6 +6,7 @@
     { "include": "#comments" },
     { "include": "#cfg" },
     { "include": "#labels" },
+    { "include": "#directions" },
     { "include": "#strings" },
     { "include": "#test-macros" },
     { "include": "#intrinsics" },
@@ -57,7 +58,7 @@
       "name": "keyword.other.memory.crabir"
     },
     "casts": {
-      "match": "\\b(trunc|sext|zext)\\b",
+      "match": "\\b(bool_to_int)\\b",
       "name": "keyword.other.cast.crabir"
     },
     "control-keywords": {
@@ -77,8 +78,15 @@
       "name": "constant.language.crabir"
     },
     "types": {
-      "match": "\\bi[0-9]+\\b",
-      "name": "storage.type.crabir"
+      "match": "(:)\\s*(int|bool)\\b",
+      "captures": {
+        "1": { "name": "punctuation.separator.type.crabir" },
+        "2": { "name": "storage.type.crabir" }
+      }
+    },
+    "directions": {
+      "match": "\\b(in|out)\\b(?=\\s+[-A-Za-z$._][-A-Za-z$._0-9]*\\s*:)",
+      "name": "keyword.other.direction.crabir"
     },
     "variables": {
       "match": "@[-A-Za-z$._][-A-Za-z$._0-9]*",

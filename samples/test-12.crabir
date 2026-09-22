@@ -8,28 +8,28 @@
 cfg("tvpi-dbm")
 
 start:
-   havoc(N:i32)
-   assume(N > 0):i32
-   i:i32 := 0
-   x:i32 := 0
+   havoc(N)
+   assume(N > 0)
+   i := 0
+   x := 0
    goto header
 
 header:
-   if (i < N):i32 goto body else goto exit
+   if (i < N) goto body else goto exit
 
 body:
-   i:i32 := i + 1
-   havoc(c:i32)
-   if (c <= 0):i32 goto add2 else goto add3
+   i := i + 1
+   havoc(c)
+   if (c <= 0) goto add2 else goto add3
 
 add2:
-   x:i32 := x + 2
+   x := x + 2
    goto header
 
 add3:
-   x:i32 := x + 3
+   x := x + 3
    goto header
 
 exit:
-   EXPECT_EQ(true, assert(x >= 2*N):i32)
-   EXPECT_EQ(true, assert(x <= 3*N):i32)
+   EXPECT_EQ(true, assert(x >= 2*N))
+   EXPECT_EQ(true, assert(x <= 3*N))

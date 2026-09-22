@@ -103,6 +103,11 @@ if (TopLevel)
   add_crabber_test(test-7-int-val-part   test-7.crabir -d int-val-part   --widening-delay 10)
   add_crabber_test(test-7-zones-val-part test-7.crabir -d zones-val-part --widening-delay 10)
   add_crabber_test(test-8  test-8.crabir  -d zones)
+  # The only sample with an array access wider than one address, so the only
+  # one that reaches the overlap machinery in the array domains.
+  add_crabber_test(test-13 test-13.crabir -d zones)
+  # Arrays of booleans, whose element sort comes from the stored value.
+  add_crabber_test(test-14 test-14.crabir -d zones)
   add_crabber_test(test-9  test-9.crabir  -d tvpi-dbm --coefficients "4,8")
   add_crabber_test(test-10 test-10.crabir -d int-terms)
   # Neither zones nor oct-snf can prove these: the invariants need the non-unit
@@ -116,4 +121,17 @@ if (TopLevel)
   add_crabber_test(test-call-2 test-call-2.crabir -d zones)
   add_crabber_test(test-call-3 test-call-3.crabir -d zones)
   add_crabber_test(test-call-4 test-call-4.crabir -d zones)
+
+  # Negative tests: these programs must fail to compile. Matching the error
+  # message rather than using WILL_FAIL, because a non-zero exit alone does not
+  # say the program was rejected for the intended reason -- and a negative test
+  # that silently starts passing, or starts failing for an unrelated reason, is
+  # worse than no test. Note PASS_REGULAR_EXPRESSION replaces the exit code as
+  # the oracle, so it cannot be combined with WILL_FAIL.
+  add_crabber_test(test-call-fail-1 test-call-fail-1.crabir -d int)
+  set_tests_properties(test-call-fail-1 PROPERTIES
+    PASS_REGULAR_EXPRESSION "inputs and outputs must be disjoint")
+  add_crabber_test(test-call-fail-2 test-call-fail-2.crabir -d int)
+  set_tests_properties(test-call-fail-2 PROPERTIES
+    PASS_REGULAR_EXPRESSION "cannot parse.*call foo")
 endif()

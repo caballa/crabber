@@ -2,16 +2,16 @@
 #
 # When a callee has no output parameters, the call is written without a
 # left-hand side:
-#     call callee(in:type)
+#     call callee(in:sort)
 
 # check(p) asserts that its input is non-negative
-cfg("check", p:i32:in)
+cfg("check", in p:int)
   start:
-   EXPECT_EQ(true, assert(p >= 0):i32)
+   EXPECT_EQ(true, assert(p >= 0))
    exit
 
 cfg("main")
   start:
-   x:i32 := 42
-   call check(x:i32)
+   x := 42
+   call check(x:int)
    exit

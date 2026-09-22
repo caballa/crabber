@@ -171,13 +171,13 @@
 <script>
 const example = `cfg("foo")
   start:
-   x:i32 := 0
+   x := 0
    goto loop
   loop:
-   x:i32 := x + 1
-   if (x <= 9):i32 goto loop else goto out
+   x := x + 1
+   if (x <= 9) goto loop else goto out
   out:
-   EXPECT_EQ(true, assert(x == 10):i32)
+   EXPECT_EQ(true, assert(x == 10))
 `;
 const $ = id => document.getElementById(id);
 const src = $('src'), hl = $('hl');
@@ -210,11 +210,12 @@ function updateHint() {
 const RULES = [
   ['comment', /#[^\n]*/],
   ['string',  /"(?:\\.|[^"\\])*"/],
-  ['type',    /\bi[0-9]+\b/],
+  ['type',    /(?<=:)\s*(?:int|bool)\b/],
+  ['keyword', /\b(?:in|out)\b(?=\s+[-A-Za-z$._][-A-Za-z$._0-9]*\s*:)/],
   ['func',    /\bEXPECT_[A-Z_]+\b/],
   ['func',    /\b(?:value_partition_start|value_partition_end)\b/],
   ['keyword', /\b(?:array_store|array_load)\b/],
-  ['keyword', /\b(?:trunc|sext|zext)\b/],
+  ['keyword', /\b(?:bool_to_int)\b/],
   ['keyword', /\b(?:if|else|goto|assume|assert|havoc|call|exit)\b/],
   ['keyword', /\b(?:and|or|xor|not)\b/],
   ['keyword', /\bcfg\b/],

@@ -6,111 +6,125 @@ window.CRABIR_EXAMPLES = [
   "file": "test-1.crabir",
   "domain": "int",
   "flags": "",
-  "code": "# this is a comment\n# newline is used to delimit a new instruction, new block or new cfg\n# A cfg must have a name\n# Blocks are denoted as a string name followed by \":\".\n# The entry block of a cfg must be called \"start\"\n# Left-hand side of assignments must be typed\n# Constraints that appear in conditionals, assume, and assert must be also typed\n\ncfg(\"foo\")\n  start: \n   x:i32 := 0  # x is an integer of 32 bits\n   goto loop\n  loop: \n   x:i32 := x + 1\n   if (x <= 9):i32 goto loop else goto out\n  out: \n   EXPECT_EQ(false, assert(x != 10):i32)\n\ncfg(\"bar\")\n  start: \n   y:i32 := 0\n   goto loop\n  loop:  \n   y:i32 := y + 1\n   if (y <=  9):i32 goto loop else goto out\n  out: \n   EXPECT_EQ(true, assert(y == 10):i32)\n"
+  "code": "# this is a comment\n# newline is used to delimit a new instruction, new block or new cfg\n# A cfg must have a name\n# Blocks are denoted as a string name followed by \":\".\n# The entry block of a cfg must be called \"start\"\n# Integers are mathematical integers and need no type annotation\n\ncfg(\"foo\")\n  start: \n   x := 0\n   goto loop\n  loop: \n   x := x + 1\n   if (x <= 9) goto loop else goto out\n  out: \n   EXPECT_EQ(false, assert(x != 10))\n\ncfg(\"bar\")\n  start: \n   y := 0\n   goto loop\n  loop:  \n   y := y + 1\n   if (y <=  9) goto loop else goto out\n  out: \n   EXPECT_EQ(true, assert(y == 10))\n"
  },
  {
   "name": "Nested loops · intervals",
   "file": "test-3.crabir",
   "domain": "int",
   "flags": "",
-  "code": "cfg(\"nested-loops\")\nstart:\n  i:i32 := 0\n  goto b0\nb0:\n  goto b1\nb1: # outer loop entry \n  i:i32 := i + 1\n  j:i32 := 0\n  goto b2 \nb2: # inner loop entry\n  if (j <= 9):i32 goto b3 else goto b4\nb3: \n  EXPECT_EQ(true, assert(i >= 0):i32)\n  EXPECT_EQ(true, assert(i <= 10):i32)\n  j:i32 := j + 1\n  goto b2\nb4:\n  assume(j >= 10):i32\n  if (i>=10):i32 goto b5 else goto b6\nb5:\n  i:i32 := 0\n  goto b6\nb6:\n  goto b1\n\n \n"
+  "code": "cfg(\"nested-loops\")\nstart:\n  i := 0\n  goto b0\nb0:\n  goto b1\nb1: # outer loop entry \n  i := i + 1\n  j := 0\n  goto b2 \nb2: # inner loop entry\n  if (j <= 9) goto b3 else goto b4\nb3: \n  EXPECT_EQ(true, assert(i >= 0))\n  EXPECT_EQ(true, assert(i <= 10))\n  j := j + 1\n  goto b2\nb4:\n  assume(j >= 10)\n  if (i>=10) goto b5 else goto b6\nb5:\n  i := 0\n  goto b6\nb6:\n  goto b1\n"
  },
  {
   "name": "Relational bound x+y · octagons",
   "file": "test-4.crabir",
   "domain": "oct-snf",
   "flags": "",
-  "code": "cfg(\"octagons\")\n\nstart:\nn:i64 := 100\nx:i64 := 0\ny:i64 := 200\ngoto header\n\nheader:\nif (x <= n-1):i64 goto body else goto exit\n\nbody: \nx:i64 := x + 1\nt:i64 := 2*x\ny:i64 := 200 - t\ngoto header\n\nexit:\n EXPECT_EQ(true, assert(x + y <= 200):i64) \n"
+  "code": "cfg(\"octagons\")\n\nstart:\nn := 100\nx := 0\ny := 200\ngoto header\n\nheader:\nif (x <= n-1) goto body else goto exit\n\nbody: \nx := x + 1\nt := 2*x\ny := 200 - t\ngoto header\n\nexit:\n EXPECT_EQ(true, assert(x + y <= 200)) \n"
  },
  {
   "name": "Widening thresholds · intervals",
   "file": "test-5.crabir",
   "domain": "int",
   "flags": "--widening-thresholds 10",
-  "code": "cfg(\"thresholds\")\nstart:\n  n:i32 := 0\n  goto b1\n  b1:\n  # assert (n <= 60):i32\n  goto b2\nb2:\n  havoc(y:i32)  \n  if (y >= 0):i32 goto b1 else goto b3\nb3:  \n  if (n <= 59):i32 goto b4 else goto b5\nb4:\n  n:i32 := n + 1\n  goto b6\nb5:\n  n:i32 := 0\n  goto b6\nb6:\n  goto b1\n  \n"
+  "code": "cfg(\"thresholds\")\nstart:\n  n := 0\n  goto b1\n  b1:\n  # assert (n <= 60)\n  goto b2\nb2:\n  havoc(y)  \n  if (y >= 0) goto b1 else goto b3\nb3:  \n  if (n <= 59) goto b4 else goto b5\nb4:\n  n := n + 1\n  goto b6\nb5:\n  n := 0\n  goto b6\nb6:\n  goto b1\n"
  },
  {
-  "name": "Booleans & casts · intervals",
+  "name": "Booleans & branching · intervals",
   "file": "test-6.crabir",
   "domain": "int",
   "flags": "",
-  "code": "# this is a comment\n# newline is used to delimit a new instruction, new block or new cfg\n# A cfg must have a name\n# Blocks are defined as a name followed by \":\" \n# The entry block of a cfg must be called \"start\"\n# Left-hand side of assignments must be typed\n# Constraints that appear in conditionals, assume, and assert must be also typed\n\n cfg(\"booleans\")\n start:\n   # left-hand side must be typed\n   y:i32 := 0\n   goto loop\n loop:\n   # left-hand side must be typed but not right-hand side\n   y:i32 := y + 1\n   if (y <=  9):i32 goto loop else goto loop_exit\n loop_exit:\n   trunc(y:i32, x1:i16)\n   # do not type left-hand side (it can be infered as i1)\n   b := (x1 == 10):i16 \n\n   # parser doesn't support either\n   #   b1 := true\n   # or tautologies nor contradictions\n   #   b1 := (1 == 1):i32\n   # but it allows to truncate to i1 and use the result as a i1\n   w:i32 := 1\n   trunc(w:i32, b1:i1)\n\n   # do not type any variable (they can be infered as i1)\n   b2 := b and b1\n   # do not type any variable (they can be infered as i1)\n   b4 := not(b2)\n   # lhs must be typed\n   b3:i1 := b2    \n   goto end\n end:\n  EXPECT_EQ(true, assert(b2))\n  EXPECT_EQ(false, assert(b4))  \n"
+  "code": "# Booleans.\n#\n# The sort of a boolean is determined by the operator in almost every case:\n# and/or/xor/not take booleans, a comparison on the right-hand side makes the\n# left-hand side one, and a bare variable in assume/assert is one. The only\n# statements that need \":bool\" are a copy and a havoc, where nothing else says\n# what the sort is.\n\n cfg(\"booleans\")\n start:\n   y := 0\n   goto loop\n loop:\n   y := y + 1\n   if (y <=  9) goto loop else goto loop_exit\n loop_exit:\n   # int -> bool is a comparison; no cast is involved\n   b  := y == 10\n   # boolean constants are first class\n   b1 := true\n   # operands inferred as booleans from the operator\n   b2 := b and b1\n   b4 := not(b2)\n   # a copy is one of the two places an annotation is required\n   b3:bool := b2\n   goto end\n end:\n  EXPECT_EQ(true, assert(b2))\n  EXPECT_EQ(false, assert(b4))\n\n# Branching on a boolean. A bare variable as an \"if\" condition is a boolean,\n# the same reading assume(b) and assert(b) already have: the then-edge gets\n# assume(b) and the else-edge assume(not(b)).\n#\n# The condition here is a havoc'd boolean rather than a comparison, so no\n# constraint could stand in for it -- this is the case only the boolean form\n# can express, and both edges are live because its value is unknown.\ncfg(\"branch-on-boolean\")\n start:\n   havoc(b:bool)\n   if (b) goto pos else goto neg\n pos:\n   EXPECT_EQ(true, assert(b))\n   goto join\n neg:\n   EXPECT_EQ(false, assert(b))\n   goto join\n join:\n   exit\n"
  },
  {
   "name": "Value partitioning · powerset int",
   "file": "test-7.crabir",
   "domain": "int-set",
   "flags": "--widening-delay 10",
-  "code": "cfg(\"loop-partitioning\")\n  start: \n    x:i32 := 0\n    value_partition_start(x:i32)\n    goto b1\n  b1: \n    x:i32 := x + 1\n    if (x == 5):i32 goto b2 else goto b3\n  b2:\n    y:i32 := 0\n    goto b3\n  b3:\n    if (x > 5):i32 goto b4 else goto b5\n  b4:\n    y:i32 := y + 1\n    goto b5\n  b5:\n    if (x <= 9):i32 goto b1 else goto exit\n  exit:\n    EXPECT_EQ(true, assert(x == 10):i32)\n    EXPECT_EQ(true, assert(y == 5):i32)\n    value_partition_end(x:i32)\n"
+  "code": "cfg(\"loop-partitioning\")\n  start: \n    x := 0\n    value_partition_start(x)\n    goto b1\n  b1: \n    x := x + 1\n    if (x == 5) goto b2 else goto b3\n  b2:\n    y := 0\n    goto b3\n  b3:\n    if (x > 5) goto b4 else goto b5\n  b4:\n    y := y + 1\n    goto b5\n  b5:\n    if (x <= 9) goto b1 else goto exit\n  exit:\n    EXPECT_EQ(true, assert(x == 10))\n    EXPECT_EQ(true, assert(y == 5))\n    value_partition_end(x)\n"
  },
  {
   "name": "Value partitioning · val-part int",
   "file": "test-7.crabir",
   "domain": "int-val-part",
   "flags": "--widening-delay 10",
-  "code": "cfg(\"loop-partitioning\")\n  start: \n    x:i32 := 0\n    value_partition_start(x:i32)\n    goto b1\n  b1: \n    x:i32 := x + 1\n    if (x == 5):i32 goto b2 else goto b3\n  b2:\n    y:i32 := 0\n    goto b3\n  b3:\n    if (x > 5):i32 goto b4 else goto b5\n  b4:\n    y:i32 := y + 1\n    goto b5\n  b5:\n    if (x <= 9):i32 goto b1 else goto exit\n  exit:\n    EXPECT_EQ(true, assert(x == 10):i32)\n    EXPECT_EQ(true, assert(y == 5):i32)\n    value_partition_end(x:i32)\n"
+  "code": "cfg(\"loop-partitioning\")\n  start: \n    x := 0\n    value_partition_start(x)\n    goto b1\n  b1: \n    x := x + 1\n    if (x == 5) goto b2 else goto b3\n  b2:\n    y := 0\n    goto b3\n  b3:\n    if (x > 5) goto b4 else goto b5\n  b4:\n    y := y + 1\n    goto b5\n  b5:\n    if (x <= 9) goto b1 else goto exit\n  exit:\n    EXPECT_EQ(true, assert(x == 10))\n    EXPECT_EQ(true, assert(y == 5))\n    value_partition_end(x)\n"
  },
  {
   "name": "Value partitioning · val-part zones",
   "file": "test-7.crabir",
   "domain": "zones-val-part",
   "flags": "--widening-delay 10",
-  "code": "cfg(\"loop-partitioning\")\n  start: \n    x:i32 := 0\n    value_partition_start(x:i32)\n    goto b1\n  b1: \n    x:i32 := x + 1\n    if (x == 5):i32 goto b2 else goto b3\n  b2:\n    y:i32 := 0\n    goto b3\n  b3:\n    if (x > 5):i32 goto b4 else goto b5\n  b4:\n    y:i32 := y + 1\n    goto b5\n  b5:\n    if (x <= 9):i32 goto b1 else goto exit\n  exit:\n    EXPECT_EQ(true, assert(x == 10):i32)\n    EXPECT_EQ(true, assert(y == 5):i32)\n    value_partition_end(x:i32)\n"
+  "code": "cfg(\"loop-partitioning\")\n  start: \n    x := 0\n    value_partition_start(x)\n    goto b1\n  b1: \n    x := x + 1\n    if (x == 5) goto b2 else goto b3\n  b2:\n    y := 0\n    goto b3\n  b3:\n    if (x > 5) goto b4 else goto b5\n  b4:\n    y := y + 1\n    goto b5\n  b5:\n    if (x <= 9) goto b1 else goto exit\n  exit:\n    EXPECT_EQ(true, assert(x == 10))\n    EXPECT_EQ(true, assert(y == 5))\n    value_partition_end(x)\n"
  },
  {
   "name": "Array load/store · zones",
   "file": "test-8.crabir",
   "domain": "zones",
   "flags": "",
-  "code": "cfg(\"arrays\")\nstart:\n   x_addr:i64 := 1024\n   x:i32 := 0  \n   array_store(Stack, x_addr:i64, x:i32)\n   goto loop\nloop:\n   x:i32 := array_load(Stack, x_addr:i64)\n   x:i32 := x + 1\n   array_store(Stack, x_addr:i64, x:i32)\n   if (x <= 9):i32 goto loop else goto exit\nexit:\n   x:i32 := array_load(Stack, x_addr:i64)\n   EXPECT_EQ(true, assert(x == 10):i32)\n\n"
+  "code": "# Arrays. The element size of an access is optional and defaults to 1, under\n# which distinct indices are independent and the array behaves as a plain map\n# from addresses to values. See test-13 for an access with a wider extent.\n\ncfg(\"arrays\")\nstart:\n   x_addr := 1024\n   x := 0  \n   array_store(Stack, x_addr, x)\n   goto loop\nloop:\n   x := array_load(Stack, x_addr)\n   x := x + 1\n   array_store(Stack, x_addr, x)\n   if (x <= 9) goto loop else goto exit\nexit:\n   x := array_load(Stack, x_addr)\n   EXPECT_EQ(true, assert(x == 10))\n"
+ },
+ {
+  "name": "Array wide access (extent 8) · zones",
+  "file": "test-13.crabir",
+  "domain": "zones",
+  "flags": "",
+  "code": "# Wide-byte semantics with extent 8: the store at 0x1004 overlaps the cell\n# [0x1000, 0x1008) written by the store at 0x1000, so reloading 0x1000 yields\n# top. Reloading 0x1004 is exact.\n#\n# This is the only sample that reaches the overlap machinery in the array\n# domains (get_overlap_cells / kill_cells). Programs that leave the element\n# size implicit use extent 1, under which distinct indices never interfere.\n\ncfg(\"wide-byte-overlap\")\nstart:\n   a := 4096      # 0x1000\n   b := 4100      # 0x1004\n   v := 305419896\n   w := 42\n   array_store(M, a, v, 8)\n   array_store(M, b, w, 8)\n   r := array_load(M, a, 8)\n   EXPECT_EQ(false, assert(r == 305419896))\n   s := array_load(M, b, 8)\n   EXPECT_EQ(true, assert(s == 42))\n   exit\n"
+ },
+ {
+  "name": "Array of booleans · zones",
+  "file": "test-14.crabir",
+  "domain": "zones",
+  "flags": "",
+  "code": "# Arrays of booleans.\n#\n# An array's element sort comes from the value stored or loaded: annotate that\n# value \":bool\" and the array is an array of booleans. The array variable\n# itself is never annotated -- its position in the statement is what makes it\n# an array, and the element sort follows the value. An unannotated value would\n# make the same array an array of mathematical integers instead.\n\ncfg(\"bool-arrays\")\nstart:\n   i := 0\n   j := 1\n   t:bool := true\n   f:bool := false\n   array_store(A, i, t:bool)\n   array_store(A, j, f:bool)\n   # The element size defaults to 1, so the two indices are independent and\n   # the second store does not disturb the first.\n   u:bool := array_load(A, i)\n   v:bool := array_load(A, j)\n   nv := not(v)\n   goto check\ncheck:\n   EXPECT_EQ(true, assert(u))\n   EXPECT_EQ(true, assert(nv))\n   exit\n"
  },
  {
   "name": "Non-unit coefficients · template DBM",
   "file": "test-9.crabir",
   "domain": "tvpi-dbm",
   "flags": "--coefficients 4,8",
-  "code": "cfg(\"non-unit-coefficients\")\nstart:\n   havoc(N:i32)\n   assume(N > 0):i32\n   i:i32 := 0\n   x:i32 := 0\n   y:i32 := 0     \n   goto loop_header\nloop_header:\n   if (i < N):i32 goto loop_body else goto exit\nloop_body:   \n   i:i32 := i + 1\n   x:i32 := x + 4\n   y:i32 := y + 8\n   goto loop_header\nexit:\n   EXPECT_EQ(true, assert(x == 4*N):i32)\n   EXPECT_EQ(true, assert(y == 8*N):i32)   \n\n"
+  "code": "cfg(\"non-unit-coefficients\")\nstart:\n   havoc(N)\n   assume(N > 0)\n   i := 0\n   x := 0\n   y := 0     \n   goto loop_header\nloop_header:\n   if (i < N) goto loop_body else goto exit\nloop_body:   \n   i := i + 1\n   x := x + 4\n   y := y + 8\n   goto loop_header\nexit:\n   EXPECT_EQ(true, assert(x == 4*N))\n   EXPECT_EQ(true, assert(y == 8*N))\n"
  },
  {
   "name": "Non-unit bounds 2N..3N · template DBM",
   "file": "test-12.crabir",
   "domain": "tvpi-dbm",
   "flags": "--coefficients 2,3",
-  "code": "# Each iteration adds a non-deterministic 2 or 3 to x, so x is bounded by 2*N\n# and 3*N. Both bounds need 2 and 3 in the coefficient template, and both must\n# survive the join at the end of the loop body; int, zones and oct-snf all fail.\n#\n# How to run:\n#   crabber test-12.crabir -d tvpi-dbm --coefficients \"2,3\"\n\ncfg(\"tvpi-dbm\")\n\nstart:\n   havoc(N:i32)\n   assume(N > 0):i32\n   i:i32 := 0\n   x:i32 := 0\n   goto header\n\nheader:\n   if (i < N):i32 goto body else goto exit\n\nbody:\n   i:i32 := i + 1\n   havoc(c:i32)\n   if (c <= 0):i32 goto add2 else goto add3\n\nadd2:\n   x:i32 := x + 2\n   goto header\n\nadd3:\n   x:i32 := x + 3\n   goto header\n\nexit:\n   EXPECT_EQ(true, assert(x >= 2*N):i32)\n   EXPECT_EQ(true, assert(x <= 3*N):i32)\n"
+  "code": "# Each iteration adds a non-deterministic 2 or 3 to x, so x is bounded by 2*N\n# and 3*N. Both bounds need 2 and 3 in the coefficient template, and both must\n# survive the join at the end of the loop body; int, zones and oct-snf all fail.\n#\n# How to run:\n#   crabber test-12.crabir -d tvpi-dbm --coefficients \"2,3\"\n\ncfg(\"tvpi-dbm\")\n\nstart:\n   havoc(N)\n   assume(N > 0)\n   i := 0\n   x := 0\n   goto header\n\nheader:\n   if (i < N) goto body else goto exit\n\nbody:\n   i := i + 1\n   havoc(c)\n   if (c <= 0) goto add2 else goto add3\n\nadd2:\n   x := x + 2\n   goto header\n\nadd3:\n   x := x + 3\n   goto header\n\nexit:\n   EXPECT_EQ(true, assert(x >= 2*N))\n   EXPECT_EQ(true, assert(x <= 3*N))\n"
  },
  {
   "name": "Symbolic terms · intervals+terms",
   "file": "test-10.crabir",
   "domain": "int-terms",
   "flags": "",
-  "code": "cfg(\"terms\")\nstart:\n   havoc(x:i32)\n   havoc(y:i32)\n   \n   assume(x >= 0):i32\n   assume(x <= 10):i32\n   assume(y >= -10):i32\n   assume(y <= 10):i32   \n   z:i32 := x * y\n   if (y < 0):i32 goto b1 else goto b2\nb1:\n   z:i32 := - z\n   goto b2\nb2:   \n   EXPECT_EQ(true, assert(z >= 0):i32)\n   EXPECT_EQ(true, assert(z <= 100):i32)   \n\n"
+  "code": "cfg(\"terms\")\nstart:\n   havoc(x)\n   havoc(y)\n   \n   assume(x >= 0)\n   assume(x <= 10)\n   assume(y >= -10)\n   assume(y <= 10)   \n   z := x * y\n   if (y < 0) goto b1 else goto b2\nb1:\n   z := - z\n   goto b2\nb2:   \n   EXPECT_EQ(true, assert(z >= 0))\n   EXPECT_EQ(true, assert(z <= 100))   \n"
  },
  {
   "name": "Function call: 1-in/1-out · zones",
   "file": "test-call-1.crabir",
   "domain": "zones",
   "flags": "",
-  "code": "# Function calls: a cfg with one input and one output parameter.\n#\n# A cfg parameter list is written after the cfg name as a comma-separated\n# sequence of \"name:type:direction\" where direction is \"in\" or \"out\".\n#\n# A call is written with the (optional) outputs on the left-hand side and the\n# inputs as arguments:\n#     out:type := call callee(in:type)\n# A single output may be written with or without parentheses.\n\n# inc(a) returns a + 1\ncfg(\"inc\", a:i32:in, b:i32:out)\n  start:\n   b:i32 := a + 1\n   exit\n\ncfg(\"main\")\n  start:\n   x:i32 := 5\n   y:i32 := call inc(x:i32)\n   EXPECT_EQ(true, assert(y == 6):i32)\n"
+  "code": "# Function calls: a cfg with one input and one output parameter.\n#\n# A cfg parameter list is written after the cfg name as a comma-separated\n# sequence of \"direction name:sort\" where direction is \"in\" or \"out\".\n# Function interfaces are always fully typed, at the declaration and at the\n# call site, even though \":int\" is optional everywhere else.\n#\n# A call is written with the (optional) outputs on the left-hand side and the\n# inputs as arguments:\n#     out:sort := call callee(in:sort)\n# A single output may be written with or without parentheses.\n\n# inc(a) returns a + 1\ncfg(\"inc\", in a:int, out b:int)\n  start:\n   b := a + 1\n   exit\n\ncfg(\"main\")\n  start:\n   x := 5\n   y:int := call inc(x:int)\n   EXPECT_EQ(true, assert(y == 6))\n"
  },
  {
   "name": "Function call: multi in/out · zones",
   "file": "test-call-2.crabir",
   "domain": "zones",
   "flags": "",
-  "code": "# Function calls: multiple inputs and multiple outputs.\n#\n# When a call has more than one output, the outputs are written as a\n# parenthesized, comma-separated list. Parameters and arguments may mix\n# bitwidths (here i32 and i64).\n\n# swap(x, z) returns (z, x)\ncfg(\"swap\", x:i32:in, z:i64:in, y:i32:out, w:i64:out)\n  start:\n   y:i32 := x\n   w:i64 := z\n   exit\n\ncfg(\"main\")\n  start:\n   a:i32 := 1\n   c:i64 := 2\n   (p:i32, q:i64) := call swap(a:i32, c:i64)\n   EXPECT_EQ(true, assert(p == 1):i32)\n   EXPECT_EQ(true, assert(q == 2):i64)\n"
+  "code": "# Function calls: multiple inputs and multiple outputs.\n#\n# When a call has more than one output, the outputs are written as a\n# parenthesized, comma-separated list. Parameters and arguments may mix sorts\n# (here int and bool).\n\n# swap(x, z) returns (z, x)\ncfg(\"swap\", in x:int, in z:bool, out y:int, out w:bool)\n  start:\n   y := x\n   w:bool := z\n   exit\n\ncfg(\"main\")\n  start:\n   a := 1\n   c := true\n   (p:int, q:bool) := call swap(a:int, c:bool)\n   EXPECT_EQ(true, assert(p == 1))\n   EXPECT_EQ(true, assert(q))\n"
  },
  {
   "name": "Function call: void call · zones",
   "file": "test-call-3.crabir",
   "domain": "zones",
   "flags": "",
-  "code": "# Function calls: a call with no outputs (void call) and an input-only cfg.\n#\n# When a callee has no output parameters, the call is written without a\n# left-hand side:\n#     call callee(in:type)\n\n# check(p) asserts that its input is non-negative\ncfg(\"check\", p:i32:in)\n  start:\n   EXPECT_EQ(true, assert(p >= 0):i32)\n   exit\n\ncfg(\"main\")\n  start:\n   x:i32 := 42\n   call check(x:i32)\n   exit\n"
+  "code": "# Function calls: a call with no outputs (void call) and an input-only cfg.\n#\n# When a callee has no output parameters, the call is written without a\n# left-hand side:\n#     call callee(in:sort)\n\n# check(p) asserts that its input is non-negative\ncfg(\"check\", in p:int)\n  start:\n   EXPECT_EQ(true, assert(p >= 0))\n   exit\n\ncfg(\"main\")\n  start:\n   x := 42\n   call check(x:int)\n   exit\n"
  },
  {
   "name": "Function call: reused callee · zones",
   "file": "test-call-4.crabir",
   "domain": "zones",
   "flags": "",
-  "code": "# Function calls: the same callee is invoked from several call sites and the\n# callee itself has non-trivial control flow (a loop).\n\n# clamp(a) returns min(a, 10) for a non-negative a\ncfg(\"clamp\", a:i32:in, b:i32:out)\n  start:\n   b:i32 := a\n   goto loop\n  loop:\n   if (b <= 10):i32 goto out else goto dec\n  dec:\n   b:i32 := b - 1\n   goto loop\n  out:\n   exit\n\ncfg(\"main\")\n  start:\n   x:i32 := 3\n   u:i32 := call clamp(x:i32)\n   EXPECT_EQ(true, assert(u <= 10):i32)\n   y:i32 := 100\n   v:i32 := call clamp(y:i32)\n   EXPECT_EQ(true, assert(v <= 10):i32)\n"
+  "code": "# Function calls: the same callee is invoked from several call sites and the\n# callee itself has non-trivial control flow (a loop).\n\n# clamp(a) returns min(a, 10) for a non-negative a\ncfg(\"clamp\", in a:int, out b:int)\n  start:\n   b := a\n   goto loop\n  loop:\n   if (b <= 10) goto out else goto dec\n  dec:\n   b := b - 1\n   goto loop\n  out:\n   exit\n\ncfg(\"main\")\n  start:\n   x := 3\n   u:int := call clamp(x:int)\n   EXPECT_EQ(true, assert(u <= 10))\n   y := 100\n   v:int := call clamp(y:int)\n   EXPECT_EQ(true, assert(v <= 10))\n"
  }
 ];

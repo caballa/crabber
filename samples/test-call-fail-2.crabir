@@ -8,6 +8,6 @@
 
 cfg("main")
   start:
-   x:i32 := 0
+   x := 0
    call foo
    exit
