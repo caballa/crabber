@@ -152,27 +152,35 @@ inductive WCon where
 
 /-- A statement, tagged by the `"stmt"` key.
 
-    The four of the numeric core and the six boolean ones. The remaining kinds
-    crabber can emit — `binop`, `select`, `cast`, `unreachable`, the four array
-    ones, `callsite` and the reference/region family — are rejected by name when
-    read, rather than given a constructor here that the semantics could not
-    interpret. -/
+    The four of the numeric core, the five boolean ones, and `cast`. Of the
+    kinds a CrabIR program can contain that leaves `binop`, `array_load`,
+    `array_store` and `callsite`, which are rejected by name when read rather
+    than given a constructor here that the semantics could not interpret.
+    Anything else in the export falls to the same default branch.
+
+    `binop` covers less than its name suggests: Crab emits it only when both
+    operands are variables, so of what crabber can parse it means `y * z` and
+    `y / z` and nothing else. Every linear form is an `assign` over a `WExp`,
+    and is read.
+
+    `cast` is the statement Crab uses for `bool_to_int`, the one cast in the
+    language; the conversion below accepts exactly that and refuses the rest. It
+    needs the constructor either way, because the round trip compares whole
+    documents and a refusal has to reproduce the statement it is refusing. -/
 inductive WStmt where
   | assign (lhs : WVar) (rhs : WExp)
   | assume (cond : WCon)
   | assert (cond : WCon) (loc : Json)
   | havoc  (lhs : WVar)
-  /-- `bool_assign_cst`. The right-hand side is either a linear constraint or a
-      *reference* constraint, and the export says which in a sibling `cst_kind`
-      key rather than by the shape of `rhs`.
+  /-- `bool_assign_cst`. The shape of the right-hand side is announced by a
+      sibling `cst_kind` key rather than by `rhs` itself, and `"linear"` is the
+      only value a CrabIR program produces.
 
-      `rhs` is kept as raw `Json` for exactly that reason: its schema depends on
-      another field, and only one of the two schemas is modelled. References are
-      not, so parsing `rhs` is deferred to the conversion below, which reads it
-      as a `WCon` when `cst_kind` is `"linear"` and refuses it by name otherwise.
-      Holding it opaquely also keeps the round trip exact either way — `Json`'s
-      own JSON instances are the identity — so a document containing a reference
-      constraint is still reported against the construct, not against the
+      `rhs` is kept as raw `Json` for that reason: its schema depends on another
+      field, so parsing it is deferred to the conversion below, which reads it
+      as a `WCon` once `cst_kind` has been checked. Holding it opaquely also
+      keeps the round trip exact — `Json`'s own JSON instances are the identity
+      — so anything else is reported against the construct, not against the
       reader. -/
   | boolAssignCst (cstKind : String) (rhs : Json) (lhs : WVar)
   /-- `bool_assign_var`. `negated` carries `b := not(c)`; Crab has no separate
@@ -184,8 +192,14 @@ inductive WStmt where
   | boolAssume (cond : WVar) (negated : Bool)
   /-- `bool_assert`. No `negated` key — the export does not write one here. -/
   | boolAssert (cond : WVar) (loc : Json)
-  /-- `bool_select`. Crab's own parser cannot produce one; the export can. -/
-  | boolSelect (cond : WVar) (left : WVar) (right : WVar) (lhs : WVar)
+  /-- `cast`, Crab's single conversion statement, discriminated by `op`.
+
+      Only `"zext"` from a boolean — `bool_to_int` — is converted below; see
+      `Crabber.Stmt.boolToInt`. The two widths are carried because the export
+      writes them and the round trip compares whole documents, not because
+      anything reads them: both are 1 here, and a mathematical integer has no
+      width for them to describe. -/
+  | cast (op : String) (rhs : WVar) (rhsWidth : Nat) (lhs : WVar) (lhsWidth : Nat)
   deriving Repr, BEq
 
 /-- An invariant, tagged by the `"kind"` key: `"true"`, `"false"`, or a
@@ -320,14 +334,15 @@ instance : FromJson WStmt where
                          (← j.getObjValAs? Bool "negated")
     | "bool_assert" =>
       return .boolAssert (← j.getObjValAs? WVar "cond") (← j.getObjValAs? Json "loc")
-    | "bool_select" =>
-      return .boolSelect (← j.getObjValAs? WVar "cond")
-                         (← j.getObjValAs? WVar "left")
-                         (← j.getObjValAs? WVar "right")
-                         (← j.getObjValAs? WVar "lhs")
+    | "cast" =>
+      return .cast (← j.getObjValAs? String "op")
+                   (← j.getObjValAs? WVar "rhs")
+                   (← j.getObjValAs? Nat "rhs_width")
+                   (← j.getObjValAs? WVar "lhs")
+                   (← j.getObjValAs? Nat "lhs_width")
     | other    =>
       throw s!"statement kind '{other}' is outside the fragment this library \
-               models (assign, assume, assert, havoc, and the six boolean \
+               models (assign, assume, assert, havoc, cast and the six boolean \
                statements). It is rejected rather than skipped: dropping a \
                statement would weaken every proof obligation in its block."
 
@@ -352,9 +367,9 @@ instance : ToJson WStmt where
         [("stmt", "bool_assume"), ("cond", toJson c), ("negated", toJson n)]
     | .boolAssert c loc => Json.mkObj
         [("stmt", "bool_assert"), ("cond", toJson c), ("loc", toJson loc)]
-    | .boolSelect c l r lhs => Json.mkObj
-        [("stmt", "bool_select"), ("cond", toJson c), ("left", toJson l),
-         ("right", toJson r), ("lhs", toJson lhs)]
+    | .cast op rhs rw lhs lw => Json.mkObj
+        [("stmt", "cast"), ("op", toJson op), ("rhs", toJson rhs),
+         ("rhs_width", toJson rw), ("lhs", toJson lhs), ("lhs_width", toJson lw)]
 
 instance : FromJson WInv where
   fromJson? j := do
@@ -380,8 +395,8 @@ deriving instance FromJson, ToJson for WDoc
 
 Everything below can fail, and says why when it does. The failures are not
 defensive padding: the unmodelled statement kinds occur throughout `samples/` —
-`test-6`'s `branch-on-boolean` havocs a boolean, which `Stmt.havoc` does not
-cover, and is refused for that reason alone — so these paths are exercised. -/
+`test-10` multiplies two variables and `test-call-1` has a call site, and each
+is refused by name — so these paths are exercised. -/
 
 /-- Parse one of the export's decimal strings. -/
 def parseInt (s : String) : Except String Int :=
@@ -391,8 +406,8 @@ def parseInt (s : String) : Except String Int :=
 
 /-- Reject anything that is not an integer type.
 
-    The types that reach this are `bool`, `int_array` and the reference/region
-    family. Booleans are the case that matters, and the reason it is still an
+    The types that reach this are `bool` and the array ones. Booleans are the
+    case that matters, and the reason it is still an
     error rather than a widening: an integer *expression* or *constraint* over a
     boolean variable would mean Crab had put a boolean into arithmetic, which the
     state's two-store representation says is not what CrabIR does. Boolean facts
@@ -522,19 +537,24 @@ def WStmt.toStmt : WStmt → Except String Crabber.Stmt
       return .assign lhs.name (← rhs.toLinExp)
   | .assume c   => return .assume (← c.toLinCon)
   | .assert c _ => return .assert (← c.toLinCon)
-  | .havoc lhs  => do
-      lhs.type.expectInt s!"the havoc target '{lhs.name}'"
-      return .havoc lhs.name
+  -- The one statement whose *target's type* picks the constructor. The export
+  -- writes both forms identically, so this is the only thing distinguishing
+  -- them, and getting it wrong would write the wrong store rather than fail.
+  | .havoc lhs  =>
+      if lhs.type.kind == "bool" then
+        return .boolHavoc lhs.name
+      else do
+        lhs.type.expectInt s!"the havoc target '{lhs.name}'"
+        return .havoc lhs.name
   -- `rhs` was held as raw JSON because its schema depends on `cst_kind`; this is
-  -- where that is resolved. A reference constraint is refused by name — the
-  -- reference and region statements are unmodelled as a group, and accepting
-  -- their constraints alone would be meaningless.
+  -- where that is resolved, and where a `cst_kind` other than the linear one a
+  -- CrabIR program produces is refused by name rather than parsed hopefully.
   | .boolAssignCst kind rhs lhs => do
       lhs.type.expectBool s!"the boolean assignment target '{lhs.name}'"
       if kind != "linear" then
         throw s!"a bool_assign_cst whose right-hand side is a '{kind}' \
-                 constraint. References are outside the fragment this library \
-                 models; only a linear constraint is understood here."
+                 constraint, which is outside the fragment this library models; \
+                 only a linear constraint is understood here."
       let c : WCon ← fromJson? rhs
       return .boolAssignCst lhs.name (← c.toLinCon)
   | .boolAssignVar rhs neg lhs => do
@@ -552,12 +572,16 @@ def WStmt.toStmt : WStmt → Except String Crabber.Stmt
   | .boolAssert c _ => do
       c.type.expectBool s!"the asserted boolean '{c.name}'"
       return .boolAssert c.name
-  | .boolSelect c l r lhs => do
-      lhs.type.expectBool s!"the boolean select target '{lhs.name}'"
-      c.type.expectBool s!"the select condition '{c.name}'"
-      l.type.expectBool s!"the left operand '{l.name}'"
-      r.type.expectBool s!"the right operand '{r.name}'"
-      return .boolSelect lhs.name c.name l.name r.name
+  -- Crab records `bool_to_int` under the bit-level name for what it does to a
+  -- one-bit value, `zext`, so that is what the wire says. Requiring a boolean
+  -- source is what pins the statement down to the one cast in the language.
+  | .cast op rhs _ lhs _ => do
+      if op != "zext" || rhs.type.kind != "bool" then
+        throw s!"a '{op}' cast from '{rhs.name}', of type '{rhs.type.kind}'. \
+                 The only cast this library models is bool_to_int, which Crab \
+                 writes as a 'zext' from a bool."
+      lhs.type.expectInt s!"the bool_to_int target '{lhs.name}'"
+      return .boolToInt lhs.name rhs.name
 
 def WInv.toAssn : WInv → Except String Crabber.Assn
   | .top     => .ok Crabber.Assn.top

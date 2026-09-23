@@ -46,13 +46,18 @@ namespace Crabber
       `c`); it is *not* an antecedent, because an assert we cannot discharge is
       a failure, not a free pass.
 
-    The six boolean clauses introduce no new shape: `boolAssignCst`,
-    `boolAssignVar`, `boolBinop` and `boolSelect` are substitution into the
-    boolean store, `boolAssume` is an implication, `boolAssert` is a conjunction.
+    The boolean clauses introduce no new shape: `boolAssignCst`,
+    `boolAssignVar` and `boolBinop` are substitution into the boolean store,
+    `boolAssume` is an implication, `boolAssert` is a conjunction.
     Every one of them mirrors its `StmtExec` constructor exactly, which is why
-    the soundness proof below stays one term per case. Note that no boolean
-    statement introduces a quantifier: `havoc` remains the only clause that does,
-    and it quantifies over an integer.
+    the soundness proof below stays one term per case.
+
+    Two clauses cross between the stores or quantify. `boolToInt` is
+    substitution again, but into the *integer* store, leaving an
+    `if … then 1 else 0` that `omega` splits on once the boolean is known.
+    `boolHavoc` is the second and last quantifier in the calculus — but over
+    `Bool`, not `Int`, so `simp` expands it into the two cases rather than
+    handing `omega` something it cannot instantiate.
 
     `@[simp]` generates one equation lemma per clause, so `simp` unfolds this
     automatically on a concrete statement. -/
@@ -67,8 +72,8 @@ namespace Crabber
   | .boolBinop x op y z  => fun σ => Q (σ.setBool x (op.apply (σ.bools y) (σ.bools z)))
   | .boolAssume y n      => fun σ => (n ^^ σ.bools y) = true → Q σ
   | .boolAssert y        => fun σ => σ.bools y = true ∧ Q σ
-  | .boolSelect x c l r  =>
-      fun σ => Q (σ.setBool x (if σ.bools c then σ.bools l else σ.bools r))
+  | .boolHavoc x   => fun σ => ∀ v : Bool, Q (σ.setBool x v)
+  | .boolToInt x b => fun σ => Q (σ.set x (if σ.bools b then 1 else 0))
 
 /-- `wp ss Q` — the weakest precondition of a statement *list*.
 
@@ -97,9 +102,10 @@ theorem wpStmt_sound {s : Stmt} {Q : State → Prop} {σ σ' : State}
   | boolAssignCst => exact hwp
   | boolAssignVar => exact hwp
   | boolBinop     => exact hwp
-  | boolSelect    => exact hwp
   | boolAssume h  => exact hwp h
   | boolAssert h  => exact hwp.2
+  | boolHavoc v   => exact hwp v      -- as the integer havoc, but over `Bool`
+  | boolToInt     => exact hwp
 
 /-- **`wp_sound` — the soundness of the calculus.** The lemma that discharges the
     `Exec` premise, once and for all.
@@ -158,9 +164,10 @@ theorem wpStmt_mono {s : Stmt} {Q R : State → Prop} (h : ∀ σ, Q σ → R σ
   | boolAssignCst  => exact h _ hwp
   | boolAssignVar  => exact h _ hwp
   | boolBinop      => exact h _ hwp
-  | boolSelect     => exact h _ hwp
   | boolAssume     => exact fun hc => h _ (hwp hc)
   | boolAssert     => exact ⟨hwp.1, h _ hwp.2⟩
+  | boolHavoc      => exact fun v => h _ (hwp v)
+  | boolToInt      => exact h _ hwp
 
 /-- Monotonicity for a whole body, by induction over it. -/
 theorem wp_mono {ss : List Stmt} {Q R : State → Prop} (h : ∀ σ, Q σ → R σ) :

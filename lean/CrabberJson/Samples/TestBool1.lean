@@ -15,15 +15,16 @@ pair, and the check that this fragment is not vacuous.
 
 ## Why this sample rather than `test-6`
 
-`samples/test-6.crabir` also uses booleans, but neither of its cfgs can serve
-as this check. `branch-on-boolean` havocs a boolean, which `Stmt.havoc` does not
-cover, so it is refused as out of scope. `booleans` is read and attempted, but
-one of its assertions — `b4`, a tautology its flat boolean domain cannot see —
-does not follow from the invariant Crab inferred, so the block is left unproved
-for the same honest reason `test-1`'s `foo` is.
+`samples/test-6.crabir` also uses booleans, and both its cfgs are now read, but
+neither can serve as this check because neither *proves*. `booleans` asserts
+`b4`, a tautology its flat boolean domain cannot see, and `branch-on-boolean`
+asserts a boolean on the edge where it is false. Both are left unproved for the
+same honest reason `test-1`'s `foo` is, so neither shows that the fragment is
+interpreted correctly — only that it is refused correctly.
 
 `test-bool-1` is the one built for the job: every statement in it is one the
-semantics interprets, and its two cfgs pin both verdicts.
+semantics interprets, and its cfgs come in pairs so that each half of the
+fragment pins a proof *and* a refusal.
 
 ## What `safe` exercises
 
@@ -37,8 +38,8 @@ Every boolean statement Crab's parser can emit:
   * `bool_assume` — a whole block whose only content is `assume(b2)`;
   * `bool_assert` — four of them, in the final block.
 
-`bool_select` is the one member of the group with no coverage here, because
-crabber's parser cannot produce one; it arrives only from LLVM-style frontends.
+The other two statements involving booleans, `havoc(b:bool)` and `bool_to_int`,
+are exercised by the `nondet` pair rather than here.
 
 Two of the assertions are worth noting. `b4 := b0 or not(b0 and b1)` is a
 tautology, and `b5 := b0 xor not(b0 and b1)` is one too given `b1`; Crab gets

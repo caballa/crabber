@@ -106,22 +106,22 @@
             {
               "stmt": "bool_assert",
               "cond": {"name": "b2", "type": {"kind": "bool"}},
-              "loc": {"file": "no-filename", "line": 39, "col": 0, "id": 0}
+              "loc": {"file": "no-filename", "line": 42, "col": 0, "id": 0}
             },
             {
               "stmt": "bool_assert",
               "cond": {"name": "b4", "type": {"kind": "bool"}},
-              "loc": {"file": "no-filename", "line": 40, "col": 0, "id": 1}
+              "loc": {"file": "no-filename", "line": 43, "col": 0, "id": 1}
             },
             {
               "stmt": "bool_assert",
               "cond": {"name": "b5", "type": {"kind": "bool"}},
-              "loc": {"file": "no-filename", "line": 41, "col": 0, "id": 2}
+              "loc": {"file": "no-filename", "line": 44, "col": 0, "id": 2}
             },
             {
               "stmt": "bool_assert",
               "cond": {"name": "b6", "type": {"kind": "bool"}},
-              "loc": {"file": "no-filename", "line": 42, "col": 0, "id": 3}
+              "loc": {"file": "no-filename", "line": 45, "col": 0, "id": 3}
             }
           ],
           "invariant": {
@@ -538,7 +538,7 @@
             {
               "stmt": "bool_assert",
               "cond": {"name": "c1", "type": {"kind": "bool"}},
-              "loc": {"file": "no-filename", "line": 59, "col": 0, "id": 4}
+              "loc": {"file": "no-filename", "line": 62, "col": 0, "id": 4}
             }
           ],
           "invariant": {
@@ -689,13 +689,309 @@
           "succs": ["loop"]
         }
       ]
+    },
+    {
+      "name": "nondet",
+      "declaration": {
+        "inputs": [],
+        "outputs": []
+      },
+      "entry": "start",
+      "exit": "end",
+      "blocks": [
+        {
+          "label": "end",
+          "stmts": [
+            {
+              "stmt": "assert",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "math_int"},
+                "terms": [
+                  ["-1", "n"]
+                ],
+                "const": "0"
+              },
+              "loc": {"file": "no-filename", "line": 84, "col": 0, "id": 5}
+            },
+            {
+              "stmt": "assert",
+              "cond": {
+                "op": "<=",
+                "type": {"kind": "math_int"},
+                "terms": [
+                  ["1", "n"]
+                ],
+                "const": "1"
+              },
+              "loc": {"file": "no-filename", "line": 85, "col": 0, "id": 6}
+            },
+            {
+              "stmt": "assert",
+              "cond": {
+                "op": "=",
+                "type": {"kind": "math_int"},
+                "terms": [
+                  ["1", "m"]
+                ],
+                "const": "1"
+              },
+              "loc": {"file": "no-filename", "line": 86, "col": 0, "id": 7}
+            },
+            {
+              "stmt": "assert",
+              "cond": {
+                "op": "=",
+                "type": {"kind": "math_int"},
+                "terms": [
+                  ["1", "k"]
+                ],
+                "const": "0"
+              },
+              "loc": {"file": "no-filename", "line": 87, "col": 0, "id": 8}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["-1", "n"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["1", "n"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["-1", "m"]
+                  ],
+                  "const": "-1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["1", "m"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["-1", "k"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["1", "k"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "q"]
+                  ],
+                  "const": "1"
+                },
+                {
+                  "op": "=",
+                  "type": {"kind": "bool"},
+                  "terms": [
+                    ["1", "r"]
+                  ],
+                  "const": "0"
+                }
+              ]
+            ]
+          },
+          "succs": []
+        },
+        {
+          "label": "known",
+          "stmts": [
+            {
+              "stmt": "bool_assign_cst",
+              "cst_kind": "linear",
+              "rhs": {
+                "op": "true"
+              },
+              "lhs": {"name": "q", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "cast",
+              "op": "zext",
+              "rhs": {"name": "q", "type": {"kind": "bool"}},
+              "rhs_width": 1,
+              "lhs": {"name": "m", "type": {"kind": "math_int"}},
+              "lhs_width": 1
+            },
+            {
+              "stmt": "bool_assign_cst",
+              "cst_kind": "linear",
+              "rhs": {
+                "op": "false"
+              },
+              "lhs": {"name": "r", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "cast",
+              "op": "zext",
+              "rhs": {"name": "r", "type": {"kind": "bool"}},
+              "rhs_width": 1,
+              "lhs": {"name": "k", "type": {"kind": "math_int"}},
+              "lhs_width": 1
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["-1", "n"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["1", "n"]
+                  ],
+                  "const": "1"
+                }
+              ]
+            ]
+          },
+          "succs": ["end"]
+        },
+        {
+          "label": "start",
+          "stmts": [
+            {
+              "stmt": "havoc",
+              "lhs": {"name": "p", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "cast",
+              "op": "zext",
+              "rhs": {"name": "p", "type": {"kind": "bool"}},
+              "rhs_width": 1,
+              "lhs": {"name": "n", "type": {"kind": "math_int"}},
+              "lhs_width": 1
+            }
+          ],
+          "invariant": {
+            "kind": "true"
+          },
+          "succs": ["known"]
+        }
+      ]
+    },
+    {
+      "name": "nondet-unsafe",
+      "declaration": {
+        "inputs": [],
+        "outputs": []
+      },
+      "entry": "start",
+      "exit": "end",
+      "blocks": [
+        {
+          "label": "end",
+          "stmts": [
+            {
+              "stmt": "assert",
+              "cond": {
+                "op": "=",
+                "type": {"kind": "math_int"},
+                "terms": [
+                  ["1", "n"]
+                ],
+                "const": "1"
+              },
+              "loc": {"file": "no-filename", "line": 99, "col": 0, "id": 9}
+            }
+          ],
+          "invariant": {
+            "kind": "disj",
+            "disjuncts": [
+              [
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["-1", "n"]
+                  ],
+                  "const": "0"
+                },
+                {
+                  "op": "<=",
+                  "type": {"kind": "math_int"},
+                  "terms": [
+                    ["1", "n"]
+                  ],
+                  "const": "1"
+                }
+              ]
+            ]
+          },
+          "succs": []
+        },
+        {
+          "label": "start",
+          "stmts": [
+            {
+              "stmt": "havoc",
+              "lhs": {"name": "p", "type": {"kind": "bool"}}
+            },
+            {
+              "stmt": "cast",
+              "op": "zext",
+              "rhs": {"name": "p", "type": {"kind": "bool"}},
+              "rhs_width": 1,
+              "lhs": {"name": "n", "type": {"kind": "math_int"}},
+              "lhs_width": 1
+            }
+          ],
+          "invariant": {
+            "kind": "true"
+          },
+          "succs": ["end"]
+        }
+      ]
     }
   ],
   "checks": [
-    {"file": "no-filename", "line": 39, "col": 0, "id": 0, "result": "safe"},
-    {"file": "no-filename", "line": 40, "col": 0, "id": 1, "result": "safe"},
-    {"file": "no-filename", "line": 41, "col": 0, "id": 2, "result": "safe"},
-    {"file": "no-filename", "line": 42, "col": 0, "id": 3, "result": "safe"},
-    {"file": "no-filename", "line": 59, "col": 0, "id": 4, "result": "warning"}
+    {"file": "no-filename", "line": 42, "col": 0, "id": 0, "result": "safe"},
+    {"file": "no-filename", "line": 43, "col": 0, "id": 1, "result": "safe"},
+    {"file": "no-filename", "line": 44, "col": 0, "id": 2, "result": "safe"},
+    {"file": "no-filename", "line": 45, "col": 0, "id": 3, "result": "safe"},
+    {"file": "no-filename", "line": 62, "col": 0, "id": 4, "result": "warning"},
+    {"file": "no-filename", "line": 84, "col": 0, "id": 5, "result": "safe"},
+    {"file": "no-filename", "line": 85, "col": 0, "id": 6, "result": "safe"},
+    {"file": "no-filename", "line": 86, "col": 0, "id": 7, "result": "safe"},
+    {"file": "no-filename", "line": 87, "col": 0, "id": 8, "result": "safe"},
+    {"file": "no-filename", "line": 99, "col": 0, "id": 9, "result": "warning"}
   ]
 }

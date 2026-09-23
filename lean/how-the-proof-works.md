@@ -351,15 +351,19 @@ That file is everything Lean was given.
 
 ## What is in scope today
 
-**Modelled:** the integer core (`assign`, `havoc` of an integer, `assume`, `assert`) and the
-whole boolean fragment. Integers are unbounded mathematical integers, which is not an
-idealisation: crabber's parser builds Crab's `MATH_INT_TYPE` and nothing else, and every domain
-it runs interprets values over ℤ. (Crab can still express fixed-width integers; crabber no
-longer asks it to.)
+**Modelled:** the integer core (`assign`, `havoc`, `assume`, `assert`), the whole boolean
+fragment, `havoc` of a boolean, and `bool_to_int`. Integers are unbounded mathematical
+integers, which is not an idealisation: crabber's parser builds Crab's `MATH_INT_TYPE` and
+nothing else, and every domain it runs interprets values over ℤ. (Crab can still express
+fixed-width integers; crabber no longer asks it to.)
 
-**Not modelled:** arithmetic `binop` and `select`, `bool_to_int`, `havoc` of a boolean,
-procedure calls, and the array and reference families. A CFG using one of these is reported
-`not attempted`, with the construct named.
+**Not modelled:** three things, and they are all you can write in CrabIR and not have checked —
+`x := y * z` and `x := y / z`, procedure calls, and `array_load`/`array_store`. A CFG using one
+is reported `not attempted`, with the construct named.
+
+Only *variable-by-variable* multiplication and division are out of scope, which is worth saying
+because Crab's statement name for them, `binop`, suggests more: `y + z`, `y - z` and
+`2*y - 3*z + 1` all arrive as an `assign` carrying a linear expression, and are modelled.
 
 Nothing is ever silently skipped. Dropping a statement would weaken every obligation in its
 block, so an unmodelled construct fails the read and says so.

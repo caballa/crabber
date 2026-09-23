@@ -83,10 +83,13 @@ private def addValueDef {α : Type} [ToExpr α] (name : Name) (v : α)
 
     Fails, with the reason, if the document cannot be read, if reading it is not
     faithful to the input, or if the program uses constructs outside the
-    modelled fragment — procedure calls, casts, arithmetic binops and arrays are
-    all rejected by name. Booleans are *not*: the six boolean statements are
-    modelled, and `samples/test-bool-1.crabir` is the sample that exercises
-    them. -/
+    modelled fragment — of what a CrabIR program can contain, that is procedure
+    calls, the array statements, and the two non-linear forms `y * z` and
+    `y / z`, each rejected by name. Linear arithmetic is not among them: it
+    arrives as an `assign` over a linear expression, whatever operators were
+    written to produce it. Nor are the booleans: the six boolean statements are
+    modelled, as are `havoc` of a boolean and the `bool_to_int` cast, and
+    `samples/test-bool-1.crabir` is the sample that exercises them. -/
 syntax (name := crabProgram) "crab_program " str " cfg " str : command
 
 @[command_elab crabProgram]

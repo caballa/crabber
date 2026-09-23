@@ -239,7 +239,22 @@ if (TopLevel)
 
     add_lean_test(lean-test-1 "proved bar,could not verify foo" test-1.crabir -d int)
     add_lean_test(lean-test-1-cfg "proved bar" test-1.crabir -d int --lean-cfg bar)
-    add_lean_test(lean-test-bool-1 "proved safe,could not verify unsafe" test-bool-1.crabir -d int)
+    # Both pairs: the six boolean statements, and then havoc(b:bool) with
+    # bool_to_int. Each pair pins its negative half too, so a change that makes
+    # a havoc'd Boolean provable -- the failure mode that matters here -- shows
+    # up as a test failure rather than as a stronger-looking result.
+    add_lean_test(lean-test-bool-1
+                  "proved safe,could not verify unsafe,proved nondet,could not verify nondet-unsafe"
+                  test-bool-1.crabir -d int)
+    # test-6 proves neither cfg, and pinning that is still worth a test,
+    # because what matters here is that both are *read*. `branch-on-boolean`
+    # reported 'not attempted' until havoc of a Boolean was modelled, and
+    # 'could not verify' is a different verdict: this is what would catch that
+    # going back. `booleans` asserts a tautology its flat Boolean domain cannot
+    # see, so it is genuinely unprovable, exactly as test-1's foo is.
+    add_lean_test(lean-test-6 "could not verify booleans,could not verify branch-on-boolean"
+                  test-6.crabir -d int)
+
     add_lean_test(lean-test-3 "proved nested-loops" test-3.crabir -d int)
     add_lean_test(lean-test-5 "proved thresholds"   test-5.crabir -d int --widening-thresholds 10)
 
