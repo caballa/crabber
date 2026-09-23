@@ -13,7 +13,7 @@ library consumes: a `Cfg` and a `Label → Assn`.
 
 The types below (`W…`, for "wire") mirror the JSON **exactly** — same fields,
 same names, same nesting, including information the proof library has no use
-for, such as bitwidths and source locations. Only afterwards does a separate
+for, such as type tags and source locations. Only afterwards does a separate
 conversion drop what is unused and build `Cfg`/`Assn`.
 
 The extra layer buys a check. Because the wire types are faithful, they can be
@@ -21,7 +21,8 @@ written *back* to JSON and compared against the document that was read. A
 mapping that silently drops a statement, or misreads a coefficient, produces a
 document that differs from the input, and the comparison catches it. Converting
 straight to `Cfg` would make that impossible: `Cfg` has function fields and has
-already discarded the bitwidths, so there would be nothing to compare.
+already discarded the type tags and the locations, so there would be nothing to
+compare.
 
 Most of the mapping is not written by hand at all. Lean's derived JSON encoding
 for a *structure* is a flat object of its fields, which is precisely the shape
@@ -56,13 +57,20 @@ not rename them, as the derived instances are what make the names load-bearing.
     on a wire record prints for the parts nothing interprets. -/
 instance : Repr Json := ⟨fun j _ => Std.Format.text j.compress⟩
 
-/-- A CrabIR type: `{"kind": "int", "bitwidth": 32}`.
+/-- A CrabIR type: `{"kind": "math_int"}`.
 
-    `bitwidth` is carried only by `int`; `bool` and `int_array` omit the key
-    entirely, so it is optional here. Note the export distinguishes *omitted*
-    from *null*, and uses both — a missing bitwidth is an absent key, whereas an
-    untyped expression is an explicit `null` (see `WExp`). The instances below
-    have to preserve that difference for the round trip to mean anything. -/
+    The kinds crabber emits — `math_int`, `bool`, `math_int_array`,
+    `bool_array` — carry no `bitwidth`: crabber's parser builds Crab's
+    `MATH_INT_TYPE` and nothing else. The field is kept anyway, because Crab's
+    own type system has not lost its width-carrying integers: `INT_TYPE` and
+    `REG_INT_TYPE` still exist and still serialize a `bitwidth`. Dropping the
+    field here would silently break the round trip on a document holding one
+    rather than reporting it.
+
+    Note the export distinguishes *omitted* from *null*, and uses both — an
+    absent bitwidth is a missing key, whereas an untyped expression is an
+    explicit `null` (see `WExp`). The instances below have to preserve that
+    difference for the round trip to mean anything. -/
 structure WTy where
   kind      : String
   bitwidth  : Option Nat := none
@@ -372,8 +380,8 @@ deriving instance FromJson, ToJson for WDoc
 
 Everything below can fail, and says why when it does. The failures are not
 defensive padding: the unmodelled statement kinds occur throughout `samples/` —
-`test-6` reaches its booleans through a `cast` and is refused for that reason
-alone — so these paths are exercised. -/
+`test-6`'s `branch-on-boolean` havocs a boolean, which `Stmt.havoc` does not
+cover, and is refused for that reason alone — so these paths are exercised. -/
 
 /-- Parse one of the export's decimal strings. -/
 def parseInt (s : String) : Except String Int :=
@@ -392,13 +400,15 @@ def parseInt (s : String) : Except String Int :=
     path that accepts a bool-typed constraint, and it accepts only the shapes
     Crab actually writes.
 
-    The bitwidth is deliberately ignored rather than rejected. Measured against
-    the analyser, Crab's integers behave as mathematical integers — `x:i8 := 127;
-    x := x+1` yields 128, and a truncating cast does not truncate — so the
-    semantics is over unbounded `Int` and a width would be recorded but never
-    consulted. -/
+    The kind required is `math_int`, not `int`. Crab still has width-carrying
+    integers, but crabber no longer builds any: its parser produces
+    `MATH_INT_TYPE`, whose values are exactly the `Int` this library's semantics
+    is over. So a document tagged `int` came from something other than the
+    crabber this library is paired with, and it is refused by name rather than
+    read as if the width were not there — the width is precisely the thing this
+    semantics would be wrong about. -/
 def WTy.expectInt (t : WTy) (ctx : String) : Except String Unit :=
-  if t.kind == "int" then .ok () else
+  if t.kind == "math_int" then .ok () else
     .error s!"{ctx} has type '{t.kind}', which is outside the fragment this \
               library models. An integer type is required here: boolean \
               variables live in their own store, and only an invariant's \

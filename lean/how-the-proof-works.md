@@ -351,13 +351,15 @@ That file is everything Lean was given.
 
 ## What is in scope today
 
-**Modelled:** the integer core (`assign`, `havoc`, `assume`, `assert`) and the whole boolean
-fragment. Integers are unbounded mathematical integers rather than machine words — measured
-against the analyser, `x:i8 := 127; x := x+1` yields 128, so that is what the semantics says.
+**Modelled:** the integer core (`assign`, `havoc` of an integer, `assume`, `assert`) and the
+whole boolean fragment. Integers are unbounded mathematical integers, which is not an
+idealisation: crabber's parser builds Crab's `MATH_INT_TYPE` and nothing else, and every domain
+it runs interprets values over ℤ. (Crab can still express fixed-width integers; crabber no
+longer asks it to.)
 
-**Not modelled:** arithmetic `binop` and `select`, integer casts, procedure calls, and the
-array and reference families. A CFG using one of these is reported `not attempted`, with the
-construct named.
+**Not modelled:** arithmetic `binop` and `select`, `bool_to_int`, `havoc` of a boolean,
+procedure calls, and the array and reference families. A CFG using one of these is reported
+`not attempted`, with the construct named.
 
 Nothing is ever silently skipped. Dropping a statement would weaken every obligation in its
 block, so an unmodelled construct fails the read and says so.

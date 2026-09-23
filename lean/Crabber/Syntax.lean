@@ -59,14 +59,16 @@ structure LinExp where
 /-! ## Linear constraints
 
 Crab normalises every constraint to `<terms> <op> <const>` and tags it with the
-type of its variables. We deliberately drop the bitwidth: measured against the
-real analyser, Crab's integers behave as mathematical integers, not machine
-words — `x:i8 := 127; x := x+1` yields `x == 128`, not `-128`, and a truncating
-cast from `i32` to `i16` leaves the value unchanged. So the semantics here is
-over unbounded `Int`, and a width would be recorded but never used.
+type of its variables, which is `math_int` for every integer crabber builds:
+the surface language dropped its width annotations, and the parser now produces
+Crab's `MATH_INT_TYPE` exclusively. So the semantics here is over unbounded
+`Int`, and there is no width to record.
 
-That is a genuine assumption about what CrabIR means, not a modelling
-convenience. A wrapping semantics would be a separate development, under which
+Crab itself has not lost its fixed-width integers, so this is a fact about what
+crabber feeds the analyser, not about what Crab can express. It remains an
+assumption rather than a modelling convenience: every abstract domain crabber
+can run interprets values over ℤ, which is why the widths were dropped in the
+first place. A wrapping semantics would be a separate development, under which
 some of Crab's results would be expected to fail. -/
 
 /-- The comparison operators Crab can emit: `<=`, `<`, `=`, `!=`.
@@ -150,12 +152,17 @@ atom from a linear one.
 
 Deferred, and named here so the omission is visible rather than silent:
 
-  * `select`, `cast`, `unreachable`, and the non-linear binary operators.
-    Multiplication and division of variables are outside what `omega` decides,
-    and the exact rounding behaviour of Crab's four division operators —
-    signed and unsigned quotient and remainder are distinct in the export — has
-    not been pinned down. `cast` is the one that bites soonest: `samples/test-6`
-    reaches its booleans through `trunc`, so it stays out of scope even now.
+  * `select`, `cast` (which now carries only `bool_to_int`), `unreachable`, and
+    the non-linear binary
+    operators. Multiplication and division of variables are outside what
+    `omega` decides, and the exact rounding behaviour of Crab's four division
+    operators — signed and unsigned quotient and remainder are distinct in the
+    export — has not been pinned down.
+  * `havoc` of a *boolean*. `Stmt.havoc` names an integer variable, and the
+    reader refuses a bool-typed target rather than dropping the statement. This
+    is the one that bites soonest: it is the only thing keeping
+    `samples/test-6`'s `branch-on-boolean` out of scope, and it needs a
+    constructor of its own plus a `WP` case, not a widening of this one.
   * Procedure calls, which need a call rule and Crab's interprocedural
     summaries; and the array statements, which need select/store reasoning in
     the assertion language.

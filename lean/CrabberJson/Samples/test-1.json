@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "kind": "invariants",
-  "source": {"name": "/Users/jorge/Repos/crabber/samples/test-1.crabir"},
+  "source": {"name": "samples/test-1.crabir"},
   "options": {"simplify_cfg": false},
   "analysis": {
     "domain": "int",
@@ -27,7 +27,7 @@
               "stmt": "assume",
               "cond": {
                 "op": "<=",
-                "type": {"kind": "int", "bitwidth": 32},
+                "type": {"kind": "math_int"},
                 "terms": [
                   ["1", "x"]
                 ],
@@ -41,7 +41,7 @@
               [
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["-1", "x"]
                   ],
@@ -49,7 +49,7 @@
                 },
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["1", "x"]
                   ],
@@ -67,7 +67,7 @@
               "stmt": "assume",
               "cond": {
                 "op": "<=",
-                "type": {"kind": "int", "bitwidth": 32},
+                "type": {"kind": "math_int"},
                 "terms": [
                   ["-1", "x"]
                 ],
@@ -81,7 +81,7 @@
               [
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["-1", "x"]
                   ],
@@ -89,7 +89,7 @@
                 },
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["1", "x"]
                   ],
@@ -106,13 +106,13 @@
             {
               "stmt": "assign",
               "rhs": {
-                "type": {"kind": "int", "bitwidth": 32},
+                "type": {"kind": "math_int"},
                 "terms": [
                   ["1", "x"]
                 ],
                 "const": "1"
               },
-              "lhs": {"name": "x", "type": {"kind": "int", "bitwidth": 32}}
+              "lhs": {"name": "x", "type": {"kind": "math_int"}}
             }
           ],
           "invariant": {
@@ -121,7 +121,7 @@
               [
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["-1", "x"]
                   ],
@@ -129,7 +129,7 @@
                 },
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["1", "x"]
                   ],
@@ -147,13 +147,13 @@
               "stmt": "assert",
               "cond": {
                 "op": "!=",
-                "type": {"kind": "int", "bitwidth": 32},
+                "type": {"kind": "math_int"},
                 "terms": [
                   ["1", "x"]
                 ],
                 "const": "10"
               },
-              "loc": {"file": "no-filename", "line": 17, "col": 0, "id": 0}
+              "loc": {"file": "no-filename", "line": 19, "col": 0, "id": 0}
             }
           ],
           "invariant": {
@@ -162,7 +162,7 @@
               [
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["-1", "x"]
                   ],
@@ -170,7 +170,7 @@
                 },
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["1", "x"]
                   ],
@@ -191,7 +191,7 @@
                 "terms": [],
                 "const": "0"
               },
-              "lhs": {"name": "x", "type": {"kind": "int", "bitwidth": 32}}
+              "lhs": {"name": "x", "type": {"kind": "math_int"}}
             }
           ],
           "invariant": {
@@ -217,7 +217,7 @@
               "stmt": "assume",
               "cond": {
                 "op": "<=",
-                "type": {"kind": "int", "bitwidth": 32},
+                "type": {"kind": "math_int"},
                 "terms": [
                   ["1", "y"]
                 ],
@@ -231,7 +231,7 @@
               [
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["-1", "y"]
                   ],
@@ -239,7 +239,7 @@
                 },
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["1", "y"]
                   ],
@@ -257,7 +257,7 @@
               "stmt": "assume",
               "cond": {
                 "op": "<=",
-                "type": {"kind": "int", "bitwidth": 32},
+                "type": {"kind": "math_int"},
                 "terms": [
                   ["-1", "y"]
                 ],
@@ -271,7 +271,7 @@
               [
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["-1", "y"]
                   ],
@@ -279,7 +279,7 @@
                 },
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["1", "y"]
                   ],
@@ -296,13 +296,13 @@
             {
               "stmt": "assign",
               "rhs": {
-                "type": {"kind": "int", "bitwidth": 32},
+                "type": {"kind": "math_int"},
                 "terms": [
                   ["1", "y"]
                 ],
                 "const": "1"
               },
-              "lhs": {"name": "y", "type": {"kind": "int", "bitwidth": 32}}
+              "lhs": {"name": "y", "type": {"kind": "math_int"}}
             }
           ],
           "invariant": {
@@ -311,7 +311,7 @@
               [
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["-1", "y"]
                   ],
@@ -319,7 +319,7 @@
                 },
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["1", "y"]
                   ],
@@ -337,13 +337,13 @@
               "stmt": "assert",
               "cond": {
                 "op": "=",
-                "type": {"kind": "int", "bitwidth": 32},
+                "type": {"kind": "math_int"},
                 "terms": [
                   ["1", "y"]
                 ],
                 "const": "10"
               },
-              "loc": {"file": "no-filename", "line": 27, "col": 0, "id": 1}
+              "loc": {"file": "no-filename", "line": 29, "col": 0, "id": 1}
             }
           ],
           "invariant": {
@@ -352,7 +352,7 @@
               [
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["-1", "y"]
                   ],
@@ -360,7 +360,7 @@
                 },
                 {
                   "op": "<=",
-                  "type": {"kind": "int", "bitwidth": 32},
+                  "type": {"kind": "math_int"},
                   "terms": [
                     ["1", "y"]
                   ],
@@ -381,7 +381,7 @@
                 "terms": [],
                 "const": "0"
               },
-              "lhs": {"name": "y", "type": {"kind": "int", "bitwidth": 32}}
+              "lhs": {"name": "y", "type": {"kind": "math_int"}}
             }
           ],
           "invariant": {
@@ -393,7 +393,7 @@
     }
   ],
   "checks": [
-    {"file": "no-filename", "line": 17, "col": 0, "id": 0, "result": "warning"},
-    {"file": "no-filename", "line": 27, "col": 0, "id": 1, "result": "safe"}
+    {"file": "no-filename", "line": 19, "col": 0, "id": 0, "result": "warning"},
+    {"file": "no-filename", "line": 29, "col": 0, "id": 1, "result": "safe"}
   ]
 }

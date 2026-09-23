@@ -15,9 +15,15 @@ pair, and the check that this fragment is not vacuous.
 
 ## Why this sample rather than `test-6`
 
-`samples/test-6.crabir` also uses booleans, and cannot be checked: it reaches
-them through `trunc`, and integer casts are not modelled. `test-bool-1` avoids
-casts deliberately, so every statement in it is one the semantics interprets.
+`samples/test-6.crabir` also uses booleans, but neither of its cfgs can serve
+as this check. `branch-on-boolean` havocs a boolean, which `Stmt.havoc` does not
+cover, so it is refused as out of scope. `booleans` is read and attempted, but
+one of its assertions — `b4`, a tautology its flat boolean domain cannot see —
+does not follow from the invariant Crab inferred, so the block is left unproved
+for the same honest reason `test-1`'s `foo` is.
+
+`test-bool-1` is the one built for the job: every statement in it is one the
+semantics interprets, and its two cfgs pin both verdicts.
 
 ## What `safe` exercises
 
