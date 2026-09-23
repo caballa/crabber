@@ -406,14 +406,17 @@ The Lean semantics covers the integer core and the whole boolean fragment:
 | Modelled | |
 |---|---|
 | `assign`, `havoc` of an integer, `assume`, `assert` | Integers are unbounded `Int`. The parser builds Crab's mathematical-integer type and nothing else, and every domain interprets values over ℤ, so this matches what is analysed rather than idealising it. An `assert` is check-then-assume. |
-| `bool_assign_cst`, `bool_assign_var`, `bool_binop`, `bool_assume`, `bool_assert`, `bool_select` | Booleans live in their own store, as `Bool` rather than as 0/1 integers. Crab exports boolean facts as `b = 1`; the reader turns those back into boolean claims. |
+| `bool_assign_cst`, `bool_assign_var`, `bool_binop`, `bool_assume`, `bool_assert` | Booleans live in their own store, as `Bool` rather than as 0/1 integers. Crab exports boolean facts as `b = 1`; the reader turns those back into boolean claims. |
+| `havoc` of a Boolean | `havoc(b:bool)` writes the Boolean store, so it is its own rule rather than a retyped integer `havoc`. The quantifier it introduces ranges over `Bool`, which has two inhabitants, so it is split rather than reasoned about. |
+| `bool_to_int` | `x := if b then 1 else 0`, matching what `flat_boolean_domain` computes. The only statement writing the integer store from the Boolean one. |
+
+That leaves three things you can write in CrabIR and Lean will not check:
 
 | Not modelled — refused by name, so a CFG using one is reported `not attempted` | |
 |---|---|
-| `binop`, `select`, `bool_to_int` | Multiplication and division of variables are outside what `omega` decides, and Crab's four division operators differ in rounding. |
-| `havoc` of a Boolean | `havoc(b:bool)` needs a rule of its own; only integer `havoc` is covered. This is what keeps `samples/test-6.crabir`'s `branch-on-boolean` out of scope, so `samples/test-bool-1.crabir` is the sample that exercises the boolean fragment end to end. |
-| `callsite` | Needs a call rule and the interprocedural summaries — see above. |
-| the four array statements, and the reference/region family | Need select/store reasoning in the assertion language. |
+| `x := y * z` and `x := y / z` | Multiplying or dividing two *variables* is outside what `omega` decides, and Crab's division operators differ in rounding. This is only the variable-by-variable case: all linear arithmetic — `y + z`, `y - z`, `2*y - 3*z + 1` — reaches the export as an `assign` carrying a linear expression, and is modelled. |
+| `call` | Needs a call rule and the interprocedural summaries — see above. |
+| `array_load` and `array_store` | Need select/store reasoning in the assertion language. |
 
 Nothing is ever silently skipped: dropping a statement would weaken every proof
 obligation in its block, so an unmodelled construct fails the read and names

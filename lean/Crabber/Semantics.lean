@@ -28,9 +28,9 @@ namespace Crabber
 /-- `StmtExec s σ σ'` — "statement `s` can take state σ to state σ'".
 
     A *relation*, not a function, because `havoc` is nondeterministic: from one
-    σ there are infinitely many σ'. Declaring it `inductive` means these four
-    constructors are the **only** ways a step can happen, which is what lets a
-    proof do case analysis on it. -/
+    σ there are infinitely many σ', and `boolHavoc` gives two. Declaring it
+    `inductive` means these constructors are the **only** ways a step can
+    happen, which is what lets a proof do case analysis on it. -/
 inductive StmtExec : Stmt → State → State → Prop where
   -- Integer statements.
   /-- Assignment overwrites `x` with the value of `e` in the *current* state. -/
@@ -77,10 +77,18 @@ inductive StmtExec : Stmt → State → State → Prop where
       is added by the weakest-precondition calculus, not here. -/
   | boolAssert {σ : State} {y : Var} (h : σ.bools y = true) :
       StmtExec (.boolAssert y) σ σ
-  /-- `x := if c then l else r`. -/
-  | boolSelect {σ : State} {x c l r : Var} :
-      StmtExec (.boolSelect x c l r) σ
-        (σ.setBool x (if σ.bools c then σ.bools l else σ.bools r))
+  /-- `havoc(x:bool)` may write either boolean, exactly as the integer `havoc`
+      may write any integer: the constructor takes the value as an argument, so
+      there is one step per choice. -/
+  | boolHavoc {σ : State} {x : Var} (v : Bool) :
+      StmtExec (.boolHavoc x) σ (σ.setBool x v)
+  /-- `x := bool_to_int(b)`. The only statement that writes the *integer* store
+      from the boolean one. Measured against the analyser: crabber's
+      `flat_boolean_domain` assigns 1 when `b` is known true and 0 when known
+      false, and when `b` is unknown falls back to the numeric transfer, which
+      bounds `x` to `[0, 1]` — the abstraction of exactly this concrete rule. -/
+  | boolToInt {σ : State} {x b : Var} :
+      StmtExec (.boolToInt x b) σ (σ.set x (if σ.bools b then 1 else 0))
 
 /-! ## A whole block body -/
 
@@ -154,16 +162,16 @@ inductive Reachable (P : Cfg) : Config → Prop where
     `Stmt.assert` alone, `AssertFails` would be *vacuously* unsatisfiable for a
     program whose only assertions are boolean — the theorem would still read
     "no assertion can fail" while quantifying over none of them. Every
-    assert-like construct still to come (division by zero, array bounds,
-    `select`'s guard) is one clause here and nothing else anywhere.
+    assert-like construct still to come (division by zero, array bounds) is one
+    clause here and nothing else anywhere.
 
     `True` for the ordinary statements is not a placeholder: it is the claim
     that they can be reached in any state whatsoever, which is exactly right.
 
     **Every constructor is listed, rather than a `_ => True` catch-all.** This
     is a trusted definition, and a catch-all would silently give `True` to the
-    next statement added to `Stmt` — `select` with its division guard, or an
-    array load needing a bounds check. Those would then be *unobligated*, and
+    next statement added to `Stmt` — a division needing a non-zero divisor, or
+    an array load needing a bounds check. Those would then be *unobligated*, and
     `¬ AssertFails` would quietly stop covering them while still reading as
     though it did. Spelling the cases out turns that into a missing-cases error
     at the one place where the question has to be answered. -/
@@ -177,7 +185,8 @@ def Stmt.obligation : Stmt → State → Prop
   | .boolAssignVar _ _ _ => fun _ => True
   | .boolBinop _ _ _ _  => fun _ => True
   | .boolAssume _ _     => fun _ => True
-  | .boolSelect _ _ _ _ => fun _ => True
+  | .boolHavoc _        => fun _ => True
+  | .boolToInt _ _      => fun _ => True
 
 /-- `AssertFails P` — some execution reaches a statement whose obligation is
     false at that point.

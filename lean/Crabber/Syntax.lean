@@ -121,9 +121,10 @@ The numeric core, plus the boolean fragment.
 
 The four numeric constructors already exercise every interesting case of the
 weakest-precondition calculus — substitution, quantifier introduction,
-implication, and proof obligation. The six boolean ones add no new case to that
+implication, and proof obligation. The boolean ones add no new case to that
 calculus: they are substitution, implication and obligation again, over the
-boolean store instead of the integer one.
+boolean store instead of the integer one, with `boolHavoc` reusing quantifier
+introduction and `boolToInt` reusing substitution back into the integer store.
 
 ### How the booleans are represented, and why
 
@@ -150,19 +151,19 @@ function would then need each variable's type. It does — and the wire format
 already supplies it, on every constraint, which is how the reader tells a boolean
 atom from a linear one.
 
-Deferred, and named here so the omission is visible rather than silent:
+Deferred, and named here so the omission is visible rather than silent. The
+measure throughout is what a CrabIR program can contain: Crab's IR is larger
+than the language crabber parses, and the parts of it no program can reach are
+neither modelled nor counted as gaps.
 
-  * `select`, `cast` (which now carries only `bool_to_int`), `unreachable`, and
-    the non-linear binary
-    operators. Multiplication and division of variables are outside what
-    `omega` decides, and the exact rounding behaviour of Crab's four division
-    operators — signed and unsigned quotient and remainder are distinct in the
-    export — has not been pinned down.
-  * `havoc` of a *boolean*. `Stmt.havoc` names an integer variable, and the
-    reader refuses a bool-typed target rather than dropping the statement. This
-    is the one that bites soonest: it is the only thing keeping
-    `samples/test-6`'s `branch-on-boolean` out of scope, and it needs a
-    constructor of its own plus a `WP` case, not a widening of this one.
+  * `x := y * z` and `x := y / z`, the only two forms crabber emits as a Crab
+    `binop`. Multiplying or dividing two *variables* is outside what `omega`
+    decides, and the rounding behaviour of Crab's division operators has not
+    been pinned down.
+
+    Linear arithmetic is *not* deferred, though the name `binop` suggests
+    otherwise: `y + z`, `y - z` and `2*y - 3*z + 1` all reach the export as an
+    `assign` carrying a `LinExp`, which is the first constructor below.
   * Procedure calls, which need a call rule and Crab's interprocedural
     summaries; and the array statements, which need select/store reasoning in
     the assertion language.
@@ -185,9 +186,8 @@ inductive Stmt where
       holds. This is the only statement that crosses between the two stores, and
       it crosses one way: it reads the integer state and writes the boolean one.
 
-      `c` is a `LinCon`, so integer-typed. The export permits a reference
-      constraint here too (`cst_kind` distinguishes them); references are not
-      modelled, and the reader refuses that form by name. -/
+      `c` is a `LinCon`, so integer-typed: the only constraint kind a CrabIR
+      program can put here. -/
   | boolAssignCst (x : Var) (c : LinCon)
   /-- `x := y` or `x := not y`, according to `negated`. Crab has no separate
       negation statement: the surface `b := not(c)` compiles to this with the
@@ -201,11 +201,26 @@ inductive Stmt where
   /-- `assert(y)` — check-then-assume, exactly as the integer `assert`. There is
       no `negated` flag: the export does not carry one for boolean asserts. -/
   | boolAssert (y : Var)
-  /-- `x := if c then l else r`, all four boolean. Crab's own parser cannot
-      produce this — it arrives from LLVM-style frontends — but the export can
-      contain it, so modelling it costs one clause and avoids an unmodelled
-      member of an otherwise complete group. -/
-  | boolSelect (x : Var) (c : Var) (l : Var) (r : Var)
+  /-- `havoc(b:bool)` — `x` becomes an arbitrary boolean.
+
+      Separate from `havoc` rather than a type-tagged version of it, because the
+      two write different stores and `State` keeps those apart. It is the
+      boolean fragment's only source of nondeterminism, and the second clause in
+      the whole calculus to introduce a quantifier — but over `Bool`, which has
+      two inhabitants, so `simp` finishes what `omega` would not even be handed. -/
+  | boolHavoc (x : Var)
+  /-- `x := bool_to_int(b)` — the integer `x` becomes 1 when `b` holds and 0
+      when it does not.
+
+      The mirror of `boolAssignCst`: that one reads the integer store and writes
+      the boolean one, this one goes the other way, and between them they are the
+      only traffic between the two. Crab represents it as a `CAST_ZEXT` whose
+      source is boolean, and `flat_boolean_domain` gives it exactly this meaning
+      — `true ↦ 1`, `false ↦ 0`.
+
+      There is no cast the other way, in the language or here: `b := x != 0`
+      already turns an integer into a Boolean, and that is a `boolAssignCst`. -/
+  | boolToInt (x : Var) (b : Var)
   deriving Repr
 
 /-! ## Control-flow graphs -/

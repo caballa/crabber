@@ -3,12 +3,15 @@
 #   crabber test-bool-1.crabir -d int --verify-with-lean
 #
 # The boolean fragment, exercised deliberately: every boolean statement Crab's
-# parser can produce appears here, and the two cfgs differ only in whether the
-# asserted boolean is the one the analysis actually knows.
+# parser can produce appears here, and the cfgs come in pairs that differ only
+# in whether the asserted fact is one the analysis actually knows.
+#
+#   safe / unsafe                 the six boolean statements
+#   nondet / nondet-unsafe        havoc(b:bool) and bool_to_int
 #
 # Note test-6.crabir also uses booleans, but it is the short introduction to
-# them; this file is the exhaustive one, and the pair of cfgs below is what
-# makes it checkable end to end in both directions.
+# them; this file is the exhaustive one, and the pairing is what makes it
+# checkable end to end in both directions.
 
 # `safe`: the four assertions all hold, and Crab proves them.
 cfg("safe")
@@ -57,3 +60,40 @@ cfg("unsafe")
    goto end
   end:
    EXPECT_EQ(false, assert(c1))
+
+# `nondet`: the two statements that involve a Boolean without being one -- a
+# havoc'd Boolean, and the single cast that reads the Boolean store.
+#
+# `p` is the case that matters. Its value is unknown, so the bound on `n`
+# follows only from the fact that *both* Booleans give a value in [0, 1]; this
+# is the one place the weakest precondition's quantifier over `Bool` has to be
+# split rather than instantiated. `q` and `r` then pin the two known branches,
+# where Crab assigns the constant directly.
+cfg("nondet")
+  start:
+   havoc(p:bool)
+   n := bool_to_int(p)
+   goto known
+  known:
+   q := true
+   m := bool_to_int(q)
+   r := false
+   k := bool_to_int(r)
+   goto end
+  end:
+   EXPECT_EQ(true, assert(n >= 0))
+   EXPECT_EQ(true, assert(n <= 1))
+   EXPECT_EQ(true, assert(m == 1))
+   EXPECT_EQ(true, assert(k == 0))
+
+# `nondet-unsafe`: the negative half. A havoc'd Boolean must stay unknown, so
+# `n == 1` does not follow -- and neither Crab nor Lean may claim it does. This
+# is the case that would break first if a havoc'd Boolean were ever given a
+# default value instead of a quantifier.
+cfg("nondet-unsafe")
+  start:
+   havoc(p:bool)
+   n := bool_to_int(p)
+   goto end
+  end:
+   EXPECT_EQ(false, assert(n == 1))
