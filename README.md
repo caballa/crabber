@@ -405,12 +405,13 @@ The Lean semantics covers the integer core and the whole boolean fragment:
 
 | Modelled | |
 |---|---|
-| `assign`, `havoc`, `assume`, `assert` | Integers are unbounded `Int`, not machine words — measured against the analyser, `x:i8 := 127; x := x+1` yields 128. An `assert` is check-then-assume. |
+| `assign`, `havoc` of an integer, `assume`, `assert` | Integers are unbounded `Int`. The parser builds Crab's mathematical-integer type and nothing else, and every domain interprets values over ℤ, so this matches what is analysed rather than idealising it. An `assert` is check-then-assume. |
 | `bool_assign_cst`, `bool_assign_var`, `bool_binop`, `bool_assume`, `bool_assert`, `bool_select` | Booleans live in their own store, as `Bool` rather than as 0/1 integers. Crab exports boolean facts as `b = 1`; the reader turns those back into boolean claims. |
 
 | Not modelled — refused by name, so a CFG using one is reported `not attempted` | |
 |---|---|
-| `binop`, `select`, `cast` | Multiplication and division of variables are outside what `omega` decides, and Crab's four division operators differ in rounding. `cast` is why `samples/test-6.crabir` cannot be checked despite being a boolean program; `samples/test-bool-1.crabir` is the cast-free equivalent. |
+| `binop`, `select`, `bool_to_int` | Multiplication and division of variables are outside what `omega` decides, and Crab's four division operators differ in rounding. |
+| `havoc` of a Boolean | `havoc(b:bool)` needs a rule of its own; only integer `havoc` is covered. This is what keeps `samples/test-6.crabir`'s `branch-on-boolean` out of scope, so `samples/test-bool-1.crabir` is the sample that exercises the boolean fragment end to end. |
 | `callsite` | Needs a call rule and the interprocedural summaries — see above. |
 | the four array statements, and the reference/region family | Need select/store reasoning in the assertion language. |
 

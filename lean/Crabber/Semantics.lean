@@ -10,8 +10,10 @@ something this file must match.
 
 Two of those facts are visible in the code below:
 
-  * **Integers are mathematical integers.** There is no wrapping anywhere;
-    `x:i8 := 127; x := x+1` gives 128, and truncating casts are the identity.
+  * **Integers are mathematical integers.** There is no wrapping anywhere, and
+    nothing crabber builds could ask for any: its parser produces Crab's
+    `MATH_INT_TYPE` exclusively, and every domain it runs interprets values
+    over ℤ.
   * **`assert` is check-then-assume.** `StmtExec.assert` requires the condition
     to hold, so a failing assert has no successor state at all: execution simply
     cannot continue past it. This is what makes Crab's downstream invariants

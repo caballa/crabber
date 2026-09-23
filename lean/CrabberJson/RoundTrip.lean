@@ -14,7 +14,8 @@ there. The comparison is on `Json` values rather than on text, so key ordering
 and whitespace are irrelevant.
 
 What this does **not** check: that the wire types mean what the conversion to
-`Cfg`/`Assn` says they mean. Dropping the bitwidth, reading `1·b = 1` as a claim
+`Cfg`/`Assn` says they mean. Reading `math_int` as Lean's unbounded `Int`,
+reading `1·b = 1` as a claim
 about the boolean store, discarding an assertion's source location — those are
 choices argued for where they are made, and no round trip can validate them.
 What it covers is the mechanical half, which is the half where a silent slip is
