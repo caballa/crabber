@@ -4,7 +4,7 @@
 # The invariant x == 2*n needs a domain that tracks non-unit coefficients;
 # int, zones and oct-snf all fail to prove it (-d pk also works).
 
-cfg("tvpi-example")
+procedure("tvpi-example")
 
 start:
    i := 0

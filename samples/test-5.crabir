@@ -5,7 +5,7 @@
 # widening thresholds the output must contain
 #   b1: ({}, {n -> [0, 60]})
 
-cfg("thresholds")
+procedure("thresholds")
 start:
   n := 0
   goto b1

@@ -6,7 +6,7 @@
 # callee itself has non-trivial control flow (a loop).
 
 # clamp(a) returns min(a, 10) for a non-negative a
-cfg("clamp", in a:int, out b:int)
+procedure("clamp", in a:int, out b:int)
   start:
    b := a
    goto loop
@@ -18,7 +18,7 @@ cfg("clamp", in a:int, out b:int)
   out:
    exit
 
-cfg("main")
+procedure("main")
   start:
    x := 3
    u:int := call clamp(x:int)

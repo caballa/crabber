@@ -8,7 +8,7 @@
 
 (defvar crab-font-lock-keywords
   (list
-   `(,(regexp-opt '("cfg") 'symbols) . font-lock-function-name-face)   
+   `(,(regexp-opt '("procedure") 'symbols) . font-lock-function-name-face)
    ;; Comments
    '("\#" . font-lock-comment-face)
    ;; Variables
@@ -43,7 +43,8 @@
    ;; Casts. bool_to_int is the only one: false becomes 0 and true becomes 1.
    ;; trunc/sext/zext are gone, having been meaningful only between widths.
    `(,(regexp-opt '("bool_to_int") 'symbols) . font-lock-keyword-face)
-   ;; Direction markers in a cfg parameter list, e.g. cfg("f", in a:int, out b:int).
+   ;; Direction markers in a procedure parameter list, e.g.
+   ;; procedure("f", in a:int, out b:int).
    ;; Matched together with the parameter that follows but highlighting only
    ;; group 1, so that a block label named "out" is left alone. Emacs regexps
    ;; have no lookahead, hence the subexpression form rather than "(?=...)".

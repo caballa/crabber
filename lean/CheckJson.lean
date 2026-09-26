@@ -5,8 +5,9 @@ import CrabberJson
     lake exe checkjson out1.json out2.json …
 
 For each file: parse it, read it into the wire types, confirm that writing those
-back out reproduces the input, and convert every cfg in it to the `Cfg` and
-`Label → Assn` the proof library consumes. Reports one line per cfg and exits
+back out reproduces the input, and convert every procedure in it to the `Cfg`
+and `Label → Assn` the proof library consumes. Reports one line per procedure
+and exits
 non-zero if anything failed.
 
 This is how the reader is exercised against the whole sample suite without

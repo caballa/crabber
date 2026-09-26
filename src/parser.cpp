@@ -18,12 +18,14 @@
 // Like ANY but allows the empty string (used for optional argument lists).
 #define ANY_OR_EMPTY R"_(\s*(.*?)\s*)_"
 
-// A cfg header optionally followed by a comma-separated parameter list, e.g.
-//   cfg("foo")
-//   cfg("foo", in a:int, out b:int)
-// Group 1: cfg name. Group 2: parameter list (empty if there are no params).
-#define CFG_START                                                              \
-  R"_(\s*cfg\s*\(\s*")_" ANY R"_("\s*(?:,)_" ANY R"_()?\)\s*)_"
+// A procedure header optionally followed by a comma-separated parameter list,
+// e.g.
+//   procedure("foo")
+//   procedure("foo", in a:int, out b:int)
+// Group 1: procedure name. Group 2: parameter list (empty if there are no
+// params).
+#define PROCEDURE_START                                                        \
+  R"_(\s*procedure\s*\(\s*")_" ANY R"_("\s*(?:,)_" ANY R"_()?\)\s*)_"
 
 #define CMPOP R"_(\s*(<=|<|>=|>|==|=|!=)\s*)_"
 #define BOOLEANOP R"_(\s*(and|or|xor)\s*)_"
@@ -122,7 +124,7 @@ using namespace crab;
 static const regex re_var(VAR);
 static const regex re_typed_var(TYPED_VAR);
 static const regex re_cfg_param(CFG_PARAM);
-static const regex re_cfg_start(CFG_START);
+static const regex re_procedure_start(PROCEDURE_START);
 static const regex re_label_def(LABEL_DEF);
 static const regex re_imm(IMM);
 static const regex re_literal(LITERAL);
@@ -365,7 +367,7 @@ make_cfg(variable_factory_t &vfac, const string &name, const string &params,
   const string exit_block_name("___exit");
   for (auto &p : body) {
     if (p.first == exit_block_name) {
-      CRAB_ERROR("cannot create a dedicated exit block for cfg \"", name,
+      CRAB_ERROR("cannot create a dedicated exit block for procedure \"", name,
                  "\" because it already defines a block named \"",
                  exit_block_name, "\"");
     }
@@ -424,7 +426,7 @@ parse_crabir(istream &is, variable_factory_t &vfac) {
     line_number++;
     string line_stripped = strip_comment(line);
     smatch m;
-    if (regex_match(line_stripped, m, re_cfg_start)) {
+    if (regex_match(line_stripped, m, re_procedure_start)) {
       // Start of a CFG
       if (cur_cfg_name != "") {
         if (cur_block != "") {
@@ -464,7 +466,7 @@ parse_crabir(istream &is, variable_factory_t &vfac) {
   }
 
   if (cfgs.empty()) {
-    CRAB_ERROR("No cfg found");
+    CRAB_ERROR("No procedure found");
   }
   return make_pair(std::move(cfgs), std::move(expected_results));
 }

@@ -179,7 +179,7 @@ void writeProofFile(const std::string &path, const std::string &jsonAbs,
   ofs << "import CrabberJson.Elab\n"
       << "set_option maxHeartbeats " << opts.heartbeats << "\n"
       << "namespace CrabberJson.Generated\n"
-      << "crab_program " << leanString(jsonAbs) << " cfg "
+      << "crab_program " << leanString(jsonAbs) << " procedure "
       << leanString(cfgName) << "\n"
       << verifyCommand(opts) << "\n"
       << "end CrabberJson.Generated\n";

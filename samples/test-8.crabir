@@ -5,7 +5,7 @@
 # which distinct indices are independent and the array behaves as a plain map
 # from addresses to values. See test-13 for an access with a wider extent.
 
-cfg("arrays")
+procedure("arrays")
 start:
    x_addr := 1024
    x := 0  

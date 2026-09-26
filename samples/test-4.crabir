@@ -1,7 +1,7 @@
 # How to run:
 #   crabber test-4.crabir -d oct-snf
 
-cfg("octagons")
+procedure("octagons")
 
 start:
 n := 100

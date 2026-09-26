@@ -2,13 +2,13 @@
 #   crabber test-1.crabir -d int
 
 # this is a comment
-# newline is used to delimit a new instruction, new block or new cfg
-# A cfg must have a name
+# newline is used to delimit a new instruction, new block or new procedure
+# A procedure must have a name
 # Blocks are denoted as a string name followed by ":".
-# The entry block of a cfg must be called "start"
+# The entry block of a procedure must be called "start"
 # Integers are mathematical integers and need no type annotation
 
-cfg("foo")
+procedure("foo")
   start: 
    x := 0
    goto loop
@@ -18,7 +18,7 @@ cfg("foo")
   out: 
    EXPECT_EQ(false, assert(x != 10))
 
-cfg("bar")
+procedure("bar")
   start: 
    y := 0
    goto loop

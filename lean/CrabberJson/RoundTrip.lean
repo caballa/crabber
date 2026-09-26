@@ -80,11 +80,12 @@ def cfgChecked (raw : Json) : Except String WCfg := do
   if back == raw then
     return c
   else
-    throw s!"the JSON reader is not faithful to this cfg: writing the parsed \
+    throw s!"the JSON reader is not faithful to this procedure: writing the parsed \
              form back out does not reproduce the input. Something was dropped \
              or misread.\n{firstDifference raw back}"
 
-/-- Read one named cfg from a document's text, checking both round trips on the
+/-- Read one named procedure from a document's text, checking both round
+    trips on the
     way. This is the entry point a generated file should use: it is the only
     path that both produces a `Program` and validates the reading of it. -/
 def programOfString (text : String) (cfgName : String) : Except String Program := do
@@ -94,7 +95,7 @@ def programOfString (text : String) (cfgName : String) : Except String Program :
   let c ← cfgChecked cfgRaw
   c.toProgram
 
-/-- The names of every cfg in a document, without parsing any of them. -/
+/-- The names of every procedure in a document, without parsing any of them. -/
 def cfgNamesOfString (text : String) : Except String (List String) := do
   let raw ← Json.parse text
   let d ← readChecked raw

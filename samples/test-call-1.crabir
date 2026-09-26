@@ -2,10 +2,11 @@
 #   crabber test-call-1.crabir -d zones
 #
 
-# Function calls: a cfg with one input and one output parameter.
+# Function calls: a procedure with one input and one output parameter.
 #
-# A cfg parameter list is written after the cfg name as a comma-separated
-# sequence of "direction name:sort" where direction is "in" or "out".
+# A procedure parameter list is written after the procedure name as a
+# comma-separated sequence of "direction name:sort" where direction is "in" or
+# "out".
 # Function interfaces are always fully typed, at the declaration and at the
 # call site, even though ":int" is optional everywhere else.
 #
@@ -15,12 +16,12 @@
 # A single output may be written with or without parentheses.
 
 # inc(a) returns a + 1
-cfg("inc", in a:int, out b:int)
+procedure("inc", in a:int, out b:int)
   start:
    b := a + 1
    exit
 
-cfg("main")
+procedure("main")
   start:
    x := 5
    y:int := call inc(x:int)

@@ -630,7 +630,7 @@ def WCfg.toProgram (c : WCfg) : Except String Program := do
   -- so the two documents could agree while describing different graphs.
   let labels := bs.map (·.label)
   if labels.eraseDups.length != labels.length then
-    throw s!"cfg '{c.name}' lists a block label twice"
+    throw s!"procedure '{c.name}' lists a block label twice"
   return { name   := c.name
            entry  := c.entry
            labels := labels
@@ -670,6 +670,6 @@ def WDoc.rawCfg (d : WDoc) (cfgName : String) : Except String Json :=
   | some j => .ok j
   | none   =>
     let available := String.intercalate ", " d.cfgNames
-    .error s!"no cfg named '{cfgName}' in this document (it has: {available})"
+    .error s!"no procedure named '{cfgName}' in this document (it has: {available})"
 
 end CrabberJson

@@ -4,7 +4,7 @@
 #
 #   check-verdicts.sh <crabber> '<expected>' <crabber args...>
 #
-# where <expected> is a ','-separated list of '<verdict> <cfg>' pairs, as in
+# where <expected> is a ','-separated list of '<verdict> <procedure>' pairs, as in
 #
 #   check-verdicts.sh ./crabber 'proved bar,could not verify foo' test-1.crabir -d int
 #
@@ -21,9 +21,9 @@
 #
 # ## Why the whole set, rather than grepping for one line
 #
-# A missing verdict is as much a regression as a wrong one -- a cfg that stops
+# A missing verdict is as much a regression as a wrong one -- a procedure that stops
 # being checked at all would pass any per-line grep. Comparing the full set
-# catches that, and catches a *new* cfg appearing.
+# catches that, and catches a *new* procedure appearing.
 #
 # ## Why the negative expectations are pinned too
 #
@@ -34,7 +34,7 @@
 #
 # ## What is deliberately not compared
 #
-# Only the verdict and the cfg name. The detail after the ':' is prose -- an
+# Only the verdict and the procedure name. The detail after the ':' is prose -- an
 # omega message, the name of an unmodelled construct -- and pinning it would make
 # every reworded diagnostic a test failure. The verdict is the claim; the detail
 # is the explanation.

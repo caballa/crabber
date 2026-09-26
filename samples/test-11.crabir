@@ -4,7 +4,7 @@
 # Deeply nested loops: a fixpoint stress test. It has no EXPECT_EQ, so nothing
 # is checked. Not registered as a test in CMakeLists.txt.
 
-cfg("nested-loops-2")
+procedure("nested-loops-2")
 start:
  i := 0
  goto l1

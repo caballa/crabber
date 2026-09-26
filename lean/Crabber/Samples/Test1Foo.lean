@@ -1,7 +1,7 @@
 import Crabber.Soundness
 import Crabber.Tactic
 /-
-# `samples/test-1.crabir`, cfg `foo`, under `-d int` — the *unsafe* companion
+# `samples/test-1.crabir`, procedure `foo`, under `-d int` — the *unsafe* companion
 
 `foo` is `bar` with the assertion negated:
 

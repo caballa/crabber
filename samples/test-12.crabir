@@ -5,7 +5,7 @@
 # How to run:
 #   crabber test-12.crabir -d tvpi-dbm --coefficients "2,3"
 
-cfg("tvpi-dbm")
+procedure("tvpi-dbm")
 
 start:
    havoc(N)

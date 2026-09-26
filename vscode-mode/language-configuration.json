@@ -21,7 +21,7 @@
   ],
   "indentationRules": {
     "increaseIndentPattern": "^\\s*[-A-Za-z$._0-9]+:\\s*(#.*)?$",
-    "decreaseIndentPattern": "^\\s*(cfg\\b|[-A-Za-z$._0-9]+:)"
+    "decreaseIndentPattern": "^\\s*(procedure\\b|[-A-Za-z$._0-9]+:)"
   },
   "onEnterRules": [
     {

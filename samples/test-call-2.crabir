@@ -9,13 +9,13 @@
 # (here int and bool).
 
 # swap(x, z) returns (z, x)
-cfg("swap", in x:int, in z:bool, out y:int, out w:bool)
+procedure("swap", in x:int, in z:bool, out y:int, out w:bool)
   start:
    y := x
    w:bool := z
    exit
 
-cfg("main")
+procedure("main")
   start:
    a := 1
    c := true

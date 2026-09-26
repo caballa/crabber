@@ -2,19 +2,20 @@
 #   crabber test-call-3.crabir -d zones
 #
 
-# Function calls: a call with no outputs (void call) and an input-only cfg.
+# Function calls: a call with no outputs (void call) and an input-only
+# procedure.
 #
 # When a callee has no output parameters, the call is written without a
 # left-hand side:
 #     call callee(in:sort)
 
 # check(p) asserts that its input is non-negative
-cfg("check", in p:int)
+procedure("check", in p:int)
   start:
    EXPECT_EQ(true, assert(p >= 0))
    exit
 
-cfg("main")
+procedure("main")
   start:
    x := 42
    call check(x:int)

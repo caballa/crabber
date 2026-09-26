@@ -1,6 +1,6 @@
 import CrabberJson.Elab
 /-
-# `samples/test-1.crabir`, cfg `bar`, proved from the JSON export
+# `samples/test-1.crabir`, procedure `bar`, proved from the JSON export
 
 The same result as the hand-transcribed `Crabber.Samples.Test1Bar`, with the
 program and the invariants **read from Crab's export** instead of typed in.
@@ -34,7 +34,7 @@ Reads `CrabberJson/Samples/test-1.json` while this file is elaborated, checks th
 it is faithful to the document, and defines `bodyTable`, `succTable`,
 `invTable`, `labels`, `prog` and `inv`. Nothing became source text on the way. -/
 
-crab_program "CrabberJson/Samples/test-1.json" cfg "bar"
+crab_program "CrabberJson/Samples/test-1.json" procedure "bar"
 
 /-! ## The per-block obligations
 
@@ -100,7 +100,7 @@ theorem chk : ∀ (L : Label) (pre : List Stmt) (s : Stmt) (post : List Stmt),
 
 /-- **The theorem.**
 
-    *The invariants Crab inferred for cfg `bar` of `samples/test-1.crabir` under
+    *The invariants Crab inferred for procedure `bar` of `samples/test-1.crabir` under
     `-d int` are genuine invariants of the program, and the program's assertion
     can never fail* — with the program and the invariants taken from Crab's own
     JSON export rather than transcribed by hand.

@@ -9,7 +9,7 @@
  *
  * What happens per CFG is that a two-line Lean file is written,
  *
- *     crab_program "<absolute path to the document>" cfg "<name>"
+ *     crab_program "<absolute path to the document>" procedure "<name>"
  *     crab_verify
  *
  * and checked with `lake env lean`. The first line reads the document while the
