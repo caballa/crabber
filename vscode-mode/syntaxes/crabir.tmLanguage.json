@@ -4,7 +4,7 @@
   "scopeName": "source.crabir",
   "patterns": [
     { "include": "#comments" },
-    { "include": "#cfg" },
+    { "include": "#procedure" },
     { "include": "#labels" },
     { "include": "#directions" },
     { "include": "#strings" },
@@ -26,9 +26,9 @@
       "match": "#.*$",
       "name": "comment.line.number-sign.crabir"
     },
-    "cfg": {
-      "match": "\\bcfg\\b",
-      "name": "keyword.other.cfg.crabir"
+    "procedure": {
+      "match": "\\bprocedure\\b",
+      "name": "keyword.other.procedure.crabir"
     },
     "labels": {
       "match": "^\\s*([-A-Za-z$._0-9]+)\\s*(:)\\s*(?=#|$)",

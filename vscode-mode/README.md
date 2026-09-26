@@ -7,10 +7,10 @@ counterpart to `emacs-mode/crabir-mode.el`.
 ## What it highlights
 
 - Comments (`# ...`)
-- `cfg` and block labels (`start:`, `loop:`, ...)
-- String literals (`cfg("foo")`)
+- `procedure` and block labels (`start:`, `loop:`, ...)
+- String literals (`procedure("foo")`)
 - Types (`int`, `bool`) in annotation position, and the `in` / `out` direction
-  markers of a `cfg` parameter list
+  markers of a `procedure` parameter list
 - Integer literals
 - Constants / declarations (`declare`, `true`, `false`)
 - Arithmetic & logical operators (`add`, `sub`, `mul`, `sdiv`, `udiv`, `urem`,

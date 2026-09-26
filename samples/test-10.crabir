@@ -1,7 +1,7 @@
 # How to run:
 #   crabber test-10.crabir -d int-terms
 
-cfg("terms")
+procedure("terms")
 start:
    havoc(x)
    havoc(y)

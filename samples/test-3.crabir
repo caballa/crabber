@@ -1,7 +1,7 @@
 # How to run:
 #   crabber test-3.crabir -d int
 
-cfg("nested-loops")
+procedure("nested-loops")
 start:
   i := 0
   goto b0

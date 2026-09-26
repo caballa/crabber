@@ -2,7 +2,7 @@ import CrabberJson.Elab
 /-
 # `samples/test-bool-1.crabir`, proved from the JSON export
 
-The boolean fragment, end to end. Both cfgs of the sample are loaded from Crab's
+The boolean fragment, end to end. Both procedures of the sample are loaded from Crab's
 own export:
 
     build/crabber samples/test-bool-1.crabir -d int --print-invariants-to-json \
@@ -15,7 +15,7 @@ pair, and the check that this fragment is not vacuous.
 
 ## Why this sample rather than `test-6`
 
-`samples/test-6.crabir` also uses booleans, and both its cfgs are now read, but
+`samples/test-6.crabir` also uses booleans, and both its procedures are now read, but
 neither can serve as this check because neither *proves*. `booleans` asserts
 `b4`, a tautology its flat boolean domain cannot see, and `branch-on-boolean`
 asserts a boolean on the edge where it is false. Both are left unproved for the
@@ -23,7 +23,7 @@ same honest reason `test-1`'s `foo` is, so neither shows that the fragment is
 interpreted correctly — only that it is refused correctly.
 
 `test-bool-1` is the one built for the job: every statement in it is one the
-semantics interprets, and its cfgs come in pairs so that each half of the
+semantics interprets, and its procedures come in pairs so that each half of the
 fragment pins a proof *and* a refusal.
 
 ## What `safe` exercises
@@ -52,7 +52,7 @@ namespace TestBool1
 
 open Crabber
 
-/-! ## `safe` — the cfg that verifies
+/-! ## `safe` — the procedure that verifies
 
 Reads the export while this file is elaborated, checks that reading it is
 faithful to the document, and defines `bodyTable`, `succTable`, `invTable`,
@@ -64,12 +64,12 @@ the modelled fragment. That is the point of the exercise. -/
 
 namespace Safe
 
-crab_program "CrabberJson/Samples/test-bool-1.json" cfg "safe"
+crab_program "CrabberJson/Samples/test-bool-1.json" procedure "safe"
 crab_verify
 
 /-- **The theorem**, restated under a name that says what it is.
 
-    *The invariants Crab inferred for cfg `safe` are genuine invariants, and none
+    *The invariants Crab inferred for procedure `safe` are genuine invariants, and none
     of its four boolean assertions can fail.*
 
     `verified_program` is what `crab_verify` generated; this is an alias, so that
@@ -80,7 +80,7 @@ theorem safe_verified : InvariantOf prog inv ∧ ¬ AssertFails prog :=
 
 end Safe
 
-/-! ## `unsafe` — the cfg whose assertion is false
+/-! ## `unsafe` — the procedure whose assertion is false
 
 Same program, asserting `not(y == 10)` where `y` is 10. Crab reports the
 assertion as an error, and the source marks it `EXPECT_EQ(false, …)`.
@@ -99,7 +99,7 @@ boolean instance. -/
 
 namespace Unsafe
 
-crab_program "CrabberJson/Samples/test-bool-1.json" cfg "unsafe"
+crab_program "CrabberJson/Samples/test-bool-1.json" procedure "unsafe"
 
 /-- A state matching what Crab inferred at `end`: `y = 10`, `c0` true, and every
     other boolean — `c1` among them — false.

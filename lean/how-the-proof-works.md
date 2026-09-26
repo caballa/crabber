@@ -103,7 +103,7 @@ end towards the start. Each kind of statement contributes one thing:
 | `assert(c)` | `c` becomes something you must prove |
 | the boolean statements | the same three shapes, over the boolean variables |
 
-Worked example — block `loop` of `samples/test-1.crabir`, cfg `bar`:
+Worked example — block `loop` of `samples/test-1.crabir`, procedure `bar`:
 
 ```
         invariant Crab claims at loop:   0 ≤ y ≤ 9
@@ -210,7 +210,7 @@ They are callees, and their entry invariants were derived from their call sites.
 
 ### A complete example
 
-Here is *everything* proved for one program — cfg `bar` of `samples/test-1.crabir`, a
+Here is *everything* proved for one program — procedure `bar` of `samples/test-1.crabir`, a
 counting loop:
 
 ```

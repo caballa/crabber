@@ -6,7 +6,7 @@
 #
 # The boxes run needs Crab built with -DCRAB_USE_LDD=ON.
 
-cfg("loop-partitioning")
+procedure("loop-partitioning")
   start: 
     x := 0
     value_partition_start(x)

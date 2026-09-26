@@ -6,7 +6,7 @@
 # domains (get_overlap_cells / kill_cells). Programs that leave the element
 # size implicit use extent 1, under which distinct indices never interfere.
 
-cfg("wide-byte-overlap")
+procedure("wide-byte-overlap")
 start:
    a := 4096      # 0x1000
    b := 4100      # 0x1004

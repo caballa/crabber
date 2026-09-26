@@ -4,7 +4,7 @@ import Crabber
 # CrabberJson.Elab — `crab_program`, loading an export at elaboration time
 
     namespace MyProgram
-    crab_program "exports/test-1.json" cfg "bar"
+    crab_program "exports/test-1.json" procedure "bar"
 
 That one line reads the JSON while the file is being elaborated, converts it,
 and adds the definitions a proof needs — `bodyTable`, `succTable`, `invTable`,
@@ -75,11 +75,12 @@ private def addValueDef {α : Type} [ToExpr α] (name : Name) (v : α)
   if simpSet then
     elabCommand (← `(command| attribute [crab] $(mkIdent name)))
 
-/-- **`crab_program "file.json" cfg "name"`** — load one analysed cfg.
+/-- **`crab_program "file.json" procedure "name"`** — load one analysed
+    procedure.
 
-    The path is relative to the directory `lake` was invoked from. The named cfg
-    must exist in the document; a document holds every cfg of the analysed file,
-    so `samples/test-1.crabir` offers both `foo` and `bar`.
+    The path is relative to the directory `lake` was invoked from. The named
+    procedure must exist in the document; a document holds every procedure of
+    the analysed file, so `samples/test-1.crabir` offers both `foo` and `bar`.
 
     Fails, with the reason, if the document cannot be read, if reading it is not
     faithful to the input, or if the program uses constructs outside the
@@ -90,12 +91,12 @@ private def addValueDef {α : Type} [ToExpr α] (name : Name) (v : α)
     written to produce it. Nor are the booleans: the six boolean statements are
     modelled, as are `havoc` of a boolean and the `bool_to_int` cast, and
     `samples/test-bool-1.crabir` is the sample that exercises them. -/
-syntax (name := crabProgram) "crab_program " str " cfg " str : command
+syntax (name := crabProgram) "crab_program " str " procedure " str : command
 
 @[command_elab crabProgram]
 def elabCrabProgram : CommandElab := fun stx => do
   match stx with
-  | `(command| crab_program $pathStx:str cfg $cfgStx:str) => do
+  | `(command| crab_program $pathStx:str procedure $cfgStx:str) => do
     let path := pathStx.getString
     let text ←
       try IO.FS.readFile path
@@ -142,7 +143,7 @@ def elabCrabProgram : CommandElab := fun stx => do
 
 /-! ## `crab_verify` — the proofs, for a program `crab_program` has loaded
 
-    crab_program "exports/test-1.json" cfg "bar"
+    crab_program "exports/test-1.json" procedure "bar"
     crab_verify
 
 Adds `body_keys`, `succ_keys`, `vc_all`, `initiation` and the theorem that
@@ -367,7 +368,7 @@ def elabCrabVerifyBlock : CommandElab := fun stx => do
     let ls ← programLabels
     unless ls.contains label do
       throwErrorAt labelStx
-        "this cfg has no block named '{label}'. Its blocks are: {", ".intercalate ls}"
+        "this procedure has no block named '{label}'. Its blocks are: {", ".intercalate ls}"
     emitBlockVc label
   | _ => throwUnsupportedSyntax
 

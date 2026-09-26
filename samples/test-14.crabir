@@ -6,7 +6,7 @@
 # an array, and the element sort follows the value. An unannotated value would
 # make the same array an array of mathematical integers instead.
 
-cfg("bool-arrays")
+procedure("bool-arrays")
 start:
    i := 0
    j := 1

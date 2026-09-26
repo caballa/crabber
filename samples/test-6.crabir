@@ -9,7 +9,7 @@
 # statements that need ":bool" are a copy and a havoc, where nothing else says
 # what the sort is.
 
- cfg("booleans")
+ procedure("booleans")
  start:
    y := 0
    goto loop
@@ -38,7 +38,7 @@
 # The condition here is a havoc'd boolean rather than a comparison, so no
 # constraint could stand in for it -- this is the case only the boolean form
 # can express, and both edges are live because its value is unknown.
-cfg("branch-on-boolean")
+procedure("branch-on-boolean")
  start:
    havoc(b:bool)
    if (b) goto pos else goto neg

@@ -1,7 +1,7 @@
 import Crabber.Soundness
 import Crabber.Tactic
 /-
-# `samples/test-1.crabir`, cfg `bar`, under `-d int`
+# `samples/test-1.crabir`, procedure `bar`, under `-d int`
 
 This is the **per-program** artifact — the only part that will eventually be
 machine generated, from the two JSON documents:
@@ -64,7 +64,7 @@ namespace Test1Bar
 
 /-! ## The invariants (from `--print-invariants-to-json`)
 
-Transcribed verbatim from the JSON.  Crab's `int` domain found, for cfg `bar`:
+Transcribed verbatim from the JSON.  Crab's `int` domain found, for procedure `bar`:
 
 | block            | exported constraints          | i.e.      |
 |------------------|-------------------------------|-----------|
@@ -185,7 +185,7 @@ theorem chk : ∀ (L : Label) (pre : List Stmt) (s : Stmt) (post : List Stmt),
 
 /-- **The theorem.**
 
-    In English: *the invariants Crab inferred for cfg `bar` of
+    In English: *the invariants Crab inferred for procedure `bar` of
     `samples/test-1.crabir` under `-d int` are genuine invariants of the
     program, and the program's assertion can never fail.*
 

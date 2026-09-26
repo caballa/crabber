@@ -12,7 +12,7 @@
 #
 #   CRAB ERROR: cannot parse    call foo at line ...
 
-cfg("main")
+procedure("main")
   start:
    x := 0
    call foo

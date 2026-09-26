@@ -29,9 +29,10 @@ located.
 
 # Writing CrabIR programs #
 
-A CrabIR program is a text file describing one or more control-flow graphs
-(cfgs). This section is a reference for the syntax; the shortest way to learn
-it, though, is to skim the ready-to-run programs under [`samples/`](samples/).
+A CrabIR program is a text file describing one or more procedures, each a
+control-flow graph. This section is a reference for the syntax; the shortest
+way to learn it, though, is to skim the ready-to-run programs under
+[`samples/`](samples/).
 
 ## Program structure ##
 
@@ -39,9 +40,9 @@ it, though, is to skim the ready-to-run programs under [`samples/`](samples/).
 # Lines starting with '#' are comments. A '#' anywhere on a line starts a
 # comment until the end of the line.
 #
-# Newlines delimit instructions, blocks and cfgs (there are no semicolons).
+# Newlines delimit instructions, blocks and procedures (no semicolons).
 
-cfg("foo")            # a cfg is introduced by cfg("<name>"). Quotes required.
+procedure("foo")      # introduced by procedure("<name>"). Quotes required.
   start:              # a block is a label followed by ':'. Entry MUST be "start".
    x := 0             # instructions belong to the block above them
    goto loop
@@ -54,8 +55,9 @@ cfg("foo")            # a cfg is introduced by cfg("<name>"). Quotes required.
 
 Rules of the game:
 
-- A file may contain several cfgs; each begins with a new `cfg(...)` header.
-- Every cfg needs an entry block named **`start`**.
+- A file may contain several procedures; each begins with a new
+  `procedure(...)` header.
+- Every procedure needs an entry block named **`start`**.
 - Blocks do not fall through: a block continues only via an explicit `goto` or
   `if ... goto ... else goto ...`. A block with no successor is a sink.
 - Blocks may be defined in any order; a `goto`/`if` may reference a block that
@@ -242,14 +244,14 @@ exit                           # marks the end of a path (see Function calls)
 
 # Function calls #
 
-A cfg can declare typed **input** and **output** parameters and be invoked
-from another cfg through a call site.
+A procedure can declare typed **input** and **output** parameters and be
+invoked from another procedure through a call site.
 
 ## Declaring parameters ##
 
-Parameters are written after the cfg name as a comma-separated list of
-`direction name:type`, where `direction` is `in` or `out`. A cfg without
-parameters keeps the plain `cfg("name")` form.
+Parameters are written after the procedure name as a comma-separated list of
+`direction name:type`, where `direction` is `in` or `out`. A procedure without
+parameters keeps the plain `procedure("name")` form.
 
 Unlike everywhere else in the language, **every parameter must carry its type**.
 A signature is a contract: a reader should be able to check a call against it
@@ -257,7 +259,7 @@ without reading either function body.
 
 ```
 # inc(a) returns a + 1
-cfg("inc", in a:int, out b:int)
+procedure("inc", in a:int, out b:int)
   start:
    b := a + 1
    exit
@@ -282,12 +284,12 @@ b:int := call foo(a:int)                 # single output
 Putting it together:
 
 ```
-cfg("inc", in a:int, out b:int)
+procedure("inc", in a:int, out b:int)
   start:
    b := a + 1
    exit
 
-cfg("main")
+procedure("main")
   start:
    x := 5
    y:int := call inc(x:int)

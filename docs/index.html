@@ -169,7 +169,7 @@
 <script src="examples.js"></script>
 <script src="crabber.js"></script>
 <script>
-const example = `cfg("foo")
+const example = `procedure("foo")
   start:
    x := 0
    goto loop
@@ -218,7 +218,7 @@ const RULES = [
   ['keyword', /\b(?:bool_to_int)\b/],
   ['keyword', /\b(?:if|else|goto|assume|assert|havoc|call|exit)\b/],
   ['keyword', /\b(?:and|or|xor|not)\b/],
-  ['keyword', /\bcfg\b/],
+  ['keyword', /\bprocedure\b/],
   ['const',   /\b(?:true|false)\b/],
   ['var',     /@[-A-Za-z$._][-A-Za-z$._0-9]*/],
   ['number',  /-?[0-9]+/],

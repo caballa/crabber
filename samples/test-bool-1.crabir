@@ -3,8 +3,8 @@
 #   crabber test-bool-1.crabir -d int --verify-with-lean
 #
 # The boolean fragment, exercised deliberately: every boolean statement Crab's
-# parser can produce appears here, and the cfgs come in pairs that differ only
-# in whether the asserted fact is one the analysis actually knows.
+# parser can produce appears here, and the procedures come in pairs that differ
+# only in whether the asserted fact is one the analysis actually knows.
 #
 #   safe / unsafe                 the six boolean statements
 #   nondet / nondet-unsafe        havoc(b:bool) and bool_to_int
@@ -14,7 +14,7 @@
 # checkable end to end in both directions.
 
 # `safe`: the four assertions all hold, and Crab proves them.
-cfg("safe")
+procedure("safe")
   start:
    x := 0
    goto loop
@@ -47,7 +47,7 @@ cfg("safe")
 # `unsafe`: the same program asserting the negation. Crab reports an error, and
 # Lean refutes the block's verification condition rather than merely failing to
 # prove it -- the boolean counterpart of test-1's foo/bar pair.
-cfg("unsafe")
+procedure("unsafe")
   start:
    y := 0
    goto loop
@@ -69,7 +69,7 @@ cfg("unsafe")
 # is the one place the weakest precondition's quantifier over `Bool` has to be
 # split rather than instantiated. `q` and `r` then pin the two known branches,
 # where Crab assigns the constant directly.
-cfg("nondet")
+procedure("nondet")
   start:
    havoc(p:bool)
    n := bool_to_int(p)
@@ -90,7 +90,7 @@ cfg("nondet")
 # `n == 1` does not follow -- and neither Crab nor Lean may claim it does. This
 # is the case that would break first if a havoc'd Boolean were ever given a
 # default value instead of a quantifier.
-cfg("nondet-unsafe")
+procedure("nondet-unsafe")
   start:
    havoc(p:bool)
    n := bool_to_int(p)
