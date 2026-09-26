@@ -1,11 +1,20 @@
 # Keep the build context clean: COPY . /crabber must not pull in local
-# build artifacts (stale CMake cache), VCS metadata, or the vendored crab
-# clone (the image clones crab itself).
+# build artifacts (stale CMake cache), VCS metadata, the vendored crab
+# clone (the image clones crab itself), or the wasm build tree (nothing in
+# the image builds it).
 .git
 .gitignore
 .DS_Store
 build/
 install/
 crab/
+build-wasm/
 *.o
 *.a
+
+# Lake artifacts, for the same reason and one more: they are .olean files built
+# for the host platform. Copying a macOS lean/.lake into the linux image leaves
+# `lake build` looking at artifacts it cannot load, which fails in a way that
+# looks nothing like a stale cache. The image builds the library itself.
+lean/.lake/
+lean/exports/
