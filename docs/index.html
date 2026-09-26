@@ -8,6 +8,9 @@
   :root { color-scheme: light dark; --fg: #24292f; --muted: #6e7781; --border:#8884;
           --card:#ffffff; --inv-bg:#fff8e1; --inv-fg:#7a5c00; --edge:#8899a6;
           --inv-bg2:#e7f0ff; --inv-fg2:#0a3b7a;
+          /* Post-invariants get their own colour: with several domains the
+             entry rows already alternate between the two above. */
+          --post-bg:#e6f6ec; --post-fg:#11633a;
           /* token colours (light) */
           --t-comment:#6e7781; --t-keyword:#cf222e; --t-func:#8250df;
           --t-const:#0550ae;  --t-number:#0550ae;  --t-string:#0a3069;
@@ -16,6 +19,7 @@
   @media (prefers-color-scheme: dark) {
     :root { --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --inv-bg:#2b2415; --inv-fg:#e3b341; --edge:#6b7681;
             --inv-bg2:#16233a; --inv-fg2:#79c0ff;
+            --post-bg:#12261a; --post-fg:#7ee2a8;
             --t-comment:#8b949e; --t-keyword:#ff7b72; --t-func:#d2a8ff;
             --t-const:#79c0ff;  --t-number:#79c0ff;  --t-string:#a5d6ff;
             --t-type:#ffa657;   --t-var:#ffa657;      --t-label:#7ee787;
@@ -78,6 +82,9 @@
   .node .inv { padding: 3px 8px; border-bottom: 1px solid var(--border); font: 12px/1.4 ui-monospace, monospace;
                background: var(--inv-bg); color: var(--inv-fg); white-space: pre-wrap; word-break: break-word; }
   .node .inv.inv-b { background: var(--inv-bg2); color: var(--inv-fg2); }
+  /* Sits below the instructions, so it is separated from them at the top. */
+  .node .inv.inv-post { background: var(--post-bg); color: var(--post-fg);
+                        border-bottom: 0; border-top: 1px solid var(--border); }
   .node .inv-tag { display: inline-block; margin-right: 6px; font: 600 9px/1.4 system-ui;
                    letter-spacing: .04em; text-transform: uppercase; opacity: .65; vertical-align: 1px; }
   .node .inv-text { display: block; }
@@ -160,7 +167,7 @@
     <div class="tabs">
       <button id="tab-text" class="active" data-view="text">Text</button>
       <button id="tab-graph" data-view="graph">Graph</button>
-      <span class="note">CFG blocks with their pre-invariants</span>
+      <span class="note">CFG blocks with their invariants on entry, and on exit for the exit block</span>
     </div>
     <pre id="out"></pre>
     <div id="graph" hidden></div>
@@ -339,14 +346,19 @@ shareBtn.addEventListener('click', async () => {
 /* ================= CFG + invariants graph ================= */
 
 /* Parse the Graphviz dot emitted by crabber's --print-invariants-to-dot into
-   blocks, control-flow edges, and per-block pre-invariants. The dot is scanned
-   as a whole (not line by line) because some invariant labels span several
-   lines: the powerset domain prints "Inv1 or\nInv2 or\n..." and value
-   partitioning prints a multi-line map. Label values never contain a literal
-   double quote, so a non-greedy match up to the closing "] is safe. */
+   blocks, control-flow edges, per-block pre-invariants, and the post-invariant
+   of the exit block. The dot is scanned as a whole (not line by line) because
+   some invariant labels span several lines: the powerset domain prints
+   "Inv1 or\nInv2 or\n..." and value partitioning prints a multi-line map.
+   Label values never contain a literal double quote, so a non-greedy match up
+   to the closing "] is safe. */
 function parseDot(dot) {
-  const blocks = {}, edges = [], inv = {}, invById = {};
+  const blocks = {}, edges = [], inv = {}, invById = {}, post = {}, postById = {};
   let m;
+  // Every invariant label opens with an "on ENTRY"/"on EXIT" line naming the
+  // end of the block it holds at. The card shows that as a tag, so drop it
+  // here -- the "\n" is the two characters dot wants, not a newline.
+  const stripEnd = s => s.replace(/^on (?:ENTRY|EXIT)\\n/, '');
   const reBlock = /(Node0x[0-9a-f]+)\s*\[shape=record,label="\{([\s\S]*?)\}"\]/g;
   while (m = reBlock.exec(dot)) {
     const parts = m[2].split('\\l').map(s => s.trim()).filter(s => s.length);
@@ -354,14 +366,20 @@ function parseDot(dot) {
     blocks[m[1]] = { name, insts: parts };
   }
   const reInv = /(NodePreInv0x[0-9a-f]+)\s*\[[^\]]*?label="([\s\S]*?)"\]/g;
-  while (m = reInv.exec(dot)) invById[m[1]] = m[2];
+  while (m = reInv.exec(dot)) invById[m[1]] = stripEnd(m[2]);
   const reInvEdge = /(NodePreInv0x[0-9a-f]+)\s*->\s*(Node0x[0-9a-f]+)/g;
   while (m = reInvEdge.exec(dot)) inv[m[2]] = invById[m[1]];
-  // Control-flow edges: Node -> Node. The NodePreInv -> Node edges above start
-  // with a different prefix, so this pattern does not pick them up.
+  // Only the exit block has a post-invariant, and its edge runs the other way:
+  // out of the block, into the invariant.
+  const rePost = /(NodePostInv0x[0-9a-f]+)\s*\[[^\]]*?label="([\s\S]*?)"\]/g;
+  while (m = rePost.exec(dot)) postById[m[1]] = stripEnd(m[2]);
+  const rePostEdge = /(Node0x[0-9a-f]+)\s*->\s*(NodePostInv0x[0-9a-f]+)/g;
+  while (m = rePostEdge.exec(dot)) post[m[1]] = postById[m[2]];
+  // Control-flow edges: Node -> Node. The invariant edges above have a
+  // different prefix on one end or the other, so this pattern skips them.
   const reEdge = /(Node0x[0-9a-f]+)\s*->\s*(Node0x[0-9a-f]+)/g;
   while (m = reEdge.exec(dot)) edges.push([m[1], m[2]]);
-  return { blocks, edges, inv };
+  return { blocks, edges, inv, post };
 }
 
 /* Simplify the reduced-product pairs anywhere in a string: the analyzer prints
@@ -410,13 +428,45 @@ function layoutGraph(g) {
 const decodeEnt = s => s.replace(/&le;/g, '≤').replace(/&ge;/g, '≥')
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
-// invList is an array of { label, text } — one entry per analyzed domain.
-// The pre-invariants hold on entry, before the first statement, so they are
-// shown at the top of the block (above the instructions), one row per domain.
 // An invariant longer than this many lines or characters starts collapsed.
 const COLLAPSE_LINES = 4, COLLAPSE_CHARS = 200;
 
-function buildNode(g, id, invList) {
+// One row for one invariant, from a { label, text } entry.
+function buildInvRow(iv, cls, title) {
+  const row = document.createElement('div');
+  row.className = cls;
+  row.title = title + (iv.label ? ' — ' + iv.label : '');
+  const tag = document.createElement('span');
+  tag.className = 'inv-tag';
+  tag.textContent = iv.label;
+  row.appendChild(tag);
+  const text = decodeEnt(prettyInv(iv.text));
+  const lines = text.split('\n').length;
+  // Large invariants (e.g. powerset disjunctions, value-partition maps) are
+  // collapsed to a few lines with a toggle to expand them.
+  if (lines > COLLAPSE_LINES || text.length > COLLAPSE_CHARS) {
+    const box = document.createElement('div');
+    box.className = 'inv-text clamped';
+    box.textContent = text;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'inv-toggle';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.textContent = '▸ show all (' + lines + ' lines)';
+    row.appendChild(box);
+    row.appendChild(btn);
+  } else {
+    row.appendChild(document.createTextNode(text));
+  }
+  return row;
+}
+
+// invList and postList are arrays of { label, text } — one entry per analyzed
+// domain. Pre-invariants hold before the first statement, so they go at the top
+// of the block; the post-invariant holds after the last one, so it goes at the
+// bottom. Only the exit block has a post: for every other block it is already
+// on the graph as the pre of its successors.
+function buildNode(g, id, invList, postList) {
   const b = g.blocks[id];
   const el = document.createElement('div');
   el.className = 'node';
@@ -424,33 +474,8 @@ function buildNode(g, id, invList) {
   h.textContent = b.name;
   el.appendChild(h);
   (invList || []).forEach((iv, idx) => {
-    const row = document.createElement('div');
-    row.className = 'inv' + (idx % 2 ? ' inv-b' : '');
-    row.title = 'Invariant on entry to this block (before the first statement)' +
-                (iv.label ? ' — ' + iv.label : '');
-    const tag = document.createElement('span');
-    tag.className = 'inv-tag';
-    tag.textContent = iv.label;
-    row.appendChild(tag);
-    const text = decodeEnt(prettyInv(iv.text));
-    const lines = text.split('\n').length;
-    // Large invariants (e.g. powerset disjunctions, value-partition maps) are
-    // collapsed to a few lines with a toggle to expand them.
-    if (lines > COLLAPSE_LINES || text.length > COLLAPSE_CHARS) {
-      const box = document.createElement('div');
-      box.className = 'inv-text clamped';
-      box.textContent = text;
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'inv-toggle';
-      btn.setAttribute('aria-expanded', 'false');
-      btn.textContent = '▸ show all (' + lines + ' lines)';
-      row.appendChild(box);
-      row.appendChild(btn);
-    } else {
-      row.appendChild(document.createTextNode(text));
-    }
-    el.appendChild(row);
+    el.appendChild(buildInvRow(iv, 'inv' + (idx % 2 ? ' inv-b' : ''),
+      'Invariant on entry to this block (before the first statement)'));
   });
   if (b.insts.length) {
     const body = document.createElement('div');
@@ -458,6 +483,10 @@ function buildNode(g, id, invList) {
     body.textContent = b.insts.map(decodeEnt).join('\n');
     el.appendChild(body);
   }
+  (postList || []).forEach(iv => {
+    el.appendChild(buildInvRow(iv, 'inv inv-post',
+      'Invariant on exit from this block (after the last statement)'));
+  });
   return el;
 }
 
@@ -497,28 +526,37 @@ function drawEdges(svg, canvas, nodeEl, g, layer) {
 /* Merge the per-domain runs into one graph per cfg. The control-flow
    structure is identical across domains (it depends only on the program), so
    the first run supplies blocks and edges; every run contributes its own
-   pre-invariant per block, matched by block name (the Node* pointer ids differ
-   between runs). Each block ends up with an `invs` list of { label, text }. */
+   pre-invariant per block and its post-invariant for the exit block, matched by
+   block name (the Node* pointer ids differ between runs). Each block ends up
+   with `invs` and `posts` lists of { label, text }. */
 function buildUnifiedGraphs(runs) {
   if (!runs.length || !runs[0].dots.length) return [];
   const single = runs.length === 1;
   const out = [];
   for (const { name, dot } of runs[0].dots) {
     const g = parseDot(dot);
-    const invs = {};
-    for (const id of Object.keys(g.blocks)) invs[id] = [];
+    const invs = {}, posts = {};
+    for (const id of Object.keys(g.blocks)) { invs[id] = []; posts[id] = []; }
     for (const run of runs) {
       const d = run.dots.find(x => x.name === name);
       if (!d) continue;
       const gr = parseDot(d.dot);
-      const byName = {};
-      for (const [rid, rb] of Object.entries(gr.blocks))
+      const byName = {}, postByName = {};
+      for (const [rid, rb] of Object.entries(gr.blocks)) {
         if (gr.inv[rid] != null) byName[rb.name] = gr.inv[rid];
+        if (gr.post[rid] != null) postByName[rb.name] = gr.post[rid];
+      }
+      // With several domains the row already carries the domain name, so the
+      // exit rows say which end they are for on top of that.
       const label = single ? 'on entry' : run.label;
-      for (const [id, b] of Object.entries(g.blocks))
+      const postLabel = single ? 'on exit' : run.label + ' · on exit';
+      for (const [id, b] of Object.entries(g.blocks)) {
         if (byName[b.name] != null) invs[id].push({ label, text: byName[b.name] });
+        if (postByName[b.name] != null)
+          posts[id].push({ label: postLabel, text: postByName[b.name] });
+      }
     }
-    out.push({ name, g, invs });
+    out.push({ name, g, invs, posts });
   }
   return out;
 }
@@ -529,7 +567,7 @@ function renderGraph(container, graphs) {
     container.textContent = 'Run the analyzer to see the control-flow graph and invariants.';
     return;
   }
-  for (const { name, g, invs } of graphs) {
+  for (const { name, g, invs, posts } of graphs) {
     const { layers, layer } = layoutGraph(g);
     const title = document.createElement('div');
     title.className = 'cfg-title';
@@ -546,7 +584,7 @@ function renderGraph(container, graphs) {
     for (const lyr of layers) {
       const row = document.createElement('div');
       row.className = 'layer';
-      for (const id of lyr) { nodeEl[id] = buildNode(g, id, invs[id]); row.appendChild(nodeEl[id]); }
+      for (const id of lyr) { nodeEl[id] = buildNode(g, id, invs[id], posts[id]); row.appendChild(nodeEl[id]); }
       layersDiv.appendChild(row);
     }
     canvas.appendChild(svg);

@@ -166,6 +166,14 @@ void CrabIrAnalyzerImpl::write(crab::crab_os &os) const {
           }
         }
       }
+      // The post-condition of the exit block summarizes the whole procedure,
+      // which is what a caller can rely on. It is the only post printed: for
+      // every other block it is the pre of its successors.
+      if (cfg_ref.has_exit()) {
+        auto exit = cfg_ref.exit();
+        os << exit << " on EXIT: "
+           << m_crabAnalyzer->get_post(cfg_ref.get(), exit) << "\n";
+      }
     }
   }
 }
@@ -178,14 +186,23 @@ void CrabIrAnalyzerImpl::write_to_dot() const {
       cfg_ref_t cfg_ref = n.get_cfg();
       if (cfg_ref.has_func_decl()) {
 	std::string cfg_name = cfg_ref.get_func_decl().get_func_name();
+	// Only the exit block gets a post box: for every other block the post is
+	// already on the graph as the pre of its successors.
+	boost::optional<label_t> exit;
+	if (cfg_ref.has_exit()) {
+	  exit = cfg_ref.exit();
+	}
 	crab::cfg::cfg_to_dot<cfg_ref_t, crab_abstract_domain>(cfg_ref,
 		      [this, &cfg_name](const label_t &label) -> boost::optional<crab_abstract_domain> {
-			   return getPreInvariant(cfg_name, label); 
+			   return getPreInvariant(cfg_name, label);
 		      },
-		      [](const label_t &label) -> boost::optional<crab_abstract_domain> {
+		      [this, &cfg_name, &exit](const label_t &label) -> boost::optional<crab_abstract_domain> {
+			   if (exit && *exit == label) {
+			     return getPostInvariant(cfg_name, label);
+			   }
 			   return boost::none;
 		      },
-		      m_checks);							       
+		      m_checks);
       }
     }
   }
