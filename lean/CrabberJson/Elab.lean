@@ -139,6 +139,10 @@ def elabCrabProgram : CommandElab := fun stx => do
       elabCommand (← `(command|
         @[crab] noncomputable def $invId : Crabber.Label → Crabber.Assn :=
           Crabber.table Crabber.Assn.bot $invTId))
+      -- Under `crabber.explain`, report what was just installed. Printed from
+      -- `p` rather than from the declarations, so what is shown is the data the
+      -- proofs were built from and not a second reading of it.
+      Crabber.explainProgram p.name p.entry p.labels p.cfg.body p.cfg.succ p.inv
   | _ => throwUnsupportedSyntax
 
 /-! ## `crab_verify` — the proofs, for a program `crab_program` has loaded
@@ -170,6 +174,18 @@ may be beyond `omega`; the entry invariant may not be ⊤; or the program may ha
 an assertion that really can fail, which under the current reading of `assert`
 makes a block's verification condition false rather than merely hard. A failure
 here is never by itself evidence that Crab is wrong. -/
+/-- Narrate a stage — unless there is no program to narrate about.
+
+    A document holding a construct outside the modelled fragment makes
+    `crab_program` fail, and a file crabber generated then runs `crab_verify`
+    anyway: its theorems fail on their own (they mention `prog`, which was never
+    added), and that is the diagnosis. What must not happen is this file
+    describing obligations about a program that does not exist — which is exactly
+    what an unguarded narration did for every `not attempted` CFG. -/
+private def explainStage (msg : MessageData) : CommandElabM Unit := do
+  if (← getEnv).contains ((← getCurrNamespace) ++ `prog) then
+    Crabber.explain msg
+
 /-- The entry obligation, emitted under whatever name the caller wants.
 
     Shared by `crab_verify` and `crab_verify_init` so the two cannot drift; the
@@ -178,6 +194,14 @@ private def emitInitiation (thmName : Name) : CommandElabM Unit := do
   let progId := mkIdent `prog
   let invId  := mkIdent `inv
   let initId := mkIdent thmName
+  explainStage m!"\
+    * the entry obligation\n\
+    ∀ σ, InitState prog σ → ⟦inv prog.entry⟧ σ\n\
+    What Crab claims at the entry block has to hold in every initial state, and\n\
+    InitState constrains nothing — so this goes through exactly when that claim\n\
+    carries no information. The lookup `inv prog.entry` is evaluated rather than\n\
+    rewritten: it is a linear scan over string equality, and on long block names\n\
+    rewriting it costs more than all the rest put together."
   -- `InitState` constrains nothing, so this goes through exactly when Crab
   -- claimed ⊤ at the entry block.
   elabCommand (← `(command|
@@ -208,7 +232,8 @@ private def emitInitiation (thmName : Name) : CommandElabM Unit := do
       -- expensive part is the scan, and the `simp` below finishes the rest.
       conv => enter [1]; whnf
       first
-        | exact Crabber.Assn.holds_top σ
+        | (exact Crabber.Assn.holds_top σ
+           crab_explain "closed by Crabber.Assn.holds_top: Crab claims ⊤ here")
         -- `crab_meaning`, not a list spelled out here: this proof and `crab_vc`
         -- need the same unfoldings, and when the list was written out twice the
         -- copies drifted. See `Crabber.Tactic` for what that cost.
@@ -219,7 +244,40 @@ private def emitInitiation (thmName : Name) : CommandElabM Unit := do
         -- -- is closed by `simp` alone, and `omega` would then fail for want of
         -- a goal.
         | (simp [crab_meaning]
-           all_goals omega)))
+           all_goals omega
+           crab_explain "closed by simp and omega: Crab's claim here is not\nliterally ⊤, but is trivially true — the Apron-backed domains export the\nnullary constraint 0 ≤ 0 where the native ones export ⊤")))
+
+/-- The block stage's heading, shared by every command that proves block
+    obligations, so the goals `crab_vc` reports arrive under an explanation of
+    what they are.
+
+    `bundled` distinguishes the two ways the per-block obligations are packaged:
+    `crab_verify` collects them into one `vc_all` through `vc_all_of_blocks`, and
+    the narrowing commands prove a theorem per block and bundle nothing. Saying
+    either where the other is true would describe a proof that is not the one
+    being run. -/
+private def explainBlockStage (bundled : Bool) : CommandElabM Unit := do
+  explainStage m!"\
+    * the block obligations, one per block\n\
+    VC prog inv B  :=  ∀ σ, ⟦inv B⟧ σ →\n\
+    {"      "}wp (prog.body B) (fun τ => ∀ B' ∈ prog.succ B, ⟦inv B'⟧ τ) σ\n\
+    Assume the invariant Crab claims at B's entry, then push every successor's\n\
+    invariant back through B's body with the weakest-precondition calculus. What\n\
+    is left is quantifier-free integer arithmetic, and omega decides it.\n\
+    `crab_vc` does that unfolding — the program, wp, and the meaning of the\n\
+    invariants down to comparisons of integers — and what follows is each\n\
+    block's goal in the state omega received it."
+  if bundled then
+    explainStage m!"\
+      The blocks come from `labels`, and `vc_all_of_blocks` is the case analysis\n\
+      joining them into `∀ B, VC prog inv B`. Every one of the infinitely many\n\
+      labels naming no block is discharged once by `VC_of_unknown`: `body` and\n\
+      `succ` are total and default to [], so those obligations are trivial."
+  else
+    explainStage m!"\
+      One theorem per block, and nothing bundling them: every block that fails\n\
+      is reported, rather than only the first, and no `verified_program` is\n\
+      built. Proving a subset of the obligations establishes nothing on its own."
 
 syntax (name := crabVerify) "crab_verify" : command
 
@@ -245,7 +303,16 @@ def elabCrabVerify : CommandElab := fun _ => do
   elabCommand (← `(command|
     theorem $succKeysId : List.map Prod.fst $succId = $labelsId := rfl))
 
+  -- The entry obligation, under its usual name. Emitted before the blocks for
+  -- the sake of the two things that read this file in order: `--lean-show-steps`,
+  -- whose narration then runs entry-obligation, blocks, result; and a reader
+  -- looking at the first error of a run that failed, which is the cheap
+  -- obligation rather than one block out of thirty. The two theorems are
+  -- independent, so the order between them is free.
+  emitInitiation `initiation
+
   -- Every label's obligation: the blocks that exist, then every other string.
+  explainBlockStage (bundled := true)
   elabCommand (← `(command|
     theorem $vcAllId : ∀ B : Crabber.Label, Crabber.VC $progId $invId B := by
       refine Crabber.vc_all_of_blocks $progId $invId $labelsId ?_ ?_ ?_
@@ -265,9 +332,6 @@ def elabCrabVerify : CommandElab := fun _ => do
         all_goals (try subst_vars)
         all_goals crab_vc))
 
-  -- The entry obligation, under its usual name.
-  emitInitiation `initiation
-
   -- The assertion obligations are *not* generated. `wpStmt` puts an assert's
   -- obligation inside its block's verification condition, so `Crabber.chk_of_VC`
   -- extracts it from `vc_all` for every program at once. What used to stand here
@@ -282,6 +346,41 @@ def elabCrabVerify : CommandElab := fun _ => do
     theorem $resultId :
         Crabber.InvariantOf $progId $invId ∧ ¬ Crabber.AssertFails $progId :=
       Crabber.verified $progId $invId $initId $vcAllId))
+
+  -- What the two program-specific facts were turned into, and by what. Reported
+  -- after the fact, so it describes a theorem the kernel has already accepted.
+  if ← Crabber.explaining then
+    let axioms ← collectAxioms ((← getCurrNamespace) ++ `verified_program)
+    let axiomLine :=
+      if axioms.isEmpty then "none at all"
+      else String.intercalate ", " (axioms.toList.map toString)
+    -- `sorryAx` is the one that matters. A theorem whose proof did not go through
+    -- is still added to the environment, with a `sorry` standing in for the part
+    -- that failed, and that `sorry` is what leaves this axiom behind. Saying
+    -- "checked by the kernel" of such a theorem would be true and worthless: the
+    -- kernel checked a placeholder. The whole list is printed as well as tested,
+    -- so the claim stays checkable by the reader rather than only by this code.
+    let verdict :=
+      if axioms.contains ``sorryAx then
+        "NOT proved: this theorem rests on sorryAx, which is what an obligation\n\
+         that did not go through leaves behind. The failure is above."
+      else
+        "Accepted by Lean's kernel, and no sorryAx among those axioms: nothing\n\
+         above was assumed rather than proved."
+    explainStage m!"\
+      * the result, assembled from lemmas proved once for every program\n\
+      wp_sound           an execution and a wp give the fact that holds after it\n\
+      wp_split           an assert's obligation is already inside its block's wp\n\
+      consecution_of_VC  the block obligations ⇒ every Step preserves it\n\
+      chk_of_VC          the block obligations ⇒ each assert's condition holds\n\
+      inductive_sound    entry obligation + consecution ⇒ every reachable state\n\
+      {"                   "}satisfies the annotation\n\
+      assert_safe        that, plus the assert conditions ⇒ no assert can fail\n\
+      verified_program : InvariantOf prog inv ∧ ¬ AssertFails prog\n\
+      {"  "}:= Crabber.verified prog inv initiation vc_all\n\
+      Nothing in the generated file mentions Step, Reachable or wp_sound.\n\
+      Axioms it depends on: {axiomLine}.\n\
+      {verdict}"
 
 /-! ## Asking a narrower question
 
@@ -369,6 +468,7 @@ def elabCrabVerifyBlock : CommandElab := fun stx => do
     unless ls.contains label do
       throwErrorAt labelStx
         "this procedure has no block named '{label}'. Its blocks are: {", ".intercalate ls}"
+    explainBlockStage (bundled := false)
     emitBlockVc label
   | _ => throwUnsupportedSyntax
 
@@ -382,6 +482,7 @@ syntax (name := crabVerifyBlocks) "crab_verify_blocks" : command
 
 @[command_elab crabVerifyBlocks]
 def elabCrabVerifyBlocks : CommandElab := fun _ => do
+  explainBlockStage (bundled := false)
   for label in (← programLabels) do
     emitBlockVc label
 

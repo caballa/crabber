@@ -239,6 +239,15 @@ if (TopLevel)
 
     add_lean_test(lean-test-1 "proved bar,could not verify foo" test-1.crabir -d int)
     add_lean_test(lean-test-1-cfg "proved bar" test-1.crabir -d int --lean-cfg bar)
+
+    # --lean-show-steps must not change what is proved. It turns on narration in
+    # the generated file, and `Elab.async false` with it, so the failure it
+    # guards against is a narration that perturbs the proof it describes -- and
+    # the reason it names *both* verdicts of test-1 is that the failing half
+    # exercises the path where the narration has to survive an error and still
+    # be told apart from it.
+    add_lean_test(lean-test-1-steps "proved bar,could not verify foo"
+                  test-1.crabir -d int --lean-show-steps)
     # Both pairs: the six boolean statements, and then havoc(b:bool) with
     # bool_to_int. Each pair pins its negative half too, so a change that makes
     # a havoc'd Boolean provable -- the failure mode that matters here -- shows

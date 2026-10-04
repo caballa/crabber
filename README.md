@@ -473,6 +473,53 @@ This reports the exported JSON, the generated Lean file, and the exact command
 that re-runs it. That file is all Lean was given, so it can be opened in an
 editor, its tactics taken apart, and the failing goal inspected directly.
 
+## Seeing the proof steps ##
+
+The report is one verdict per CFG, which answers whether Crab was right and says
+nothing about how that was established. `--lean-show-steps` asks Lean to narrate
+the proof as it runs it, and relays what comes back:
+
+``` bash
+crabber samples/test-1.crabir -d int --lean-cfg bar --verify-with-lean --lean-show-steps
+```
+
+```
+proved            bar : invariants sound, all assertions proved
+  how Lean got there (its own report):
+    * the program and the invariants, as Lean read them
+    procedure bar, entry block start, 5 block(s).
+    ...
+      loop    invariant: -y ≤ 0 ∧ y ≤ 9
+        y := y + 1
+        → edge-loop-loop, edge-loop-out
+    * the entry obligation
+    ∀ σ, InitState prog σ → ⟦inv prog.entry⟧ σ
+    closed by Crabber.Assn.holds_top: Crab claims ⊤ here
+    * the block obligations, one per block
+    ...
+    block loop · omega is handed
+      σ : Crabber.State
+      hpre : 0 ≤ σ.ints "y" ∧ σ.ints "y" ≤ 9
+      ⊢ 1 ≤ σ.ints "y" + 1 ∧ σ.ints "y" + 1 ≤ 10
+    * the result, assembled from lemmas proved once for every program
+    ...
+    Axioms it depends on: propext, Classical.choice, Quot.sound.
+    Accepted by Lean's kernel, and no sorryAx among those axioms: nothing
+    above was assumed rather than proved.
+```
+
+Four stages: the data Lean read, the entry obligation, one goal per block as the
+arithmetic decision procedure received it, and the lemmas the result is assembled
+from — with the axioms it ended up resting on, which is where a proof that did
+*not* go through shows up as `sorryAx`.
+
+The goals are the substance. They are Lean's own pretty-printed proof state, not
+a description of it written on this side: a narration composed by crabber would
+be a claim about a proof crabber did not perform, and would go on reading
+plausibly after the two sides drifted apart. It works the same on a failing CFG,
+where the last goal printed is where the reasoning ran out. The implementation is
+[`lean/Crabber/Explain.lean`](lean/Crabber/Explain.lean).
+
 ## Narrowing the question ##
 
 A failure is reported against the whole CFG, because the proof Lean runs is

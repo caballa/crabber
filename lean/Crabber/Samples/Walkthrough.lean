@@ -2,11 +2,11 @@ import Crabber.Samples.Test1Bar
 /-
 # Crabber.Walkthrough — `Test1Bar` proved again, one step at a time
 
-`Test1Bar.lean` proves each block with `by crab_vc`, a single macro.  That
+`Test1Bar.lean` proves each block with `by crab_vc`, a single tactic.  That
 is what you want in a *generated* file, and useless for learning: stepping into
 it shows the goal before and `True` after, with nothing in between.
 
-Here the macro is **unrolled**, so you can watch the machinery run.
+Here that tactic is **unrolled**, so you can watch the machinery run.
 
 ## How to use it
 

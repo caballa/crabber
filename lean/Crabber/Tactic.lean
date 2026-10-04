@@ -1,4 +1,5 @@
 import Crabber.Attr
+import Crabber.Explain
 import Crabber.VC
 /-
 # Crabber.Tactic — `crab_vc`, the per-block automation
@@ -99,13 +100,39 @@ attribute [crab_meaning]
         `∨` hypotheses, and the cost is (disjuncts in the precondition) ×
         (disjuncts in the postcondition) `omega` calls.
       * programs over many variables, where the rewrite for *unrelated* writes
-        must discharge string disequalities to see through them. -/
-macro "crab_vc" : tactic =>
-  `(tactic| (
-      intro σ hpre
-      simp [crab, table, crab_meaning] at hpre ⊢
+        must discharge string disequalities to see through them.
+
+    **Why an elaborator rather than a `macro`.** The four steps are exactly what
+    the macro this replaced expanded to, and with `crabber.explain` off the two
+    are indistinguishable. What a macro cannot do is *report* the goals between
+    the steps, because the label naming the block is in the goal only before step
+    1 — `intro` and `simp` consume it — while the arithmetic worth showing exists
+    only after. Reading the label first and keeping it in a local is why the two
+    can appear in one message; see `Crabber.Explain`. -/
+syntax "crab_vc" : tactic
+
+open Lean Elab Tactic in
+elab_rules : tactic
+  | `(tactic| crab_vc) => do
+    -- Read off which block this is *before* the goal stops saying so.
+    let header ← vcHeader
+    -- `mkIdent`, so the hypothesis is called `hpre` rather than `hpre✝`: these
+    -- names are shown to a reader in the narration, and a macro-scoped name
+    -- printed with its dagger looks like a detail of the automation leaking out.
+    -- Both are introduced and used inside this tactic, so nothing outside can
+    -- collide with them.
+    let σ := mkIdent `σ
+    let hpre := mkIdent `hpre
+    evalTactic (← `(tactic| (
+      intro $σ $hpre
+      simp [crab, table, crab_meaning] at $hpre:ident ⊢)))
+    explainGoals header "omega is handed"
+    evalTactic (← `(tactic| (
       all_goals (try omega)
-      all_goals (try simp_all [crab_meaning])
-      all_goals omega))
+      all_goals (try simp_all [crab_meaning]))))
+    -- Named for what it is rather than for the pass that produced it: what
+    -- survived the first `omega`, with `simp_all` having had a go at it.
+    explainRemaining header "still open, and after a simp_all pass omega is handed"
+    evalTactic (← `(tactic| all_goals omega))
 
 end Crabber
