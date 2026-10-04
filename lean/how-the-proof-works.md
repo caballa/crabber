@@ -280,6 +280,20 @@ So the per-program cost is **linear in the number of blocks** and nothing else. 
 and thirty run the identical script, which is why it can be generated rather than written.
 Typical end-to-end time for a sample is a few seconds.
 
+**None of this has to be taken on trust.** Both tables above are what a run prints for
+itself:
+
+```bash
+crabber samples/test-1.crabir -d int --lean-cfg bar --verify-with-lean --lean-show-steps
+```
+
+reports the data Lean read, the entry obligation and how it closed, each block's goal in the
+state `omega` received it — the right-hand column of the second table, in Lean's own
+notation — and the lemmas the result is assembled from, ending with the axioms it rests on.
+The narration is written on the Lean side, in [`Crabber/Explain.lean`](Crabber/Explain.lean),
+because that is the side holding the goals; crabber only relays it. It works the same on a
+CFG that fails, where the last goal printed is where the reasoning ran out.
+
 ## Where the CrabIR semantics enters
 
 There are two distinct things here, and they behave very differently.
@@ -340,14 +354,25 @@ That is **not** a counterexample — the state may well be unreachable. It says 
 reasoning stopped, which is usually the quickest way to see whether a fact is missing or an
 invariant is genuinely too weak.
 
-To dig in, keep the intermediate files:
+The first thing to reach for is the narration, which stops where the proof did:
+
+```bash
+crabber samples/test-2.crabir --verify-with-lean --lean-show-steps
+```
+
+The block that failed is the last one reported, and it is reported twice — once with the goal
+`omega` was handed, once with what survived that attempt — so the gap is visible as a formula
+rather than inferred from a message.
+
+To dig in further, keep the intermediate files:
 
 ```bash
 crabber samples/test-2.crabir --verify-with-lean --lean-keep-temp --lean-show-output
 ```
 
 This prints the exported JSON, the generated Lean file, and the command that re-runs it.
-That file is everything Lean was given.
+That file is everything Lean was given — including the `set_option`s, so re-running it
+reproduces the narration too.
 
 ## What is in scope today
 
@@ -403,4 +428,5 @@ module headers.
 | [`Crabber/WP.lean`](Crabber/WP.lean) | the weakest-precondition calculus and its soundness |
 | [`Crabber/VC.lean`](Crabber/VC.lean) | the per-block obligation, and the bridge to consecution |
 | [`Crabber/Soundness.lean`](Crabber/Soundness.lean) | the two meta-theorems |
+| [`Crabber/Explain.lean`](Crabber/Explain.lean) | what `--lean-show-steps` prints, and why the narration is written on this side |
 | [`Crabber/Samples/Walkthrough.lean`](Crabber/Samples/Walkthrough.lean) | the automation unrolled, one tactic at a time, for reading in an editor |

@@ -109,6 +109,23 @@ struct LeanVerifyOpts {
   bool keep_temp = false;
   /** Print Lean's complete output for a CFG that was not proved. */
   bool show_output = false;
+  /**
+   * Ask Lean to narrate the proof, and relay what it says.
+   *
+   * The report is otherwise one verdict per CFG, which answers "is Crab right"
+   * and says nothing about how that was established. This turns on the
+   * `crabber.explain` option in the generated file, under which the Lean side
+   * reports the data it read, each obligation, the arithmetic every block came
+   * down to, and the lemmas the result is assembled from.
+   *
+   * Narrating from *this* side would be easier -- the invariants and the blocks
+   * are all in memory here -- and it would be the same mistake `describe` is
+   * written to avoid: a description composed here is a claim about a proof this
+   * code did not perform, and it would keep reading plausibly after the two
+   * sides drifted apart. So every line of it comes from Lean, and this option
+   * only passes it through. See `lean/Crabber/Explain.lean`.
+   */
+  bool show_steps = false;
 };
 
 enum class LeanVerdict {
@@ -157,6 +174,15 @@ struct LeanResult {
    * gap is a missing fact or a genuinely weak invariant.
    */
   std::string counterexample;
+  /**
+   * Lean's narration of the proof, when `show_steps` asked for it.
+   *
+   * The lines Lean tagged as narration, with the tag taken off and nothing else
+   * changed. Present for a failing CFG too, where it stops at the obligation that
+   * did not go through -- which is the whole reason the stages are printed as they
+   * are produced rather than collected at the end.
+   */
+  std::string steps;
   /** Where the generated Lean file was left, when it was kept. */
   std::string lean_file;
 };

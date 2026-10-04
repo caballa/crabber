@@ -61,6 +61,17 @@ TestResult run_program(std::istream &is, const CrabIrBuilderOpts &irOpts,
         verifyWithLean(anaOpts.print_invariants_to_json, crabIR, leanOpts);
     for (auto const &r : results) {
       crab::outs() << describe(r) << "\n";
+      // How Lean got there, when it was asked to say. Indented under the verdict
+      // rather than in place of it: the verdict is the claim, and these are the
+      // steps behind it. Every line is Lean's; see LeanResult::steps.
+      if (!r.steps.empty()) {
+        crab::outs() << "  how Lean got there (its own report):\n";
+        std::istringstream steps(r.steps);
+        std::string line;
+        while (std::getline(steps, line)) {
+          crab::outs() << "    " << line << "\n";
+        }
+      }
       // Where the arithmetic ran out, in the program's own variables. It is an
       // assignment the proof could not rule out, not necessarily a reachable
       // one -- but it is the fastest way to see what fact is missing.
@@ -231,6 +242,12 @@ int main(int argc, char **argv) {
   app.add_flag("--lean-show-output", lean_show_output,
                "Print Lean's full output for a CFG that was not proved");
 
+  bool lean_show_steps = false;
+  app.add_flag("--lean-show-steps", lean_show_steps,
+               "Report the main proof steps: the program and invariants as Lean "
+               "read them, each obligation, the arithmetic every block came down "
+               "to, and the lemmas the result is assembled from");
+
   // Narrowing the question asked. A whole-program failure is reported at the
   // generated `crab_verify` command and nowhere more precise, because every
   // theorem under it comes from a quotation and quotations carry no source
@@ -300,6 +317,7 @@ int main(int argc, char **argv) {
   leanOpts.heartbeats = lean_heartbeats;
   leanOpts.keep_temp = lean_keep_temp;
   leanOpts.show_output = lean_show_output;
+  leanOpts.show_steps = lean_show_steps;
   leanOpts.cfg = lean_cfg;
   leanOpts.block = lean_block;
   if (!lean_block.empty()) {

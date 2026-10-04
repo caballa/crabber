@@ -177,8 +177,18 @@ void writeProofFile(const std::string &path, const std::string &jsonAbs,
                     const std::string &cfgName, const LeanVerifyOpts &opts) {
   std::ofstream ofs(path);
   ofs << "import CrabberJson.Elab\n"
-      << "set_option maxHeartbeats " << opts.heartbeats << "\n"
-      << "namespace CrabberJson.Generated\n"
+      << "set_option maxHeartbeats " << opts.heartbeats << "\n";
+  if (opts.show_steps) {
+    // Two options, and the second is not optional. Lean elaborates declaration
+    // bodies asynchronously, so the messages a *tactic* logs are appended after
+    // those the surrounding command logged: every block's arithmetic would come
+    // out after the result it feeds into, and the entry obligation's outcome
+    // after both. Narration read in the wrong order is worse than none, because
+    // it invites the reader to infer a dependency that runs the other way.
+    ofs << "set_option crabber.explain true\n"
+        << "set_option Elab.async false\n";
+  }
+  ofs << "namespace CrabberJson.Generated\n"
       << "crab_program " << leanString(jsonAbs) << " procedure "
       << leanString(cfgName) << "\n"
       << verifyCommand(opts) << "\n"
@@ -217,28 +227,43 @@ RunOutput runLean(const std::string &leanFile) {
   return {code, text};
 }
 
-/** First line of Lean's output, trimmed of its file:line:col prefix. */
+/**
+ * Lean's first error, trimmed of its file:line:col prefix.
+ *
+ * The first *error*, not the first line: with `--lean-show-steps` the narration
+ * comes out ahead of it, and before that distinction was drawn a failing CFG's
+ * detail would have been the opening line of the explanation.
+ */
 std::string firstMessage(const std::string &text) {
+  // Lean prefixes a diagnostic with "<path>:<line>:<col>: error: ".
+  const std::string marker = "error: ";
+  std::string msg;
   std::istringstream is(text);
   std::string line;
+  bool found = false;
   while (std::getline(is, line)) {
-    if (line.empty()) {
-      continue;
-    }
-    // Lean prefixes diagnostics with "<path>:<line>:<col>: error: ".
-    const std::string marker = "error: ";
     const size_t at = line.find(marker);
-    std::string msg = (at != std::string::npos) ? line.substr(at + marker.size())
-                                                : line;
-    // Lean's message ends in a colon introducing the detail below it. Whether
-    // that detail is printed depends on there being a counterexample, so the
-    // colon would otherwise dangle.
-    if (!msg.empty() && msg.back() == ':') {
-      msg.pop_back();
+    if (at != std::string::npos) {
+      msg = line.substr(at + marker.size());
+      found = true;
+      break;
     }
-    return msg;
+    // No error seen yet: remember the first non-empty line, which is the best
+    // that can be said if the output holds no error at all -- lake noise, say.
+    if (msg.empty() && !line.empty()) {
+      msg = line;
+    }
   }
-  return "no output";
+  if (!found && msg.empty()) {
+    return "no output";
+  }
+  // Lean's message ends in a colon introducing the detail below it. Whether
+  // that detail is printed depends on there being a counterexample, so the
+  // colon would otherwise dangle.
+  if (!msg.empty() && msg.back() == ':') {
+    msg.pop_back();
+  }
+  return msg;
 }
 
 LeanVerdict classify(const RunOutput &out) {
@@ -362,6 +387,37 @@ std::string extractCounterexample(const std::string &text) {
       out += ", ";
     }
     out += c;
+  }
+  return out;
+}
+
+/**
+ * Lean's narration, with its tag taken off and everything else left alone.
+ *
+ * Under `crabber.explain` the Lean side tags every line it narrates with the
+ * prefix below. **That tag is a contract with `Crabber.explainTag` in
+ * `lean/Crabber/Explain.lean`**; grep for it there before changing it here.
+ *
+ * It is needed because `lean` prints an error with a `<path>:<line>:<col>:` prefix
+ * and an info message with no prefix whatsoever, so nothing else in the output
+ * separates a line of narration from the text of a diagnostic -- or from anything
+ * lake chooses to print. Selecting by tag also means a message that spans several
+ * lines, as every reported goal does, needs no agreement between the two sides
+ * about where it ends.
+ *
+ * Nothing is reformatted. The goals are Lean's own pretty-printed output, and
+ * rewriting them here would be paraphrasing a proof this code did not perform.
+ */
+std::string extractSteps(const std::string &text) {
+  const std::string tag = "crabber| ";
+  std::istringstream is(text);
+  std::string line;
+  std::string out;
+  while (std::getline(is, line)) {
+    if (line.compare(0, tag.size(), tag) == 0) {
+      out += line.substr(tag.size());
+      out += "\n";
+    }
   }
   return out;
 }
@@ -491,6 +547,9 @@ std::vector<LeanResult> verifyWithLean(const std::string &jsonPath,
     r.block = opts.block;
     r.verdict = classify(out);
     r.output = out.text;
+    if (opts.show_steps) {
+      r.steps = extractSteps(out.text);
+    }
     if (r.verdict == LeanVerdict::OutOfScope) {
       r.detail = refusedConstruct(out.text);
     } else if (r.verdict != LeanVerdict::Proved) {

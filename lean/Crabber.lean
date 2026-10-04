@@ -26,6 +26,8 @@ the proof is indifferent to which domain produced the invariants.
   VC        — the per-block obligation + the adapter lemma     } proved
   Soundness — inductive_sound and assert_safe                  } proved
   Tactic    — `crab_vc`, the automation (untrusted)
+  Explain   — what `crabber --lean-show-steps` prints (untrusted, and used by
+              no proof: printers, and a report of Lean's own goals)
   Samples/* — one file per analysed program (data + theorems; these will be
               machine generated from Crab's JSON export, hand-written for now)
 
@@ -40,6 +42,7 @@ import Crabber.Semantics
 import Crabber.WP
 import Crabber.VC
 import Crabber.Soundness
+import Crabber.Explain
 import Crabber.Tactic
 import Crabber.Samples.Test1Bar
 import Crabber.Samples.Test1Foo
