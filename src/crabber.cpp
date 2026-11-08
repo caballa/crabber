@@ -201,6 +201,14 @@ int main(int argc, char **argv) {
   bool print_invariants = false;
   app.add_flag("--print-invariants", print_invariants, "Print invariants");
 
+  // On by default: the raw constraint systems are what a domain happens to hold,
+  // not what a reader can check against their intent. --no-normalize gets them
+  // back, which is what to reach for when a reported invariant looks wrong.
+  bool normalize = true;
+  app.add_flag("!--no-normalize,--normalize", normalize,
+               "Rewrite invariants into an equivalent, more readable form "
+               "(default on)");
+
   bool print_invariants_to_dot = false;
   app.add_flag("-p,--print-invariants-to-dot", print_invariants_to_dot, "Print invariants and analyzed CFG to dot format");
   
@@ -399,6 +407,7 @@ int main(int argc, char **argv) {
   anaOpts.print_invariants = print_invariants;
   anaOpts.print_invariants_to_dot = print_invariants_to_dot;
   anaOpts.print_invariants_to_json = print_invariants_to_json;
+  anaOpts.normalize = normalize;
   anaOpts.widening_delay = widening_delay;
   anaOpts.descending_iters = descending_iters;
   anaOpts.thresholds_size = thresholds_size;
