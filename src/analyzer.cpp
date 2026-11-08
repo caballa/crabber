@@ -2,6 +2,7 @@
 #include <crabber/analyzer.hpp>
 #include <crabber/crabir_builder.hpp>
 #include <crabber/domains.hpp>
+#include <crabber/normalize.hpp>
 
 #include <crab/analysis/inter/inter_params.hpp>
 #include <crab/analysis/inter/top_down_inter_analyzer.hpp>
@@ -128,6 +129,9 @@ const crab::checker::checks_db &CrabIrAnalyzerImpl::getChecks() const {
 void CrabIrAnalyzerImpl::write(crab::crab_os &os) const {
   if (m_crabAnalyzer) {
     auto &cg = m_crabIR.getCallGraph();
+    // dis-int has no constraint system to rewrite, so it keeps the domain's own
+    // printing whatever was asked for.
+    const bool norm = m_opts.normalize && supportsNormalization(m_opts.domain);
 
     os << "=== CrabIR ===\n";
     for (auto n : boost::make_iterator_range(cg.nodes())) {
@@ -159,7 +163,7 @@ void CrabIrAnalyzerImpl::write(crab::crab_os &os) const {
         auto curr = stack.back();
         stack.pop_back();
         auto invariants = m_crabAnalyzer->get_pre(cfg_ref.get(), curr);
-        os << curr << ": " << invariants << "\n";
+        os << curr << ": " << NormalizedInvariant(invariants, norm) << "\n";
         for (auto succ : cfg_ref.next_nodes(curr)) {
           if (visited.insert(succ).second) {
             stack.push_back(succ);
@@ -172,7 +176,9 @@ void CrabIrAnalyzerImpl::write(crab::crab_os &os) const {
       if (cfg_ref.has_exit()) {
         auto exit = cfg_ref.exit();
         os << exit << " on EXIT: "
-           << m_crabAnalyzer->get_post(cfg_ref.get(), exit) << "\n";
+           << NormalizedInvariant(m_crabAnalyzer->get_post(cfg_ref.get(), exit),
+                                  norm)
+           << "\n";
       }
     }
   }
@@ -182,6 +188,7 @@ void CrabIrAnalyzerImpl::write(crab::crab_os &os) const {
 void CrabIrAnalyzerImpl::write_to_dot() const {
   if (m_crabAnalyzer) {
     auto &cg = m_crabIR.getCallGraph();
+    const bool norm = m_opts.normalize && supportsNormalization(m_opts.domain);
     for (auto n : boost::make_iterator_range(cg.nodes())) {
       cfg_ref_t cfg_ref = n.get_cfg();
       if (cfg_ref.has_func_decl()) {
@@ -192,13 +199,15 @@ void CrabIrAnalyzerImpl::write_to_dot() const {
 	if (cfg_ref.has_exit()) {
 	  exit = cfg_ref.exit();
 	}
-	crab::cfg::cfg_to_dot<cfg_ref_t, crab_abstract_domain>(cfg_ref,
-		      [this, &cfg_name](const label_t &label) -> boost::optional<crab_abstract_domain> {
-			   return getPreInvariant(cfg_name, label);
+	// cfg_to_dot only ever streams the invariant type, so standing in the
+	// wrapper gets normalized text into the dot without editing Crab.
+	crab::cfg::cfg_to_dot<cfg_ref_t, NormalizedInvariant>(cfg_ref,
+		      [this, &cfg_name, norm](const label_t &label) -> boost::optional<NormalizedInvariant> {
+			   return NormalizedInvariant(getPreInvariant(cfg_name, label), norm);
 		      },
-		      [this, &cfg_name, &exit](const label_t &label) -> boost::optional<crab_abstract_domain> {
+		      [this, &cfg_name, &exit, norm](const label_t &label) -> boost::optional<NormalizedInvariant> {
 			   if (exit && *exit == label) {
-			     return getPostInvariant(cfg_name, label);
+			     return NormalizedInvariant(getPostInvariant(cfg_name, label), norm);
 			   }
 			   return boost::none;
 		      },
@@ -215,6 +224,7 @@ void CrabIrAnalyzerOpts::write(crab::crab_os &o) const {
   o << "Descending iterations : " << descending_iters << "\n";
   o << "Number of widening thresholds : " << thresholds_size << "\n";  
   o << "Run checker     : " << run_checker << "\n";
+  o << "Normalize invariants: " << normalize << "\n";
   o << "Print invariants: " << print_invariants << "\n";
   o << "Print invariants and CFG to dot format: " << print_invariants_to_dot << "\n";  
 }

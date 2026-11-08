@@ -20,13 +20,18 @@ struct CrabIrAnalyzerOpts {
   /// Path to write the invariants in JSON format ("" disables it, "-" is
   /// stdout).
   std::string print_invariants_to_json;
+  /// Rewrite inferred invariants into an equivalent, more readable form before
+  /// reporting them (see crabber/normalize.hpp). Ignored for the domains that
+  /// cannot produce a constraint system.
+  bool normalize;
 
   CrabIrAnalyzerOpts()
       : domain(AbstractDomain::ZONES),
 	widening_delay(2), descending_iters(1), thresholds_size(0),
 	run_checker(true),
 	print_invariants(false),
-	print_invariants_to_dot(false){}
+	print_invariants_to_dot(false),
+	normalize(true){}
   
   void write(crab::crab_os &o) const;
 };

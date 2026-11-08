@@ -1,5 +1,7 @@
 #include <crabber/json_export.hpp>
 
+#include <crabber/normalize.hpp>
+
 #include <crab/cfg/cfg_to_json.hpp>
 #include <crab/support/json.hpp>
 #include <crab/types/linear_constraints_to_json.hpp>
@@ -98,12 +100,20 @@ void writeInvariantsToJson(crab::crab_os &os, const CrabIrBuilder &crabIR,
     std::string cfg_name = cfg_ref.get_func_decl().get_func_name();
     // cfg_to_json emits every block, not only those reachable from the entry,
     // so an unreachable block is reported as bottom rather than going missing.
+    // Only layer 1 of the normalization applies here. Its result is still a
+    // constraint system, so the document's shape is unchanged and a consumer --
+    // Lean above all -- reads the same four relations as before. Layer 2 renders
+    // text, which has no place in a document meant to be computed with.
+    const bool norm =
+        anaOpts.normalize && supportsNormalization(anaOpts.domain);
     crab::cfg::cfg_to_json(
         cfg_ref, w,
-        [&analyzer, &cfg_name](const label_t &label, crab::json::writer &bw) {
+        [&analyzer, &cfg_name, norm](const label_t &label,
+                                     crab::json::writer &bw) {
           bw.key("invariant");
           crab_abstract_domain inv = analyzer.getPreInvariant(cfg_name, label);
-          crab::json::write(bw, inv.to_disjunctive_linear_constraint_system());
+          auto csts = inv.to_disjunctive_linear_constraint_system();
+          crab::json::write(bw, norm ? normalize(csts) : csts);
         });
   }
   w.end_array();

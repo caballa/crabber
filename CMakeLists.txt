@@ -58,6 +58,7 @@ add_executable(crabber
   src/analyzer.cpp
   src/json_export.cpp
   src/lean_verify.cpp
+  src/normalize.cpp
   src/domains/boxes_domain.cpp
   src/domains/dis_interval_domain.cpp    
   src/domains/interval_domain.cpp
@@ -129,9 +130,19 @@ if (TopLevel)
   # test-5 checks a specific invariant rather than an assertion outcome: with
   # widening thresholds, n must be in [0, 60] at block b1. Adding an assert would
   # make the property hold trivially, so match the printed invariant instead.
+  #
+  # Pinned twice, in both spellings. The pair is what makes --normalize testable
+  # at all: the same inferred invariant has to come out as the interval map the
+  # domain holds and as the chained bound a reader wants, so a normalizer that
+  # starts dropping or mangling a constraint fails here rather than quietly
+  # reporting something else.
   add_test(
     NAME test-5
-    COMMAND sh -c "$<TARGET_FILE:crabber> test-5.crabir -d int --widening-thresholds 10 --print-invariants | grep -Fx 'b1: ({}, {n -> [0, 60]})'"
+    COMMAND sh -c "$<TARGET_FILE:crabber> test-5.crabir -d int --widening-thresholds 10 --print-invariants | grep -Fx 'b1: {0 <= n <= 60}'"
+    WORKING_DIRECTORY ${crabber_SOURCE_DIR}/samples)
+  add_test(
+    NAME test-5-raw
+    COMMAND sh -c "$<TARGET_FILE:crabber> test-5.crabir -d int --widening-thresholds 10 --no-normalize --print-invariants | grep -Fx 'b1: ({}, {n -> [0, 60]})'"
     WORKING_DIRECTORY ${crabber_SOURCE_DIR}/samples)
   add_crabber_test(test-6  test-6.crabir  -d int)
   # The boxes domain is only available when Crab is built with LDD support.
