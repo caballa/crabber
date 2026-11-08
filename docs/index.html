@@ -11,6 +11,10 @@
           /* Post-invariants get their own colour: with several domains the
              entry rows already alternate between the two above. */
           --post-bg:#e6f6ec; --post-fg:#11633a;
+          /* assertion outcomes: proved / not proved / fails */
+          --ok-bg:#e6f6ec;   --ok-fg:#11633a;
+          --warn-bg:#fff4e0; --warn-fg:#8a5300;
+          --bad-bg:#ffebe9;  --bad-fg:#a40e26;
           /* token colours (light) */
           --t-comment:#6e7781; --t-keyword:#cf222e; --t-func:#8250df;
           --t-const:#0550ae;  --t-number:#0550ae;  --t-string:#0a3069;
@@ -20,6 +24,9 @@
     :root { --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --inv-bg:#2b2415; --inv-fg:#e3b341; --edge:#6b7681;
             --inv-bg2:#16233a; --inv-fg2:#79c0ff;
             --post-bg:#12261a; --post-fg:#7ee2a8;
+            --ok-bg:#12261a;   --ok-fg:#7ee2a8;
+            --warn-bg:#2b2415; --warn-fg:#e3b341;
+            --bad-bg:#2d1618;  --bad-fg:#ff9492;
             --t-comment:#8b949e; --t-keyword:#ff7b72; --t-func:#d2a8ff;
             --t-const:#79c0ff;  --t-number:#79c0ff;  --t-string:#a5d6ff;
             --t-type:#ffa657;   --t-var:#ffa657;      --t-label:#7ee787;
@@ -79,6 +86,22 @@
   .node h4 { margin: 0; padding: 4px 8px; border-bottom: 1px solid var(--border);
              font: 600 12px ui-monospace, monospace; color: var(--t-label); }
   .node .insts { padding: 4px 8px; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
+  /* A checked statement is tinted and badged; everything else reads as before. */
+  .node .inst { display: block; }
+  .node .inst.chk-safe, .node .inst.chk-warn, .node .inst.chk-error {
+    margin: 1px -8px; padding: 1px 8px 1px 4px; border-left: 3px solid transparent; }
+  .node .inst.chk-safe  { background: var(--ok-bg);   border-left-color: var(--ok-fg); }
+  .node .inst.chk-warn  { background: var(--warn-bg); border-left-color: var(--warn-fg); }
+  .node .inst.chk-error { background: var(--bad-bg);  border-left-color: var(--bad-fg); }
+  .chk-badge { display: inline-block; width: 1.1em; font-weight: 700; text-align: center; }
+  .chk-safe  > .chk-badge { color: var(--ok-fg); }
+  .chk-warn  > .chk-badge { color: var(--warn-fg); }
+  .chk-error > .chk-badge { color: var(--bad-fg); }
+  .cfg-tally { margin-left: 8px; padding: 1px 6px; border-radius: 10px;
+               font: 600 11px system-ui; vertical-align: 1px; }
+  .cfg-tally.chk-safe  { background: var(--ok-bg);   color: var(--ok-fg); }
+  .cfg-tally.chk-warn  { background: var(--warn-bg); color: var(--warn-fg); }
+  .cfg-tally.chk-error { background: var(--bad-bg);  color: var(--bad-fg); }
   .node .inv { padding: 3px 8px; border-bottom: 1px solid var(--border); font: 12px/1.4 ui-monospace, monospace;
                background: var(--inv-bg); color: var(--inv-fg); white-space: pre-wrap; word-break: break-word; }
   .node .inv.inv-b { background: var(--inv-bg2); color: var(--inv-fg2); }
@@ -165,12 +188,12 @@
        title="Drag to resize" tabindex="0" aria-label="Resize editor and output panes"></div>
   <div class="pane">
     <div class="tabs">
-      <button id="tab-text" class="active" data-view="text">Text</button>
-      <button id="tab-graph" data-view="graph">Graph</button>
+      <button id="tab-text" data-view="text">Text</button>
+      <button id="tab-graph" class="active" data-view="graph">Graph</button>
       <span class="note">CFG blocks with their invariants on entry, and on exit for the exit block</span>
     </div>
-    <pre id="out"></pre>
-    <div id="graph" hidden></div>
+    <pre id="out" hidden></pre>
+    <div id="graph"></div>
   </div>
 </main>
 <script src="examples.js"></script>
@@ -345,6 +368,59 @@ shareBtn.addEventListener('click', async () => {
 
 /* ================= CFG + invariants graph ================= */
 
+/* ---- Assertion outcomes ----
+   crabber already records them in the dot: the checker's verdict is emitted as
+   a comment line immediately before the statement it is about, e.g.
+
+     //// File:no-filename line:10 col:0 Result:  FAIL -- num of warnings=1
+     assert(-x <= -100)   /* loc(file=no-filename line=10 col=0) id=1 *\/
+
+   so no extra run is needed -- the verdict just has to be moved off its own
+   line and onto the statement, where it can be read at a glance. */
+const RE_CHECK = /^\/\/\/\/\s*File:.*?Result:\s*(.+)$/;
+const RE_LOC = /\s*\/\*\s*loc\([^)]*\)[^*]*\*\/\s*/g;
+
+/* Crab distinguishes a proof from a failure to prove, and the difference is the
+   whole point of reading these: a warning means the analysis could not show the
+   assertion holds, not that it is false. */
+const CHECK_INFO = {
+  safe:  { glyph: '✓', label: 'proved',
+           title: 'Proved: the assertion holds on every path the analysis admits' },
+  warn:  { glyph: '?',      label: 'not proved',
+           title: 'Not proved: this domain cannot show the assertion holds. ' +
+                  'It may still be true -- try a more precise domain' },
+  error: { glyph: '✗', label: 'fails',
+           title: 'Fails: the analysis found the assertion violated' },
+};
+
+function classifyCheck(s) {
+  if (/^OK\b/.test(s.trim())) return 'safe';
+  if (/num of errors=[1-9]/.test(s)) return 'error';
+  return 'warn';
+}
+
+/* Fold the verdict comments into the statements they describe, and drop the
+   `/* loc(...) *\/` debug info, which is noise once the verdict is shown. */
+function parseStmts(parts) {
+  const out = [];
+  let pending = null;
+  for (const p of parts) {
+    const cm = RE_CHECK.exec(p);
+    if (cm) { pending = classifyCheck(cm[1]); continue; }
+    out.push({ text: p.replace(RE_LOC, '').trim(), status: pending });
+    pending = null;
+  }
+  return out;
+}
+
+/* Totals per CFG, for the one-line summary over each graph. */
+function checkTally(g) {
+  const t = { safe: 0, warn: 0, error: 0 };
+  for (const id of Object.keys(g.blocks))
+    for (const s of g.blocks[id].insts) if (s.status) t[s.status]++;
+  return t;
+}
+
 /* Parse the Graphviz dot emitted by crabber's --print-invariants-to-dot into
    blocks, control-flow edges, per-block pre-invariants, and the post-invariant
    of the exit block. The dot is scanned as a whole (not line by line) because
@@ -363,7 +439,7 @@ function parseDot(dot) {
   while (m = reBlock.exec(dot)) {
     const parts = m[2].split('\\l').map(s => s.trim()).filter(s => s.length);
     const name = (parts.shift() || '').replace(/:$/, '');
-    blocks[m[1]] = { name, insts: parts };
+    blocks[m[1]] = { name, insts: parseStmts(parts) };
   }
   const reInv = /(NodePreInv0x[0-9a-f]+)\s*\[[^\]]*?label="([\s\S]*?)"\]/g;
   while (m = reInv.exec(dot)) invById[m[1]] = stripEnd(m[2]);
@@ -393,10 +469,17 @@ function simplifyPairs(s) {
     .replace(/\(\{\}\s*,\s*(\{[^{}]*\})\)/g, '$1');   // ({}, {Y}) -> {Y}
 }
 
-/* Tidy a single invariant string for display in a graph card. */
+/* Tidy a single invariant string for display in a graph card.
+   The two extremes get spelled out: a bare "true"/"false" in a card says far
+   less than naming what it means about the block. */
 function prettyInv(s) {
   const out = simplifyPairs(String(s).trim());
-  return out === '' ? 'top' : out;
+  // "top" is what simplifyPairs leaves of a raw ({}, {}) -- the un-normalized
+  // spelling, still seen with --no-normalize and on the dis-int fallback.
+  if (out === '' || out === '{}' || out === 'true' || out === 'top')
+    return '⊤ (no constraints)';
+  if (out === 'false' || out === '_|_') return '⊥ (unreachable)';
+  return out;
 }
 
 /* Assign each block to a layer (longest path from the entry over forward edges);
@@ -480,7 +563,20 @@ function buildNode(g, id, invList, postList) {
   if (b.insts.length) {
     const body = document.createElement('div');
     body.className = 'insts';
-    body.textContent = b.insts.map(decodeEnt).join('\n');
+    for (const s of b.insts) {
+      const line = document.createElement('div');
+      line.className = 'inst' + (s.status ? ' chk-' + s.status : '');
+      if (s.status) {
+        const info = CHECK_INFO[s.status];
+        const badge = document.createElement('span');
+        badge.className = 'chk-badge';
+        badge.textContent = info.glyph;
+        line.title = info.title;
+        line.appendChild(badge);
+      }
+      line.appendChild(document.createTextNode(decodeEnt(s.text)));
+      body.appendChild(line);
+    }
     el.appendChild(body);
   }
   (postList || []).forEach(iv => {
@@ -572,6 +668,20 @@ function renderGraph(container, graphs) {
     const title = document.createElement('div');
     title.className = 'cfg-title';
     title.textContent = 'CFG: ' + name;
+    // Whether the assertions came out is the first thing wanted from a run, so
+    // it goes next to the name rather than only on the statements below.
+    const t = checkTally(g);
+    if (t.safe || t.warn || t.error) {
+      for (const k of ['safe', 'warn', 'error']) {
+        if (!t[k]) continue;
+        const chip = document.createElement('span');
+        chip.className = 'cfg-tally chk-' + k;
+        chip.title = CHECK_INFO[k].title;
+        chip.textContent = CHECK_INFO[k].glyph + ' ' + t[k] + ' ' +
+                           CHECK_INFO[k].label;
+        title.appendChild(chip);
+      }
+    }
     container.appendChild(title);
 
     const canvas = document.createElement('div');
@@ -622,7 +732,10 @@ function readDots(M, stdout) {
   return dots;
 }
 
-let view = 'text';
+/* The graph is what the playground is for -- the blocks with their invariants
+   and the assertion outcomes on them -- so it opens on that; the text pane is
+   the full analyzer output, for when the graph is not enough. */
+let view = 'graph';
 function setView(v) {
   view = v;
   $('tab-text').classList.toggle('active', v === 'text');
@@ -734,6 +847,7 @@ runBtn.addEventListener('click', async () => {
 
 /* ---- Initialise ---- */
 loadInitialState();
+setView(view);                                     // paints the graph placeholder
 runBtn.textContent = 'Run';
 runBtn.disabled = false;
 </script>
