@@ -15,6 +15,10 @@
           --ok-bg:#e6f6ec;   --ok-fg:#11633a;
           --warn-bg:#fff4e0; --warn-fg:#8a5300;
           --bad-bg:#ffebe9;  --bad-fg:#a40e26;
+          /* Region fills, one per compared domain. Validated for both themes
+             against the card surface; the second also gets a dashed outline, so
+             which domain is which never rests on colour alone. */
+          --series-1:#2a78d6; --series-2:#eb6834;
           /* token colours (light) */
           --t-comment:#6e7781; --t-keyword:#cf222e; --t-func:#8250df;
           --t-const:#0550ae;  --t-number:#0550ae;  --t-string:#0a3069;
@@ -27,6 +31,8 @@
             --ok-bg:#12261a;   --ok-fg:#7ee2a8;
             --warn-bg:#2b2415; --warn-fg:#e3b341;
             --bad-bg:#2d1618;  --bad-fg:#ff9492;
+            /* The same two hues re-stepped for the dark surface, not flipped. */
+            --series-1:#3987e5; --series-2:#d95926;
             --t-comment:#8b949e; --t-keyword:#ff7b72; --t-func:#d2a8ff;
             --t-const:#79c0ff;  --t-number:#79c0ff;  --t-string:#a5d6ff;
             --t-type:#ffa657;   --t-var:#ffa657;      --t-label:#7ee787;
@@ -76,6 +82,36 @@
             min-height: 0; box-sizing: border-box; overflow: auto; white-space: pre-wrap; background: #8881; }
   #graph { min-height: 0; overflow: auto; padding: 12px; background: #8881; }
   #graph[hidden], #out[hidden] { display: none; }
+  /* A block and its region sit side by side; which side is chosen per block so
+     that expanding one pushes away from the graph's centre line. */
+  .node-slot { display: flex; align-items: flex-start; gap: 10px; }
+  .node-shape[hidden] { display: none; }
+  /* Reads as an action, not a caption: it is the one control on a block card,
+     and at muted 10px it went unnoticed. */
+  .shape-toggle { display: flex; align-items: center; gap: 6px; width: 100%;
+                  margin: 0; padding: 5px 8px; background: #8881; border: 0;
+                  border-top: 1px solid var(--border); color: var(--series-1);
+                  cursor: pointer; text-align: left; font: 600 11px system-ui; }
+  .shape-toggle:hover { background: #8882; text-decoration: underline; }
+  .shape-toggle:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+  .shape-toggle svg { flex: none; }
+  .sh-ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+            margin-bottom: 10px; font-size: 12px; }
+  .sh-ctl select, #sh-pick select { font-size: 12px; }
+  #sh-pick { display: flex; gap: 8px; align-items: center; font-size: 12px;
+             color: var(--muted); margin-left: 12px; }
+  #sh-pick[hidden] { display: none; }
+  .sh-plot { background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
+  .sh-legend { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0 0; font-size: 12px; }
+  .sh-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+            margin-right: 5px; vertical-align: -1px; }
+  .sh-note { color: var(--muted); font-size: 12px; margin-top: 8px; max-width: 60ch; }
+  .sh-note strong { color: var(--warn-fg); font-weight: 600; }
+  .sh-axis { stroke: var(--muted); stroke-width: 1; opacity: .6; }
+  .sh-grid { stroke: var(--border); stroke-width: .5; opacity: .5; }
+  .sh-tick { fill: var(--muted); font: 10px ui-monospace, monospace; }
+  .sh-vlabel { fill: var(--fg); font: 600 11px system-ui; }
+  .sh-lattice { fill: var(--muted); opacity: .45; }
   .cfg-title { font: 600 13px system-ui; margin: 2px 0 10px; }
   .cfg-canvas { position: relative; width: max-content; min-width: 100%; margin: 0 auto 24px; }
   .layers { position: relative; z-index: 1; display: flex; flex-direction: column;
@@ -190,6 +226,7 @@
     <div class="tabs">
       <button id="tab-text" data-view="text">Text</button>
       <button id="tab-graph" class="active" data-view="graph">Graph</button>
+      <span id="sh-pick" hidden></span>
       <span class="note">CFG blocks with their invariants on entry, and on exit for the exit block</span>
     </div>
     <pre id="out" hidden></pre>
@@ -197,6 +234,7 @@
   </div>
 </main>
 <script src="examples.js"></script>
+<script src="geometry.js"></script>
 <script src="crabber.js"></script>
 <script>
 const example = `procedure("foo")
@@ -583,7 +621,46 @@ function buildNode(g, id, invList, postList) {
     el.appendChild(buildInvRow(iv, 'inv inv-post',
       'Invariant on exit from this block (after the last statement)'));
   });
+  // Collapsed by default: a plot per block would treble the graph's height and
+  // bury the control flow, which is what the graph is for. The region is one
+  // click away instead, and full size when it arrives.
+  if (shapeCtx && shapeCtx.byLabel.has(b.name)) {
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'shape-toggle';
+    t.dataset.label = b.name;
+    const open = shapeOpen.has(b.name);
+    t.setAttribute('aria-expanded', String(open));
+    // A picture of what the click produces -- a shaded region inside a pair of
+    // axes -- so the control is findable without reading it.
+    const icon = document.createElementNS(SVGNS, 'svg');
+    icon.setAttribute('width', '12'); icon.setAttribute('height', '12');
+    icon.setAttribute('viewBox', '0 0 12 12');
+    icon.setAttribute('aria-hidden', 'true');
+    const area = document.createElementNS(SVGNS, 'path');
+    area.setAttribute('d', 'M2.5 10 H9.5 V5.5 L2.5 8.5 Z');
+    area.setAttribute('fill', 'currentColor');
+    area.setAttribute('fill-opacity', '.4');
+    const axes = document.createElementNS(SVGNS, 'path');
+    axes.setAttribute('d', 'M1.5 1 V10.5 H11');
+    axes.setAttribute('fill', 'none');
+    axes.setAttribute('stroke', 'currentColor');
+    axes.setAttribute('stroke-width', '1.2');
+    icon.appendChild(area); icon.appendChild(axes);
+    t.appendChild(icon);
+    const lbl = document.createElement('span');
+    lbl.className = 'shape-label';
+    lbl.textContent = shapeLabelText(open);
+    t.appendChild(lbl);
+    el.appendChild(t);
+  }
   return el;
+}
+
+/* Names the action, and names the axes while collapsed so the pair does not
+   have to be read off the tab bar. */
+function shapeLabelText(open) {
+  return open ? 'hide plot' : `plot ${shapeCtx.x} vs ${shapeCtx.y}`;
 }
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -694,7 +771,29 @@ function renderGraph(container, graphs) {
     for (const lyr of layers) {
       const row = document.createElement('div');
       row.className = 'layer';
-      for (const id of lyr) { nodeEl[id] = buildNode(g, id, invs[id], posts[id]); row.appendChild(nodeEl[id]); }
+      lyr.forEach((id, i) => {
+        const card = buildNode(g, id, invs[id], posts[id]);
+        nodeEl[id] = card;                       // edges anchor to the card, not the slot
+        const slot = document.createElement('div');
+        slot.className = 'node-slot';
+        const holder = document.createElement('div');
+        holder.className = 'node-shape';
+        holder.hidden = true;
+        // Blocks left of their layer's centre open leftwards and the rest open
+        // rightwards, so expanding one pushes away from the graph's centre line
+        // instead of shoving the whole row sideways. A layer holding one block
+        // has no left half, so it opens rightwards like anything else unpaired.
+        if (i < (lyr.length - 1) / 2) { slot.appendChild(holder); slot.appendChild(card); }
+        else { slot.appendChild(card); slot.appendChild(holder); }
+        // Re-rendering (a new run, or a different pair of axes) keeps whatever
+        // was open open: the axes are usually changed to look again at the block
+        // already being looked at.
+        if (shapeOpen.has(g.blocks[id].name) && shapeCtx) {
+          holder.appendChild(shapePanel(g.blocks[id].name));
+          holder.hidden = false;
+        }
+        row.appendChild(slot);
+      });
       layersDiv.appendChild(row);
     }
     canvas.appendChild(svg);
@@ -705,6 +804,19 @@ function renderGraph(container, graphs) {
     // Expand/collapse a large invariant, then re-route the edges since the
     // block (and everything below it) changed height.
     canvas.addEventListener('click', e => {
+      const shape = e.target.closest('.shape-toggle');
+      if (shape) {
+        const holder = shape.closest('.node-slot').querySelector('.node-shape');
+        if (!holder.children.length) holder.appendChild(shapePanel(shape.dataset.label));
+        holder.hidden = !holder.hidden;
+        if (holder.hidden) shapeOpen.delete(shape.dataset.label);
+        else shapeOpen.add(shape.dataset.label);
+        shape.setAttribute('aria-expanded', String(!holder.hidden));
+        // Only the label: overwriting the button would take the icon with it.
+        shape.querySelector('.shape-label').textContent = shapeLabelText(!holder.hidden);
+        redraw();                                // the block moved; re-route the edges
+        return;
+      }
       const btn = e.target.closest('.inv-toggle');
       if (!btn) return;
       const box = btn.previousElementSibling;
@@ -716,10 +828,360 @@ function renderGraph(container, graphs) {
       redraw();
     });
   }
+  const notes = shapeNotes();
+  if (notes) container.appendChild(notes);
+}
+
+
+/* ---- Shapes: one plot per block, all on one scale ---- */
+
+/* The chosen axes persist across runs, so re-running after an edit does not
+   throw away the pair you were looking at. */
+let shapeX = '', shapeY = '';
+
+/* Which blocks have their region open, by label, so a re-render restores them. */
+const shapeOpen = new Set();
+
+/* Every block of every run, as { label, perRun: [{ label, polys, dropped }] }.
+   One entry per disjunct, because a powerset or value-partitioning domain holds
+   several regions at once and drawing their union as one shape would claim a
+   precision the domain does not have. */
+function shapeData(runs, x, y) {
+  const order = blockOrder(runs);
+  return order.map(label => ({
+    label,
+    perRun: runs.map(run => {
+      const blk = findJsonBlock(run, label);
+      const dropped = { ne: 0, gaveUp: false };
+      if (!blk) return { label: run.label, polys: null, dropped, kind: 'missing' };
+      const iv = blk.invariant || {};
+      if (iv.kind === 'true') return { label: run.label, polys: 'all', dropped, kind: 'true' };
+      if (iv.kind === 'false') return { label: run.label, polys: [], dropped, kind: 'false' };
+      const polys = [];
+      for (const dj of (iv.disjuncts || [])) {
+        const cons = dj.map(CrabGeom.fromJson).filter(Boolean);
+        const pr = CrabGeom.project(cons, x, y);
+        dropped.ne += pr.dropped.ne;
+        dropped.gaveUp = dropped.gaveUp || pr.dropped.gaveUp;
+        const box = CrabGeom.box(pr.cons, x, y);
+        const poly = CrabGeom.polygon(pr.cons, x, y, box, dropped);
+        if (poly.length) polys.push({ poly, box });
+      }
+      return { label: run.label, polys, dropped, kind: 'disj' };
+    }),
+  }));
+}
+
+function findJsonBlock(run, label) {
+  for (const cfg of (run.json?.cfgs || []))
+    for (const b of (cfg.blocks || [])) if (b.label === label) return b;
+  return null;
+}
+
+/* Blocks in the order the graph lays them out, so the plots read entry to exit
+   rather than in whatever order the document happens to list them. */
+function blockOrder(runs) {
+  const seen = [];
+  if (lastGraphs) {
+    for (const { g } of lastGraphs) {
+      const { layers } = layoutGraph(g);
+      for (const lyr of layers) for (const id of lyr) {
+        const n = g.blocks[id].name;
+        if (!seen.includes(n)) seen.push(n);
+      }
+    }
+  }
+  for (const run of runs)
+    for (const cfg of (run.json?.cfgs || []))
+      for (const b of (cfg.blocks || [])) if (!seen.includes(b.label)) seen.push(b.label);
+  return seen;
+}
+
+/* Variables that actually appear in some invariant, which is what can be
+   plotted -- a variable the domain says nothing about has no region. */
+function shapeVars(runs) {
+  const vs = new Set();
+  for (const run of runs)
+    for (const cfg of (run.json?.cfgs || []))
+      for (const b of (cfg.blocks || []))
+        for (const dj of (b.invariant?.disjuncts || []))
+          for (const c of dj)
+            for (const [, v] of (c.terms || [])) vs.add(v);
+  return [...vs].sort();
+}
+
+/* One view box for every plot. Comparing block to block is the point of showing
+   them side by side, and a per-plot scale would make equal regions look
+   different and different ones look the same. */
+function shapeView(data) {
+  let lo = Infinity, hi = -Infinity, loY = Infinity, hiY = -Infinity;
+  // Which way regions run off, not merely whether they do. A region unbounded
+  // above has no finite extent to measure there, so the view has to be grown
+  // in that direction on purpose -- sizing it from the finite part alone
+  // collapses the axis and shows a sliver of a region that fills the plane.
+  const off = { xhi: false, xlo: false, yhi: false, ylo: false };
+  for (const blk of data)
+    for (const r of blk.perRun) {
+      if (!Array.isArray(r.polys)) continue;
+      for (const { poly, box } of r.polys)
+        for (const [px, py] of poly) {
+          // A vertex sitting on the clip box is the region running off, not a
+          // real corner: it must not stretch the view to the clip box's size.
+          let onEdge = false;
+          if (px >= box.hi - 1e-6) { off.xhi = true; onEdge = true; }
+          if (px <= box.lo + 1e-6) { off.xlo = true; onEdge = true; }
+          if (py >= box.hi - 1e-6) { off.yhi = true; onEdge = true; }
+          if (py <= box.lo + 1e-6) { off.ylo = true; onEdge = true; }
+          if (onEdge) continue;
+          lo = Math.min(lo, px); hi = Math.max(hi, px);
+          loY = Math.min(loY, py); hiY = Math.max(hiY, py);
+        }
+    }
+  if (!isFinite(lo)) { lo = 0; hi = 4; }
+  if (!isFinite(loY)) { loY = 0; hiY = 4; }
+  const padX = Math.max(1, (hi - lo) * 0.18), padY = Math.max(1, (hiY - loY) * 0.18);
+  let x0 = lo - padX, x1 = hi + padX, y0 = loY - padY, y1 = hiY + padY;
+  // Grow the sides the regions leave through, so the shape visibly reaches the
+  // edge and the note about continuing has something to describe.
+  const reach = Math.max(4, Math.max(x1 - x0, y1 - y0) * 0.6);
+  if (off.xhi) x1 += reach;
+  if (off.xlo) x0 -= reach;
+  if (off.yhi) y1 += reach;
+  if (off.ylo) y0 -= reach;
+  const unbounded = off.xhi || off.xlo || off.yhi || off.ylo;
+  return { x0, x1, y0, y1, unbounded };
+}
+
+/* A tick step that lands on 1, 2 or 5 times a power of ten. */
+function niceStep(span, target) {
+  const raw = span / Math.max(1, target);
+  const mag = Math.pow(10, Math.floor(Math.log10(raw) || 0));
+  for (const m of [1, 2, 5, 10]) if (mag * m >= raw) return mag * m;
+  return mag * 10;
+}
+
+/* Top padding leaves a band above the plot for the y variable's name, so it
+   cannot sit on top of the topmost tick label. */
+const SH_W = 240, SH_H = 196, SH_PAD = { l: 34, r: 8, t: 18, b: 26 };
+
+function shapePlot(blk, view, x, y) {
+  const svg = document.createElementNS(SVGNS, 'svg');
+  svg.setAttribute('class', 'sh-plot');
+  svg.setAttribute('width', SH_W);
+  svg.setAttribute('height', SH_H);
+  const iw = SH_W - SH_PAD.l - SH_PAD.r, ih = SH_H - SH_PAD.t - SH_PAD.b;
+  const sx = v => SH_PAD.l + (v - view.x0) / (view.x1 - view.x0) * iw;
+  const sy = v => SH_PAD.t + ih - (v - view.y0) / (view.y1 - view.y0) * ih;
+  const add = (tag, attrs, cls) => {
+    const el = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    if (cls) el.setAttribute('class', cls);
+    svg.appendChild(el);
+    return el;
+  };
+
+  // Grid and ticks, recessive.
+  const stepX = niceStep(view.x1 - view.x0, 4), stepY = niceStep(view.y1 - view.y0, 4);
+  for (let v = Math.ceil(view.x0 / stepX) * stepX; v <= view.x1; v += stepX) {
+    add('line', { x1: sx(v), y1: SH_PAD.t, x2: sx(v), y2: SH_PAD.t + ih }, 'sh-grid');
+    const t = add('text', { x: sx(v), y: SH_H - 14, 'text-anchor': 'middle' }, 'sh-tick');
+    t.textContent = String(Math.round(v * 100) / 100);
+  }
+  for (let v = Math.ceil(view.y0 / stepY) * stepY; v <= view.y1; v += stepY) {
+    add('line', { x1: SH_PAD.l, y1: sy(v), x2: SH_PAD.l + iw, y2: sy(v) }, 'sh-grid');
+    const t = add('text', { x: SH_PAD.l - 4, y: sy(v) + 3, 'text-anchor': 'end' }, 'sh-tick');
+    t.textContent = String(Math.round(v * 100) / 100);
+  }
+  // The axes themselves, where zero is in view.
+  if (view.x0 <= 0 && view.x1 >= 0)
+    add('line', { x1: sx(0), y1: SH_PAD.t, x2: sx(0), y2: SH_PAD.t + ih }, 'sh-axis');
+  if (view.y0 <= 0 && view.y1 >= 0)
+    add('line', { x1: SH_PAD.l, y1: sy(0), x2: SH_PAD.l + iw, y2: sy(0) }, 'sh-axis');
+
+  // Regions are clipped to the plot rect: they are cut to a box far wider than
+  // the view, so an unbounded one would otherwise paint over the tick labels on
+  // its way out.
+  const clipId = 'shclip' + (shapePlot.n = (shapePlot.n || 0) + 1);
+  const defs = document.createElementNS(SVGNS, 'defs');
+  const cp = document.createElementNS(SVGNS, 'clipPath');
+  cp.setAttribute('id', clipId);
+  const cr = document.createElementNS(SVGNS, 'rect');
+  for (const [k, v] of Object.entries({ x: SH_PAD.l, y: SH_PAD.t, width: iw, height: ih }))
+    cr.setAttribute(k, v);
+  cp.appendChild(cr); defs.appendChild(cp); svg.appendChild(defs);
+  const layer = document.createElementNS(SVGNS, 'g');
+  layer.setAttribute('clip-path', `url(#${clipId})`);
+  svg.appendChild(layer);
+  const addIn = (tag, attrs) => {
+    const el = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    layer.appendChild(el);
+    return el;
+  };
+
+  // Two domains overlap, so both are translucent and the second is outlined
+  // dashed -- which of them is which never rests on colour alone.
+  blk.perRun.forEach((r, i) => {
+    const col = `var(--series-${i + 1})`;
+    if (r.polys === 'all') {
+      addIn('rect', { x: SH_PAD.l, y: SH_PAD.t, width: iw, height: ih,
+                      fill: col, 'fill-opacity': 0.12, stroke: col,
+                      'stroke-dasharray': '2 3', 'stroke-opacity': 0.5 });
+      return;
+    }
+    if (!Array.isArray(r.polys)) return;
+    for (const { poly } of r.polys) {
+      const pts = poly.map(p => `${sx(p[0])},${sy(p[1])}`).join(' ');
+      if (poly.length === 1) {
+        addIn('circle', { cx: sx(poly[0][0]), cy: sy(poly[0][1]), r: 3.5, fill: col });
+      } else if (poly.length === 2) {
+        // A region pinned to a line by an equality: no area to fill.
+        addIn('polyline', { points: pts, fill: 'none', stroke: col, 'stroke-width': 2,
+                            'stroke-dasharray': i ? '5 3' : 'none' });
+      } else {
+        addIn('polygon', { points: pts, fill: col, 'fill-opacity': 0.22,
+                           stroke: col, 'stroke-width': 2,
+                           'stroke-dasharray': i ? '5 3' : 'none' });
+      }
+    }
+  });
+
+  // Axis names, once per plot, so a plot read on its own still says what it is.
+  // An arrow so the name reads as the axis it labels rather than as a stray
+  // value sitting in the corner.
+  const xl = add('text', { x: SH_PAD.l + iw, y: SH_H - 3, 'text-anchor': 'end' }, 'sh-vlabel');
+  xl.textContent = x + ' →';
+  const yl = add('text', { x: 3, y: 11 }, 'sh-vlabel');
+  yl.textContent = '↑ ' + y;
+  return svg;
+}
+
+/* Everything the graph needs to draw a region beside a block: the projected
+   regions per block, the one scale they all share, and the caveats that go
+   under the graph. Null when nothing can be drawn at all, which is what hides
+   the axis pickers and the per-block toggles. */
+let shapeCtx = null;
+
+function buildShapeCtx(runs) {
+  if (!runs || !runs.length) return null;
+  const withDoc = runs.filter(r => r.json);
+  if (!withDoc.length) return null;              // no constraint system anywhere
+  const vars = shapeVars(runs);
+  if (vars.length < 2) return null;              // a region needs two variables
+  if (!vars.includes(shapeX)) shapeX = vars[0];
+  if (!vars.includes(shapeY) || shapeY === shapeX) shapeY = vars.find(v => v !== shapeX);
+  const data = shapeData(runs, shapeX, shapeY);
+  const view = shapeView(data);
+  const byLabel = new Map(data.map(b => [b.label, b]));
+  const flags = { ne: false, gaveUp: false, bottom: false,
+                  noDoc: runs.filter(r => !r.json) };
+  for (const blk of data)
+    for (const r of blk.perRun) {
+      flags.ne = flags.ne || r.dropped.ne > 0;
+      flags.gaveUp = flags.gaveUp || r.dropped.gaveUp;
+      if (r.kind === 'false') flags.bottom = true;
+    }
+  return { vars, data, byLabel, view, flags, runs, x: shapeX, y: shapeY };
+}
+
+/* The axis pickers live in the tab bar: they apply to every block at once, so
+   repeating them per card would suggest they do not. */
+function renderShapePickers() {
+  const host = $('sh-pick');
+  host.innerHTML = '';
+  if (!shapeCtx) { host.hidden = true; return; }
+  host.hidden = view !== 'graph';
+  const mkSel = (label, cur, onPick) => {
+    const wrap = document.createElement('label');
+    // Named for the axis, not "x" and "y": programs have variables called x and
+    // y, and a picker labelled "x" holding a variable called x reads as nonsense.
+    wrap.textContent = label + ' ';
+    const sel = document.createElement('select');
+    for (const v of shapeCtx.vars) {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v; o.selected = v === cur;
+      sel.appendChild(o);
+    }
+    sel.addEventListener('change', () => {
+      onPick(sel.value);
+      shapeCtx = buildShapeCtx(lastRuns);
+      renderShapePickers();
+      renderGraph($('graph'), lastGraphs);
+    });
+    wrap.appendChild(sel);
+    return wrap;
+  };
+  host.appendChild(mkSel('region:', shapeCtx.x, v => {
+    shapeX = v; if (shapeY === v) shapeY = shapeCtx.vars.find(u => u !== v);
+  }));
+  host.appendChild(mkSel('vs', shapeCtx.y, v => {
+    shapeY = v; if (shapeX === v) shapeX = shapeCtx.vars.find(u => u !== v);
+  }));
+}
+
+/* The caveats, under the graph rather than on every card. */
+function shapeNotes() {
+  if (!shapeCtx) return null;
+  const f = shapeCtx.flags, notes = [];
+  notes.push('A region is the block’s invariant projected onto ' + shapeCtx.x +
+             ' and ' + shapeCtx.y + ', with the other variables eliminated. ' +
+             'Every region shares one scale, so they can be compared.');
+  if (shapeCtx.view.unbounded)
+    notes.push('A region that reaches a plot edge continues beyond it — the ' +
+               'invariant does not bound it in that direction.');
+  if (f.noDoc.length)
+    notes.push('<strong>' + f.noDoc.map(r => r.label).join(', ') +
+               ' has no region:</strong> it provides no constraint system, so ' +
+               'there is nothing to project.');
+  if (f.ne)
+    notes.push('<strong>Some ≠ constraints were dropped.</strong> A disequation ' +
+               'excludes a line, which a convex region cannot express, so the shape ' +
+               'drawn is a superset of the real one by a set of zero area.');
+  if (f.gaveUp)
+    notes.push('<strong>Elimination was cut short</strong> on at least one block, so ' +
+               'its region may be larger than the invariant allows.');
+  notes.push('Variables are integers; a region is the real relaxation, so not ' +
+             'every point in it is a reachable state.');
+  const nd = document.createElement('div');
+  nd.className = 'sh-note';
+  nd.innerHTML = notes.join('<br>');
+  return nd;
+}
+
+/* The expanded region for one block, built on demand. */
+function shapePanel(label) {
+  const blk = shapeCtx.byLabel.get(label);
+  const wrap = document.createElement('div');
+  if (!blk) return wrap;
+  wrap.appendChild(shapePlot(blk, shapeCtx.view, shapeCtx.x, shapeCtx.y));
+  if (blk.perRun.every(r => r.kind === 'false')) {
+    const n = document.createElement('div');
+    n.className = 'sh-note';
+    n.style.margin = '2px 0 0';
+    n.textContent = '⊥ unreachable';
+    wrap.appendChild(n);
+  }
+  // With two domains the plot needs to say which is which, and it is read on
+  // its own rather than next to a shared legend.
+  if (shapeCtx.runs.length > 1) {
+    const leg = document.createElement('div');
+    leg.className = 'sh-legend';
+    shapeCtx.runs.forEach((r, i) => {
+      const s = document.createElement('span');
+      const k = document.createElement('span');
+      k.className = 'sh-key';
+      k.style.background = `var(--series-${i + 1})`;
+      s.appendChild(k);
+      s.appendChild(document.createTextNode(r.label + (i ? ' (dashed)' : ' (solid)')));
+      leg.appendChild(s);
+    });
+    wrap.appendChild(leg);
+  }
+  return wrap;
 }
 
 /* ---- Output views: keep the last run's text + merged graphs, switch between them ---- */
-let lastText = '', lastGraphs = null;
+let lastText = '', lastGraphs = null, lastRuns = null;
 
 function readDots(M, stdout) {
   const dots = [], seen = new Set();
@@ -738,10 +1200,11 @@ function readDots(M, stdout) {
 let view = 'graph';
 function setView(v) {
   view = v;
-  $('tab-text').classList.toggle('active', v === 'text');
-  $('tab-graph').classList.toggle('active', v === 'graph');
+  for (const t of ['text', 'graph'])
+    $('tab-' + t).classList.toggle('active', v === t);
   $('out').hidden = v !== 'text';
   $('graph').hidden = v !== 'graph';
+  $('sh-pick').hidden = v !== 'graph' || !shapeCtx;
   if (v === 'graph') renderGraph($('graph'), lastGraphs);
 }
 $('tab-text').addEventListener('click', () => setView('text'));
@@ -764,16 +1227,27 @@ async function analyzeWith(domain) {
   if (extra) args.push(...extra.split(/\s+/));
   if ($('inv').checked) args.push('--print-invariants');
   args.push('--print-invariants-to-dot');          // always emit dot so the Graph tab is ready
+  // The dot is what the graph reads, but it carries invariants as text. The
+  // Shapes tab needs the coefficients as numbers, which is what the JSON
+  // document has, so both are asked for and each view reads the one that suits
+  // it. One analysis, two serializations -- not two runs.
+  args.push('--print-invariants-to-json', '/inv.json');
   try {
     M.FS.writeFile('/prog.crabir', src.value);
     M.callMain(args);
   } catch (e) {
     buf += '\n[aborted] ' + String(e).split('\n')[0] + '\n';
   }
+  // dis-int has no constraint system, so it aborts the JSON export; the graph
+  // and text views still work, and the Shapes tab reports what it cannot draw.
+  let json = null;
+  try { json = JSON.parse(M.FS.readFile('/inv.json', { encoding: 'utf8' })); }
+  catch (e) {}
   // Hide the "Writing 'x.crab.dot'..." lines (an artifact of the graph) and
   // tidy the invariant pairs the same way the graph does.
   const text = simplifyPairs(buf.replace(/^Writing '[^']+\.crab\.dot'\.\.\.\n?/gm, ''));
-  return { domain, label: DOMAIN_LABEL[domain] || domain, text, dots: readDots(M, buf) };
+  return { domain, label: DOMAIN_LABEL[domain] || domain, text,
+           dots: readDots(M, buf), json };
 }
 
 /* ---- Run: analyze the primary domain, and a second one if comparing ---- */
@@ -788,7 +1262,11 @@ runBtn.addEventListener('click', async () => {
   lastText = runs.length === 1 ? runs[0].text
     : runs.map(r => `##### domain: ${r.label} (${r.domain}) #####\n` + r.text).join('\n');
   $('out').textContent = lastText;
+  lastRuns = runs;
+  // The graph first: the regions are ordered and labelled off it.
   lastGraphs = buildUnifiedGraphs(runs);
+  shapeCtx = buildShapeCtx(runs);
+  renderShapePickers();
   if (view === 'graph') renderGraph($('graph'), lastGraphs);
 });
 

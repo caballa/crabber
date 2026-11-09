@@ -15,8 +15,9 @@ done
 python3 "$HERE/gen-examples.py"
 
 mkdir -p "$DOCS"
-cp "$HERE/index.html" "$HERE/crabber.js" "$HERE/crabber.wasm" "$HERE/examples.js" "$DOCS/"
+cp "$HERE/index.html" "$HERE/crabber.js" "$HERE/crabber.wasm" "$HERE/examples.js" \
+   "$HERE/geometry.js" "$DOCS/"
 touch "$DOCS/.nojekyll"
-echo ">> updated $DOCS  (index.html, crabber.js, crabber.wasm, examples.js)"
+echo ">> updated $DOCS  (index.html, crabber.js, crabber.wasm, examples.js, geometry.js)"
 echo ">> commit + push docs/ to publish, e.g.:"
 echo "     git add docs && git commit -m 'Update WASM playground' && git push"
